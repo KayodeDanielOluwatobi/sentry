@@ -1,198 +1,236 @@
 "use client";
 
 import { useState } from "react";
-import BatteryArc from "@/components/BatteryArc";
-import BentoCard from "@/components/BentoCard";
+import { Zap, Sun, Moon } from "lucide-react";
 import BatteryPercentage from "@/components/BatteryPercentage";
 import GridStatus from "@/components/GridStatus";
-import VoltageWaveform from "@/components/VoltageWaveform";
-import GridSignalRings from "@/components/GridSignalRings";
 import BatteryTemperature from "@/components/BatteryTemperature";
+import LoadManagement from "@/components/LoadManagement";
+import TotalLoad from "@/components/TotalLoad";
+import PillNav, { NavItem } from "@/components/PillNav";
+import MobileNav from "@/components/MobileNav";
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isCharging, setIsCharging] = useState(true);
   const [gridState, setGridState] = useState<"online" | "offline" | "unstable">("online");
   const gridStates = ["online", "offline", "unstable"] as const;
-  // Temperature toggle: cycles through Optimal (<45), Warm (45-60), Critical (>60)
+  const [activeTab, setActiveTab] = useState<NavItem>("Dashboard");
+  
   const tempValues = [25, 52, 65] as const;
   const [tempIdx, setTempIdx] = useState(0);
+  const [soc, setSoc] = useState(89);
+  const [inverterMax, setInverterMax] = useState(1500);
+  const [currentLoad, setCurrentLoad] = useState(450);
+
   const temperature = tempValues[tempIdx];
-  const tempLabel = temperature < 45 ? "Optimal" : temperature < 60 ? "Warm" : "Critical";
   const isDark = theme === "dark";
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: isDark ? "#080808" : "#ebf0f5", // matches the glassy vibe
+        background: isDark ? "#080808" : "#ebf0f5",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "4rem 2rem",
+        padding: "1rem",
         fontFamily: "var(--font-google-sans), sans-serif",
         transition: "background 0.4s ease",
         color: isDark ? "#ffffff" : "#111111",
       }}
     >
-      <div style={{ width: "100%", maxWidth: "1200px" }}>
+      <div style={{ width: "100%", maxWidth: "1310px" }}>
 
-        {/* Header & Controls */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3rem" }}>
+        {/* ── Header Section ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
           <div>
-            <h1 style={{ fontSize: "2.4rem", fontWeight: 700, margin: 0, letterSpacing: "-0.03em" }}>Energy Center</h1>
-            <p style={{ marginTop: "0.5rem", color: isDark ? "#888" : "#666", fontSize: "0.95rem" }}>
-              Responsive Bento Grid Dashboard
+            <h1 style={{ fontSize: "1.8rem", fontWeight: 700, margin: 0, letterSpacing: "-0.03em" }}>Energy Center</h1>
+            <p style={{ marginTop: "0.1rem", color: isDark ? "#888" : "#666", fontSize: "0.8rem", letterSpacing: "0.01em" }}>
+              Dynamic Power Intelligence
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: "1rem" }}>
-            <button
-              onClick={() => setIsCharging(!isCharging)}
-              style={{
-                padding: "0.8rem 1.5rem",
-                borderRadius: "999px",
-                border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
-                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)",
-                color: isDark ? "#fff" : "#111",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-            >
-              Toggle Charging
-            </button>
-            <button
-              onClick={() => setGridState(s => gridStates[(gridStates.indexOf(s) + 1) % 3])}
-              style={{
-                padding: "0.8rem 1.5rem",
-                borderRadius: "999px",
-                border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
-                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)",
-                color: isDark ? "#fff" : "#111",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-            >
-              Grid: {gridState}
-            </button>
-            <button
-              onClick={() => setTempIdx(i => (i + 1) % 3)}
-              style={{
-                padding: "0.8rem 1.5rem",
-                borderRadius: "999px",
-                border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
-                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)",
-                color: isDark ? "#fff" : "#111",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-              }}
-            >
-              Temp: {tempLabel}
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+             <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.4rem", 
+              background: isDark ? "rgba(255,255,255,0.05)" : "#fff",
+              padding: "0.35rem 0.75rem",
+              borderRadius: "999px",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              color: isDark ? "#86efac" : "#16a34a",
+              boxShadow: isDark ? "none" : "0 2px 10px rgba(0,0,0,0.02)",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`
+            }}>
+              <Zap size={13} fill="currentColor" opacity={0.8} />
+              {soc}%
+            </div>
+
             <button
               onClick={() => setTheme(isDark ? "light" : "dark")}
               style={{
-                padding: "0.8rem 1.5rem",
-                borderRadius: "999px",
-                border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
-                background: isDark ? "#111" : "#fff",
-                color: isDark ? "#fff" : "#111",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
+                background: isDark ? "rgba(255,255,255,0.05)" : "#fff",
+                border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+                borderRadius: "50%",
+                width: "36px",
+                height: "36px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
-                transition: "all 0.3s ease",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                color: isDark ? "#fbbf24" : "#f59e0b",
+                transition: "all 0.2s ease",
+                boxShadow: isDark ? "none" : "0 2px 10px rgba(0,0,0,0.02)",
               }}
             >
-              Switch Theme
+              {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
           </div>
         </div>
 
-        {/* Bento Grid */}
-        <div
+        {/* ── Global Nav Bar ── */}
+        <div className="desktop-only-nav" style={{ marginBottom: "1rem" }}>
+          <PillNav 
+            theme={theme} 
+            active={activeTab} 
+            onChange={setActiveTab} 
+          />
+        </div>
+
+        <style>{`
+          @media (max-width: 768px) {
+            .desktop-only-nav {
+              display: none;
+            }
+            .bento-grid {
+              display: flex !important;
+              flex-direction: column !important;
+            }
+          }
+        `}</style>
+
+        {/* ── Simulation Hub ── */}
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.25rem" }}>
+          <button
+            onClick={() => setSoc(s => Math.max(0, s - 10))}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "999px",
+              border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
+              background: isDark ? "rgba(255,255,255,0.02)" : "#fff",
+              color: isDark ? "#fff" : "#111",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          > Drain </button>
+          <button
+            onClick={() => setSoc(s => Math.min(100, s + 10))}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "999px",
+              border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
+              background: isDark ? "rgba(255,255,255,0.02)" : "#fff",
+              color: isDark ? "#fff" : "#111",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          > Charge </button>
+          <button
+            onClick={() => setGridState(s => gridStates[(gridStates.indexOf(s) + 1) % 3])}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "999px",
+              border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
+              background: isDark ? "rgba(255,255,255,0.02)" : "#fff",
+              color: isDark ? "#fff" : "#111",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          > Grid: {gridState} </button>
+          <button
+            onClick={() => setIsCharging(!isCharging)}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRadius: "999px",
+              border: `1px solid ${isDark ? "#333" : "#dee0e2"}`,
+              background: isDark ? "rgba(255,255,255,0.02)" : "#fff",
+              color: isDark ? "#fff" : "#111",
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          > {isCharging ? "Charging" : "Idle"} </button>
+        </div>
+
+        {/* ── Bento Grid (Seam-less High Density) ── */}
+        <div 
+          className="bento-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
-            gap: "1.5rem",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "0.75rem",
+            gridAutoRows: "auto"
           }}
         >
-          {/* Card 1: Battery Percentage */}
-          <BatteryPercentage
-            theme={theme}
-            isCharging={isCharging}
-            withShadow={false}
-            style={{ height: "fit-content" }}
-            soc={89}
-          />
-
-          {/* Card 2: Grid Status */}
-          <GridStatus
-            theme={theme}
-            gridState={gridState}
-            withShadow={false}
-            style={{ height: "fit-content" }}
-          />
-          {/* Card 3: Battery Temperature (with inline toggle above) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {/* Temp state toggle — sits right above the card */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {([25, 52, 65] as const).map((val, i) => {
-                const label = val < 45 ? "Optimal" : val < 60 ? "Warm" : "Critical";
-                const active = tempIdx === i;
-                const activeColor = val < 45 ? "#22c55e" : val < 60 ? "#f97316" : "#ef4444";
-                return (
-                  <button
-                    key={val}
-                    onClick={() => setTempIdx(i)}
-                    style={{
-                      padding: "0.35rem 0.85rem",
-                      borderRadius: "999px",
-                      border: `1px solid ${active ? activeColor : isDark ? "#333" : "#dee0e2"}`,
-                      background: active ? `${activeColor}18` : "transparent",
-                      color: active ? activeColor : isDark ? "#666" : "#aaa",
-                      fontSize: "0.78rem",
-                      fontWeight: active ? 600 : 400,
-                      letterSpacing: "0.05em",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    {label} · {val}°C
-                  </button>
-                );
-              })}
-            </div>
-
-            <BatteryTemperature
+          {/* Row 1, Col 1-2: Battery Percentage */}
+          <div style={{ gridColumn: "span 2" }}>
+            <BatteryPercentage
               theme={theme}
-              temperature={temperature}
-              mosfetTemp={temperature + 17}
-              cellTemp={temperature + 6}
-              peakTempToday={temperature + 23}
-              trend={temperature > 50 ? "rising" : "stable"}
+              isCharging={isCharging}
               withShadow={false}
-              style={{ height: "fit-content" }}
+              soc={soc}
             />
           </div>
 
+          {/* Row 1, Col 3: Grid Status */}
+          <div style={{ gridColumn: "span 1" }}>
+            <GridStatus
+              theme={theme}
+              gridState={gridState}
+              withShadow={false}
+            />
+          </div>
 
+          {/* Row 2, Col 1: Battery Temperature */}
+          <div style={{ gridColumn: "span 1" }}>
+              <BatteryTemperature
+                theme={theme}
+                temperature={temperature}
+                withShadow={false}
+              />
+          </div>
 
+          {/* Row 2, Col 2-3: Total Load Output */}
+          <div style={{ gridColumn: "span 2" }}>
+              <TotalLoad
+                theme={theme}
+                currentWatts={currentLoad}
+                maxWatts={inverterMax}
+              />
+          </div>
+
+          {/* Row 3: Full Width Load Management */}
+          <div style={{ gridColumn: "span 3" }}>
+              <LoadManagement
+                theme={theme}
+                soc={soc}
+                inverterMaxWatts={inverterMax}
+              />
+          </div>
         </div>
+
+        {/* ── Mobile Nav Bar ── */}
+        <MobileNav 
+          theme={theme} 
+          active={activeTab} 
+          onChange={setActiveTab} 
+        />
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import BentoCard from "./BentoCard";
 import BatteryArc from "./BatteryArc";
 import { CardTheme } from "./BentoCard";
-import { Zap, Battery } from "lucide-react";
+import { Zap, Battery, Timer, Clock8, HeartPulse } from "lucide-react";
 
 interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
   soc?: number;
@@ -121,26 +121,67 @@ export default function BatteryPercentage({
           <div style={{
             display: "flex",
             flexDirection: isWrapped ? "row" : "column",
-            flexWrap: isWrapped ? "wrap" : "nowrap",
+            flexWrap: "nowrap",
             justifyContent: isWrapped ? "space-between" : "flex-start",
             width: isWrapped ? "100%" : "auto",
-            gap: "1.8rem",
-            minWidth: "fit-content"
+            gap: isWrapped ? "0.75rem" : "1.6rem",
+            minWidth: 0,
+            flex: isWrapped ? "none" : 1,
+            overflow: "hidden"
           }}>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontSize: "0.9rem", color: grayText, letterSpacing: "0.03em" }}>Time to full</span>
-              <span style={{ fontSize: "1.2rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em" }}>{timeToFull}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "0.35rem", 
+                fontSize: "0.8rem", 
+                color: grayText, 
+                letterSpacing: "0.03em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}>
+                <Timer size={12} style={{ flexShrink: 0 }} />
+                To full
+              </div>
+              <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{timeToFull}</span>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontSize: "0.9rem", color: grayText, letterSpacing: "0.03em" }}>Time to empty</span>
-              <span style={{ fontSize: "1.2rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em" }}>{timeToEmpty}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "0.35rem", 
+                fontSize: "0.8rem", 
+                color: grayText, 
+                letterSpacing: "0.03em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}>
+                <Clock8 size={12} style={{ flexShrink: 0 }} />
+                To end
+              </div>
+              <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{timeToEmpty}</span>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-              <span style={{ fontSize: "0.9rem", color: grayText, letterSpacing: "0.03em" }}>SOH</span>
-              <span style={{ fontSize: "1.2rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em" }}>{soh}%</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "0.35rem", 
+                fontSize: "0.8rem", 
+                color: grayText, 
+                letterSpacing: "0.03em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
+              }}>
+                <HeartPulse size={12} style={{ flexShrink: 0 }} />
+                SOH
+              </div>
+              <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{soh}%</span>
             </div>
 
           </div>

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Thermometer, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Thermometer, TrendingUp, TrendingDown, Activity, Cpu, Layers, History, LineChart } from "lucide-react";
 import BentoCard, { CardTheme } from "./BentoCard";
 import TempSparkline from "./TempSparkline";
 
@@ -197,27 +197,85 @@ export default function BatteryTemperature({
       </div>
 
       {/* ── Bottom: Horizontal Stats Row ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.6rem", gap: "1rem", flexWrap: "wrap" }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        marginTop: "1.6rem", 
+        gap: "0.75rem", 
+        flexWrap: "nowrap",
+        overflow: "hidden"
+      }}>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>MOSFET</span>
-          <span style={{ fontSize: "1.1rem", fontWeight: 500, color: textColor }}>{mosfetTemp}°C</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <Cpu size={12} style={{ flexShrink: 0 }} />
+            MOSFET
+          </div>
+          <span style={{ fontSize: "1rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{mosfetTemp}°C</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>Cells</span>
-          <span style={{ fontSize: "1.1rem", fontWeight: 500, color: textColor }}>{cellTemp}°C</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <Layers size={12} style={{ flexShrink: 0 }} />
+            Cells
+          </div>
+          <span style={{ fontSize: "1rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{cellTemp}°C</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>Peak Today</span>
-          <span style={{ fontSize: "1.1rem", fontWeight: 500, color: textColor }}>{peakTempToday}°C</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <History size={12} style={{ flexShrink: 0 }} />
+            Peak
+          </div>
+          <span style={{ fontSize: "1rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{peakTempToday}°C</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>Trend</span>
-          <span style={{ fontSize: "1.1rem", fontWeight: 500, color: trendColor, display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <TrendIcon trend={trend} color={trendColor} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <LineChart size={12} style={{ flexShrink: 0 }} />
+            Trend
+          </div>
+          <span style={{ fontSize: "1rem", fontWeight: 500, color: trendColor, whiteSpace: "nowrap" }}>
             {trendLabel(trend)}
           </span>
         </div>

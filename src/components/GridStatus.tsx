@@ -3,6 +3,7 @@
 import React from "react";
 import BentoCard, { CardTheme } from "./BentoCard";
 import VoltageWaveform from "./VoltageWaveform";
+import { Activity, History, ShieldCheck } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,21 +85,67 @@ export default function GridStatus({
       </div>
 
       {/* ── Bottom: Three stats horizontal ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.8rem", gap: "1rem", flexWrap: "wrap" }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        marginTop: "1.8rem", 
+        gap: "0.75rem", 
+        flexWrap: "nowrap",
+        overflow: "hidden" 
+      }}>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>Frequency</span>
-          <span style={{ fontSize: "1.15rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em" }}>{frequency} Hz</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <Activity size={12} style={{ flexShrink: 0 }} />
+            Frequency
+          </div>
+          <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{frequency} Hz</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>Last Outage</span>
-          <span style={{ fontSize: "1.15rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em" }}>{lastOutage}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <History size={12} style={{ flexShrink: 0 }} />
+            Outage
+          </div>
+          <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{lastOutage}</span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.85rem", color: grayText, letterSpacing: "0.03em" }}>Daily Availability</span>
-          <span style={{ fontSize: "1.15rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em" }}>{dailyAvailability}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "0.35rem", 
+            fontSize: "0.8rem", 
+            color: grayText, 
+            letterSpacing: "0.03em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          }}>
+            <ShieldCheck size={12} style={{ flexShrink: 0 }} />
+            Uptime
+          </div>
+          <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{dailyAvailability}</span>
         </div>
 
       </div>

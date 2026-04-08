@@ -18,7 +18,7 @@ export default function BentoCard({ theme = "light", withShadow = true, children
   // Dark theme: stroke #21211d, lighter dark #242421 at top-right 45deg, deeper dark #060702 at bottom-left
   const borderValue = isDark ? "1.5px solid #21211d" : "1.5px solid #dee0e2";
   const backgroundValue = isDark
-    ? "linear-gradient(45deg, #060702, #242421)"
+    ? "linear-gradient(45deg, #060702, #1c1c1a)"
     : "linear-gradient(to bottom, #f3fafc, #ffffff)";
 
   return (
@@ -28,24 +28,37 @@ export default function BentoCard({ theme = "light", withShadow = true, children
         border: borderValue,
         background: backgroundValue,
         borderRadius: "32px", // Modern rounded bento aesthetic
-        padding: "2.5rem",
+        padding: "1.25rem",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden", // Constrains content cleanly
-        boxShadow: withShadow 
-          ? (isDark 
-              ? "0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)" 
-              : "0 10px 40px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.8)")
-          : (isDark 
-              ? "inset 0 1px 0 rgba(255,255,255,0.03)" 
-              : "inset 0 1px 0 rgba(255,255,255,0.8)"),
+        boxShadow: withShadow
+          ? (isDark
+            ? "0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)"
+            : "0 10px 40px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.8)")
+          : (isDark
+            ? "inset 0 1px 0 rgba(255,255,255,0.03)"
+            : "inset 0 1px 0 rgba(255,255,255,0.8)"),
         transition: "border 0.4s ease, background 0.4s ease, box-shadow 0.4s ease",
-        height: "100%", // Ensures it scales inside the CSS grid row
         ...style,
       }}
       {...props}
     >
-      {children}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: isDark
+            ? "radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0)"
+            : "radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0)",
+          backgroundSize: "24px 24px",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
+        {children}
+      </div>
     </div>
   );
 }
