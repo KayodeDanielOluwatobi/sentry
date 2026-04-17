@@ -2,8 +2,9 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-// Import the Icon type for better TypeScript support
-import { SquaresFour, Faders, Activity, User, Icon } from "@phosphor-icons/react";
+// Import HugeIcons
+import { HugeiconsIcon } from "@hugeicons/react";
+import { DashboardSquare01Icon, Settings01Icon, Activity01Icon, UserIcon } from "@hugeicons/core-free-icons";
 import LiquidGlass from "liquid-glass-react";
 
 export type NavItem = "Dashboard" | "Controls" | "Diagnostics" | "Profile";
@@ -19,15 +20,16 @@ export default function MobileNav({
   active = "Dashboard",
   onChange,
 }: MobileNavProps) {
+  const [hoveredId, setHoveredId] = React.useState<NavItem | null>(null);
   const isDark = theme === "dark";
   const grayText = isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)";
 
   // Store the Component itself, not the JSX element, for cleaner rendering
-  const navItems: { id: NavItem; icon: Icon; label: string }[] = [
-    { id: "Dashboard", icon: SquaresFour, label: "Home" },
-    { id: "Controls", icon: Faders, label: "Controls" },
-    { id: "Diagnostics", icon: Activity, label: "Logs" },
-    { id: "Profile", icon: User, label: "Profile" },
+  const navItems: { id: NavItem; icon: any; label: string }[] = [
+    { id: "Dashboard", icon: DashboardSquare01Icon, label: "Home" },
+    { id: "Controls", icon: Settings01Icon, label: "Controls" },
+    { id: "Diagnostics", icon: Activity01Icon, label: "Logs" },
+    { id: "Profile", icon: UserIcon, label: "Profile" },
   ];
 
   return (
@@ -44,6 +46,7 @@ export default function MobileNav({
         style={{
           position: "fixed",
           bottom: "0.8rem",
+          top: "unset",
           left: "50%",
           transform: "translateX(-50%)",
           marginLeft: "22.5px",
@@ -80,6 +83,8 @@ export default function MobileNav({
                 key={item.id}
                 id={`mobile-nav-${item.id.toLowerCase()}`}
                 onClick={() => onChange?.(item.id)}
+                onMouseEnter={() => setHoveredId(item.id)}
+                onMouseLeave={() => setHoveredId(null)}
                 style={{
                   position: "relative",
                   display: "flex",
@@ -101,7 +106,7 @@ export default function MobileNav({
                 {isActive && (
                   <motion.div
                     layoutId="mobileNavActiveCircle"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 50 }}
                     style={{
                       position: "absolute",
                       inset: 0,
@@ -109,8 +114,8 @@ export default function MobileNav({
                       width: "44px",
                       height: "44px",
                       borderRadius: "50%",
-                      background: "#39FF14",
-                      boxShadow: "0 2px 14px rgba(57, 255, 20, 0.4)",
+                      background: "#D4FF00",
+                      boxShadow: "0 2px 14px rgba(212, 255, 0, 0.4)",
                       zIndex: -1,
                     }}
                   />
@@ -118,13 +123,14 @@ export default function MobileNav({
 
                 <motion.div
                   animate={{ scale: isActive ? 1.15 : 1 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                  transition={{ type: "tween", duration: 0.1, ease: "easeOut" }}
                   style={{ lineHeight: 0, display: "block" }}
                 >
-                  {/* Correct way to handle Phosphor Icons weight and size */}
-                  <IconComponent
+                  {/* HugeIcons wrapper */}
+                  <HugeiconsIcon
+                    icon={IconComponent}
                     size={22}
-                    weight={isActive ? "fill" : "regular"}
+                    color="currentColor"
                   />
                 </motion.div>
               </button>
@@ -132,6 +138,56 @@ export default function MobileNav({
           })}
         </div>
       </LiquidGlass>
+
+      {/* Unclipped Tooltip Overlay Layer */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: "6.5rem", // Position perfectly above the liquid glass dock
+          left: "50%",
+          transform: "translateX(-50%)",
+          marginLeft: "22.5px",
+          width: "min(88vw, 360px)",
+          height: "0",
+          pointerEvents: "none",
+          zIndex: 10000,
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          boxSizing: "border-box"
+        }}
+        className="mobile-liquid-nav"
+      >
+        {navItems.map((item) => (
+          <div key={`tooltip-${item.id}`} style={{ flex: 1, display: "flex", justifyContent: "center", position: "relative" }}>
+            {hoveredId === item.id && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 3 }}
+                transition={{ duration: 0.2, delay: 0.25, ease: "easeOut" }}
+                style={{
+                  position: "absolute",
+                  bottom: "0",
+                  background: isDark ? "rgba(30, 30, 30, 0.4)" : "rgba(255, 255, 255, 0.4)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  color: isDark ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.5)",
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  fontSize: "0.7rem",
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  letterSpacing: "0.02em",
+                  border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.03)"}`,
+                }}
+              >
+                {item.label}
+              </motion.div>
+            )}
+          </div>
+        ))}
+      </div>
 
       <style>{`
         @media (min-width: 769px) {

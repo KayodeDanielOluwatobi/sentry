@@ -32,6 +32,7 @@ export default function BentoCard({ theme = "light", withShadow = true, children
         display: "flex",
         flexDirection: "column",
         overflow: "hidden", // Constrains content cleanly
+        containerType: "inline-size", // Enable cqw units for children
         boxShadow: withShadow
           ? (isDark
             ? "0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)"
@@ -49,8 +50,8 @@ export default function BentoCard({ theme = "light", withShadow = true, children
           position: "absolute",
           inset: 0,
           backgroundImage: isDark
-            ? "radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0)"
-            : "radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 0)",
+            ? "radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0)"
+            : "radial-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 0)",
           backgroundSize: "24px 24px",
           pointerEvents: "none",
           zIndex: 0,

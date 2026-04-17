@@ -3,19 +3,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Zap,
-  ShieldCheck,
-  Activity,
-  ChevronRight,
-  Sparkles,
-  Pointer,
-  Power,
-  RotateCcw,
-  AlertCircle,
-  Laptop,
-  Fan,
-  Tv
-} from "lucide-react";
+  StarsIcon,
+  MouseIcon,
+  Alert01Icon,
+  AiLaptopIcon,
+  Fan01Icon,
+  Tv01Icon as TvIcon,
+  Activity01Icon,
+  ArrowRight01Icon,
+  Sorting05Icon
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import BentoCard from "./BentoCard";
 
 export type LoadManagementProps = {
@@ -60,7 +58,7 @@ export default function LoadManagement({
   const [mode, setMode] = useState<"auto" | "manual">("auto");
   const [channels, setChannels] = useState<Channel[]>(INITIAL_CHANNELS);
   const [recoveryTimer, setRecoveryTimer] = useState<number | null>(null);
-  
+
   // Responsive layout tracking
   const containerRef = useRef<HTMLDivElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
@@ -126,29 +124,29 @@ export default function LoadManagement({
 
           <div style={{ flex: "1 1 auto", minWidth: "200px" }}>
             {/* Title Text (Standardized) */}
-            <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
+            <h2 style={{ margin: 0, fontSize: "clamp(1.1rem, 6cqw, 1.6rem)", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
               Load Management
             </h2>
 
             {/* Hero Metric + Status Pillar Row (Standardized) */}
             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "1rem", marginTop: "0.6rem" }}>
-              <span style={{ fontSize: "2.5rem", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
-                {totalWatts}<span style={{ fontSize: "1.2rem", fontWeight: 400, color: grayText, marginLeft: "0.2rem" }}>W</span>
+              <span style={{ fontSize: "clamp(1.8rem, 10cqw, 2.5rem)", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
+                {totalWatts}<span style={{ fontSize: "clamp(0.9rem, 4cqw, 1.2rem)", fontWeight: 400, color: grayText, marginLeft: "0.2rem" }}>W</span>
               </span>
               <span style={{
-                background: totalWatts > inverterMaxWatts * 0.9 
+                background: totalWatts > inverterMaxWatts * 0.9
                   ? (isDark ? "rgba(239, 68, 68, 0.15)" : "#fee2e2")
                   : totalWatts > inverterMaxWatts * 0.7
-                  ? (isDark ? "rgba(249, 115, 22, 0.15)" : "#ffedd5")
-                  : (isDark ? "rgba(34, 197, 94, 0.1)" : "#eafee7"),
-                color: totalWatts > inverterMaxWatts * 0.9 
-                  ? "#ef4444" 
-                  : totalWatts > inverterMaxWatts * 0.7 
-                  ? "#f97316" 
-                  : (isDark ? "#86efac" : "#2a7037"),
-                padding: "0.45rem 0.9rem",
+                    ? (isDark ? "rgba(249, 115, 22, 0.15)" : "#ffedd5")
+                    : (isDark ? "rgba(34, 197, 94, 0.1)" : "#eafee7"),
+                color: totalWatts > inverterMaxWatts * 0.9
+                  ? "#ef4444"
+                  : totalWatts > inverterMaxWatts * 0.7
+                    ? "#f97316"
+                    : (isDark ? "#86efac" : "#2a7037"),
+                padding: "clamp(0.3rem, 2cqw, 0.45rem) clamp(0.6rem, 4cqw, 0.9rem)",
                 borderRadius: "999px",
-                fontSize: "0.9rem",
+                fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)",
                 fontWeight: 500,
                 display: "inline-flex",
                 alignItems: "center",
@@ -157,31 +155,22 @@ export default function LoadManagement({
                 whiteSpace: "nowrap",
                 transition: "all 0.3s ease"
               }}>
-                <motion.span
-                  animate={{ opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  style={{ 
-                    width: 8, 
-                    height: 8, 
-                    borderRadius: "50%", 
-                    background: totalWatts > inverterMaxWatts * 0.9 
-                      ? "#ef4444" 
-                      : totalWatts > inverterMaxWatts * 0.7 
-                      ? "#f97316" 
-                      : "#22c55e", 
-                    display: "inline-block", 
-                    boxShadow: `0 0 6px 2px ${
-                      totalWatts > inverterMaxWatts * 0.9 
-                        ? "rgba(239, 68, 68, 0.3)" 
-                        : totalWatts > inverterMaxWatts * 0.7
-                        ? "rgba(249, 115, 22, 0.3)"
-                        : "rgba(34, 197, 94, 0.3)"
-                    }` 
+                  <span
+                    style={{
+                      width: "clamp(6px, 1.5cqw, 8px)",
+                      height: "clamp(6px, 1.5cqw, 8px)",
+                      borderRadius: "50%",
+                      background: totalWatts > inverterMaxWatts * 0.9
+                      ? "#ef4444"
+                      : totalWatts > inverterMaxWatts * 0.7
+                        ? "#f97316"
+                        : (isDark ? "#86efac" : "#2a7037"),
+                    display: "inline-block"
                   }}
                 />
-                {totalWatts > inverterMaxWatts * 0.9 ? "Critical load" : 
-                 totalWatts > inverterMaxWatts * 0.7 ? "High capacity" : 
-                 "System healthy"}
+                {totalWatts > inverterMaxWatts * 0.9 ? "Critical load" :
+                  totalWatts > inverterMaxWatts * 0.7 ? "High capacity" :
+                    "System healthy"}
               </span>
             </div>
 
@@ -224,194 +213,194 @@ export default function LoadManagement({
                 }}
               >
                 {m === "auto" ? (
-                  <Sparkles size={isNarrow ? 12 : 13} fill={mode === "auto" ? (isDark ? "#000" : "#fff") : "none"} />
+                  <HugeiconsIcon icon={StarsIcon} size={isNarrow ? 14 : 15} color={mode === "auto" ? (isDark ? "#000" : "#fff") : "currentColor"} variant={mode === "auto" ? "solid" : "stroke"} />
                 ) : (
-                  <Pointer size={isNarrow ? 12 : 13} />
+                  <HugeiconsIcon icon={MouseIcon} size={isNarrow ? 14 : 15} />
                 )}
                 {m.charAt(0).toUpperCase() + m.slice(1)}
               </button>
             ))}
           </div>
-        {/* Header ends here */}
-      </div>
+          {/* Header ends here */}
+        </div>
 
-      {/* Channel List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1 }}>
-        {channels.map((ch) => {
-          const shedReason = getShedReason(ch);
-          return (
-            <motion.div
-              key={ch.id}
-              layout
-              style={{
-                padding: "1rem 1.25rem",
-                borderRadius: "20px",
-                background: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.4)",
-                border: `1px solid ${isDark ? (ch.isOn ? "#333" : "#21211d") : "#eee"}`,
-                opacity: ch.isOn ? 1 : 0.6,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "1rem",
-                transition: "all 0.3s ease",
-                minHeight: "72px"
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem", flex: "1 1 auto", minWidth: 0 }}>
-                {/* Power State Icon */}
-                <div
-                  onClick={() => toggleChannel(ch.id)}
-                  style={{
-                    width: "42px",
-                    height: "42px",
-                    borderRadius: "14px",
-                    display: "flex",
-                    flexShrink: 0,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: ch.isOn
-                      ? (isDark ? "#22c55e15" : "#22c55e10")
-                      : (isDark ? "#ef444415" : "#ef444410"),
-                    color: ch.isOn ? "#22c55e" : "#ef4444",
-                    border: `1px solid ${ch.isOn ? "#22c55e30" : "#ef444430"}`,
-                    cursor: mode === "manual" ? "pointer" : "default",
-                    transition: "all 0.2s ease"
-                  }}
-                >
-                  {ch.name === "Critical" ? <Laptop size={20} /> :
-                    ch.name === "Major" ? <Fan size={20} /> :
-                      <Tv size={20} />}
-                </div>
-
-                <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 700, fontSize: "1rem", letterSpacing: "0.01em", whiteSpace: "nowrap" }}>{ch.name}</span>
-                    <span style={{ fontSize: "0.75rem", color: grayText, letterSpacing: "0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      • {ch.label}
-                    </span>
+        {/* Channel List */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1 }}>
+          {channels.map((ch) => {
+            const shedReason = getShedReason(ch);
+            return (
+              <motion.div
+                key={ch.id}
+                layout
+                style={{
+                  padding: "1rem 1.25rem",
+                  borderRadius: "20px",
+                  background: isDark ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.4)",
+                  border: `1px solid ${isDark ? (ch.isOn ? "#333" : "#21211d") : "#eee"}`,
+                  opacity: ch.isOn ? 1 : 0.6,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  transition: "all 0.3s ease",
+                  minHeight: "72px"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem", flex: "1 1 auto", minWidth: 0 }}>
+                  {/* Power State Icon */}
+                  <div
+                    onClick={() => toggleChannel(ch.id)}
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "14px",
+                      display: "flex",
+                      flexShrink: 0,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: ch.isOn
+                        ? (isDark ? "#22c55e15" : "#22c55e10")
+                        : (isDark ? "#ef444415" : "#ef444410"),
+                      color: ch.isOn ? "#22c55e" : "#ef4444",
+                      border: `1px solid ${ch.isOn ? "#22c55e30" : "#ef444430"}`,
+                      cursor: mode === "manual" ? "pointer" : "default",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    {ch.name === "Critical" ? <HugeiconsIcon icon={AiLaptopIcon} size={24} /> :
+                      ch.name === "Major" ? <HugeiconsIcon icon={Fan01Icon} size={24} /> :
+                        <HugeiconsIcon icon={TvIcon} size={24} />}
                   </div>
-                  {shedReason ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", marginTop: "0.1rem" }}>
-                      <AlertCircle size={10} color="#f97316" />
-                      <span style={{ fontSize: "0.7rem", color: "#f97316", fontWeight: 500, letterSpacing: "0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {shedReason}
+
+                  <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, fontSize: "1rem", letterSpacing: "0.01em", whiteSpace: "nowrap" }}>{ch.name}</span>
+                      <span style={{ fontSize: "0.75rem", color: grayText, letterSpacing: "0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        • {ch.label}
                       </span>
                     </div>
-                  ) : (
-                    <span style={{ fontSize: "0.75rem", color: isDark ? "#22c55e" : "#16a34a", fontWeight: 500, letterSpacing: "0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      Active · {ch.thresholdSoc}% threshold
-                    </span>
-                  )}
+                    {shedReason ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", marginTop: "0.1rem" }}>
+                        <HugeiconsIcon icon={Alert01Icon} size={14} color="#f97316" />
+                        <span style={{ fontSize: "0.7rem", color: "#f97316", fontWeight: 500, letterSpacing: "0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {shedReason}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: "0.75rem", color: isDark ? "#22c55e" : "#16a34a", fontWeight: 500, letterSpacing: "0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        Active · {ch.thresholdSoc}% threshold
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontSize: "1.25rem", fontWeight: 800, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
-                  {ch.isOn ? ch.powerWatts : 0}<span style={{ fontSize: "0.8rem", fontWeight: 500, color: "#888", marginLeft: "2px", letterSpacing: "0.01em" }}>W</span>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: "1.25rem", fontWeight: 800, letterSpacing: "0.01em", whiteSpace: "nowrap" }}>
+                    {ch.isOn ? ch.powerWatts : 0}<span style={{ fontSize: "0.8rem", fontWeight: 500, color: "#888", marginLeft: "2px", letterSpacing: "0.01em" }}>W</span>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Footer / Stats */}
-      <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: `1px solid ${isDark ? "#222" : "#eee"}` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <div>
-            <div style={{ fontSize: "0.85rem", color: grayText, fontWeight: 400, letterSpacing: "0.01em" }}>Load capacity</div>
-            <div style={{ fontSize: "1.1rem", fontWeight: 700, letterSpacing: "0.01em" }}>
-              {totalWatts} <span style={{ fontSize: "0.8rem", color: grayText, letterSpacing: "0.01em" }}>/ {inverterMaxWatts}W MAX</span>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "0.85rem", color: grayText, fontWeight: 400, letterSpacing: "0.01em" }}>Next in line</div>
-            <div style={{
-              fontSize: "0.9rem",
-              fontWeight: 600,
-              color: totalWatts > inverterMaxWatts * 0.8
-                ? (isDark ? "#f87171" : "#ef4444")
-                : (isDark ? "#fb923c" : "#f97316"),
-              letterSpacing: "0.01em"
-            }}>
-              {nextInLine ? nextInLine.name : "None - all shed"}
-            </div>
-          </div>
+              </motion.div>
+            );
+          })}
         </div>
 
-        {/* Lively Progress Bar for Total Load */}
-        <div style={{
-          width: "100%",
-          height: "12px",
-          background: isDark ? "#1a1a1a" : "#f0f0f0",
-          borderRadius: "6px",
-          overflow: "hidden",
-          position: "relative",
-          marginTop: "0.25rem"
-        }}>
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, (totalWatts / inverterMaxWatts) * 100)}%` }}
-            transition={{ type: "spring", stiffness: 50, damping: 15 }}
-            style={{
-              height: "100%",
-              background: totalWatts > inverterMaxWatts * 0.85
-                ? "linear-gradient(90deg, #ef4444, #f87171)"
-                : totalWatts > inverterMaxWatts * 0.6
-                ? "linear-gradient(90deg, #f97316, #fbbf24)"
-                : "linear-gradient(90deg, #22c55e, #4ade80)",
-              boxShadow: totalWatts > inverterMaxWatts * 0.85
-                ? "0 0 15px rgba(239, 68, 68, 0.4)"
-                : totalWatts > inverterMaxWatts * 0.6
-                ? "0 0 15px rgba(249, 115, 22, 0.3)"
-                : "0 0 15px rgba(34, 197, 94, 0.3)",
-              position: "relative",
-              overflow: "hidden",
-              borderRadius: "inherit"
-            }}
-          >
+        {/* Footer / Stats */}
+        <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: `1px solid ${isDark ? "#222" : "#eee"}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <div>
+              <div style={{ fontSize: "0.85rem", color: grayText, fontWeight: 400, letterSpacing: "0.01em" }}>Load capacity</div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 700, letterSpacing: "0.01em" }}>
+                {totalWatts} <span style={{ fontSize: "0.8rem", color: grayText, letterSpacing: "0.01em" }}>/ {inverterMaxWatts}W MAX</span>
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "0.85rem", color: grayText, fontWeight: 400, letterSpacing: "0.01em" }}>Next in line</div>
+              <div style={{
+                fontSize: "0.9rem",
+                fontWeight: 600,
+                color: totalWatts > inverterMaxWatts * 0.8
+                  ? (isDark ? "#f87171" : "#ef4444")
+                  : (isDark ? "#fb923c" : "#f97316"),
+                letterSpacing: "0.01em"
+              }}>
+                {nextInLine ? nextInLine.name : "None - all shed"}
+              </div>
+            </div>
+          </div>
+
+          {/* Lively Progress Bar for Total Load */}
+          <div style={{
+            width: "100%",
+            height: "12px",
+            background: isDark ? "#1a1a1a" : "#f0f0f0",
+            borderRadius: "6px",
+            overflow: "hidden",
+            position: "relative",
+            marginTop: "0.25rem"
+          }}>
             <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (totalWatts / inverterMaxWatts) * 100)}%` }}
+              transition={{ type: "spring", stiffness: 50, damping: 15 }}
               style={{
-                position: "absolute",
-                inset: 0,
-                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                width: "50%",
-                borderRadius: "inherit",
-                overflow: "hidden"
+                height: "100%",
+                background: totalWatts > inverterMaxWatts * 0.85
+                  ? "linear-gradient(90deg, #ef4444, #f87171)"
+                  : totalWatts > inverterMaxWatts * 0.6
+                    ? "linear-gradient(90deg, #f97316, #fbbf24)"
+                    : "linear-gradient(90deg, #22c55e, #4ade80)",
+                boxShadow: totalWatts > inverterMaxWatts * 0.85
+                  ? "0 0 15px rgba(239, 68, 68, 0.4)"
+                  : totalWatts > inverterMaxWatts * 0.6
+                    ? "0 0 15px rgba(249, 115, 22, 0.3)"
+                    : "0 0 15px rgba(34, 197, 94, 0.3)",
+                position: "relative",
+                overflow: "hidden",
+                borderRadius: "inherit"
               }}
-              animate={{ x: ["-100%", "200%"] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-            />
-            {/* Additional "pulse" for critical load */}
-            {totalWatts > inverterMaxWatts * 0.85 && (
+            >
               <motion.div
-                style={{ position: "absolute", inset: 0, background: "#ef4444", borderRadius: "inherit" }}
-                animate={{ opacity: [0, 0.3, 0] }}
-                transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+                  width: "50%",
+                  borderRadius: "inherit",
+                  overflow: "hidden"
+                }}
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
               />
-            )}
-          </motion.div>
-        </div>
+              {/* Additional "pulse" for critical load */}
+              {totalWatts > inverterMaxWatts * 0.85 && (
+                <motion.div
+                  style={{ position: "absolute", inset: 0, background: "#ef4444", borderRadius: "inherit" }}
+                  animate={{ opacity: [0, 0.3, 0] }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
+                />
+              )}
+            </motion.div>
+          </div>
 
-        {/* Priority Map */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.25rem" }}>
-          <ShieldCheck size={14} color={lightGrayText} />
-          <span style={{ fontSize: "0.75rem", fontWeight: 400, color: lightGrayText, letterSpacing: "0.01em" }}>Shedding hierarchy:</span>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginLeft: "auto" }}>
-            {["Non-Essential", "Major", "Critical"].map((p, i) => (
-              <React.Fragment key={p}>
-                <span style={{
-                  fontSize: "0.7rem",
-                  color: lightGrayText,
-                  fontWeight: 600,
-                  letterSpacing: "0.01em"
-                }}>{p}</span>
-                {i < 2 && <ChevronRight size={10} color={isDark ? "#333" : "#ddd"} />}
-              </React.Fragment>
-            ))}
+          {/* Priority Map */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.25rem" }}>
+            <HugeiconsIcon icon={Sorting05Icon} size="clamp(14px, 4cqw, 17px)" color={lightGrayText} />
+            <span style={{ fontSize: "clamp(0.6rem, 2.8cqw, 0.75rem)", fontWeight: 400, color: lightGrayText, letterSpacing: "0.01em" }}>Shedding hierarchy:</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginLeft: "auto" }}>
+              {["Non-Essential", "Major", "Critical"].map((p, i) => (
+                <React.Fragment key={p}>
+                  <span style={{
+                    fontSize: "clamp(0.55rem, 2.5cqw, 0.72rem)",
+                    color: lightGrayText,
+                    fontWeight: 600,
+                    letterSpacing: "0.01em"
+                  }}>{p}</span>
+                  {i < 2 && <HugeiconsIcon icon={ArrowRight01Icon} size="clamp(10px, 3cqw, 12px)" color={isDark ? "#333" : "#ddd"} />}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
       </div>
     </BentoCard>
   );

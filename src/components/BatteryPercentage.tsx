@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import BentoCard from "./BentoCard";
 import BatteryArc from "./BatteryArc";
 import { CardTheme } from "./BentoCard";
-import { Zap, Battery, Timer, Clock8, HeartPulse } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { FlashIcon, BatteryCharging01Icon, BatteryFullIcon, BatteryMedium01Icon, BatteryMedium02Icon, BatteryLowIcon, BatteryEmptyIcon, Timer02Icon, Clock01Icon, HeartCheckIcon } from "@hugeicons/core-free-icons";
 
 interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
   soc?: number;
@@ -51,47 +52,57 @@ export default function BatteryPercentage({
     return () => ro.disconnect();
   }, []);
 
+  const getDischargingIcon = (soc: number) => {
+    if (soc > 80) return BatteryFullIcon;
+    if (soc > 50) return BatteryMedium02Icon; // 3 bars
+    if (soc > 20) return BatteryMedium01Icon; // 2 bars
+    if (soc > 5) return BatteryLowIcon;
+    return BatteryEmptyIcon;
+  };
+
+  const DischargingIcon = getDischargingIcon(soc);
+
   return (
     <BentoCard theme={theme} withShadow={withShadow} style={{ padding: "2.5rem", ...style }} {...props}>
       <div ref={containerRef}>
         {/* ── Top Header Section ── */}
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
-          Battery Percentage
-        </h2>
+          <h2 style={{ margin: 0, fontSize: "clamp(1.1rem, 6cqw, 1.6rem)", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
+            Battery Percentage
+          </h2>
 
           <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.6rem" }}>
-            <span style={{ fontSize: "2.5rem", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
+            <span style={{ fontSize: "clamp(1.8rem, 10cqw, 2.5rem)", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
               {soc}%
             </span>
             {isCharging ? (
               <span style={{
-              background: isDark ? "rgba(134, 239, 172, 0.1)" : "#eafee7",
-              color: isDark ? "#86efac" : "#2a7037",
-              padding: "0.45rem 0.9rem",
-              borderRadius: "999px",
-              fontSize: "0.9rem",
-              fontWeight: 500,
+                background: isDark ? "rgba(134, 239, 172, 0.1)" : "#eafee7",
+                color: isDark ? "#86efac" : "#2a7037",
+                padding: "clamp(0.3rem, 2cqw, 0.45rem) clamp(0.6rem, 4cqw, 0.9rem)",
+                borderRadius: "999px",
+                fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)",
+                fontWeight: 500,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.4rem"
               }}>
-                <Zap size={14} strokeWidth={2.5} fill="currentColor" />
+                <HugeiconsIcon icon={BatteryCharging01Icon} size="clamp(14px, 4cqw, 17px)" strokeWidth={2.5} color="currentColor" />
                 Charging
               </span>
             ) : (
               <span style={{
-              background: isDark ? "rgba(255, 255, 255, 0.05)" : "#f3f4f6",
-              color: isDark ? "#a1a1aa" : "#52525b",
-              padding: "0.45rem 0.9rem",
-              borderRadius: "999px",
-              fontSize: "0.9rem",
-              fontWeight: 500,
+                background: isDark ? "rgba(255, 255, 255, 0.05)" : "#f3f4f6",
+                color: isDark ? "#a1a1aa" : "#52525b",
+                padding: "clamp(0.3rem, 2cqw, 0.45rem) clamp(0.6rem, 4cqw, 0.9rem)",
+                borderRadius: "999px",
+                fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)",
+                fontWeight: 500,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.4rem"
               }}>
-                <Battery size={14} strokeWidth={2.5} fill="currentColor" style={{ opacity: 0.6 }} />
+                <HugeiconsIcon icon={DischargingIcon} size="clamp(14px, 4cqw, 17px)" strokeWidth={2.5} color="currentColor" style={{ opacity: 0.6 }} />
                 Discharging
               </span>
             )}
@@ -131,57 +142,51 @@ export default function BatteryPercentage({
           }}>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
-              <div style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "0.35rem", 
-                fontSize: "0.8rem", 
-                color: grayText, 
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+                color: grayText,
                 letterSpacing: "0.03em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
+                whiteSpace: "nowrap"
               }}>
-                <Timer size={12} style={{ flexShrink: 0 }} />
+                <HugeiconsIcon icon={Timer02Icon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
                 To full
               </div>
-              <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{timeToFull}</span>
+              <span style={{ fontSize: "clamp(0.85rem, 4.5cqw, 1.05rem)", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{timeToFull}</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
-              <div style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "0.35rem", 
-                fontSize: "0.8rem", 
-                color: grayText, 
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+                color: grayText,
                 letterSpacing: "0.03em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
+                whiteSpace: "nowrap"
               }}>
-                <Clock8 size={12} style={{ flexShrink: 0 }} />
+                <HugeiconsIcon icon={Clock01Icon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
                 To end
               </div>
-              <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{timeToEmpty}</span>
+              <span style={{ fontSize: "clamp(0.85rem, 4.5cqw, 1.05rem)", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{timeToEmpty}</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
-              <div style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "0.35rem", 
-                fontSize: "0.8rem", 
-                color: grayText, 
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+                color: grayText,
                 letterSpacing: "0.03em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
+                whiteSpace: "nowrap"
               }}>
-                <HeartPulse size={12} style={{ flexShrink: 0 }} />
+                <HugeiconsIcon icon={HeartCheckIcon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
                 SOH
               </div>
-              <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{soh}%</span>
+              <span style={{ fontSize: "clamp(0.85rem, 4.5cqw, 1.05rem)", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{soh}%</span>
             </div>
 
           </div>

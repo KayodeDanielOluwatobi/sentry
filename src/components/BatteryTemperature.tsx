@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
-import { Thermometer, TrendingUp, TrendingDown, Activity, Cpu, Layers, History, LineChart } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowUpRight01Icon, ArrowDownRight01Icon, Activity01Icon, ChipIcon, Layers01Icon, TradeUpIcon, Analytics01Icon } from "@hugeicons/core-free-icons";
 import BentoCard, { CardTheme } from "./BentoCard";
 import TempSparkline from "./TempSparkline";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types ────────────────────────────────────────────────────────────────────
 
 type ThermalTrend = "rising" | "stable" | "falling";
 
@@ -26,7 +26,7 @@ export interface BatteryTemperatureProps extends React.HTMLAttributes<HTMLDivEle
   withShadow?: boolean;
 }
 
-// ─── Thermal status thresholds ────────────────────────────────────────────────
+// --- Thermal status thresholds ────────────────────────────────────────────────
 
 function thermalProfile(temp: number, isDark: boolean) {
   if (temp < 45) return {
@@ -52,20 +52,20 @@ function thermalProfile(temp: number, isDark: boolean) {
   };
 }
 
-// ─── Trend helpers ────────────────────────────────────────────────────────────
+// --- Trend helpers ────────────────────────────────────────────────────────────
 
 function TrendIcon({ trend, color }: { trend: ThermalTrend; color: string }) {
-  const p = { size: 16, strokeWidth: 2.2, color };
-  if (trend === "rising") return <TrendingUp  {...p} />;
-  if (trend === "falling") return <TrendingDown {...p} />;
-  return <Activity {...p} />;;
+  const p = { size: 18, strokeWidth: 2.2, color };
+  if (trend === "rising") return <HugeiconsIcon icon={ArrowUpRight01Icon} {...p} />;
+  if (trend === "falling") return <HugeiconsIcon icon={ArrowDownRight01Icon} {...p} />;
+  return <HugeiconsIcon icon={Activity01Icon} {...p} />;
 }
 
 function trendLabel(trend: ThermalTrend) {
   return trend === "rising" ? "Rising" : trend === "falling" ? "Falling" : "Stable";
 }
 
-// ─── Dynamic Thermometer Icon ──────────────────────────────────────────────────
+// --- Dynamic Thermometer Icon ──────────────────────────────────────────────────
 
 function DynamicThermometer({ label, color }: { label: string; color: string }) {
   const isFull = label === "Critical";
@@ -99,7 +99,7 @@ function DynamicThermometer({ label, color }: { label: string; color: string }) 
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// --- Component ────────────────────────────────────────────────────────────────
 
 export default function BatteryTemperature({
   temperature = 25,
@@ -137,7 +137,7 @@ export default function BatteryTemperature({
     color: thermal.pillText,
     padding: "0.45rem 0.9rem",
     borderRadius: "999px",
-    fontSize: "0.9rem",
+    fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)",
     fontWeight: 500,
     display: "inline-flex",
     alignItems: "center",
@@ -148,15 +148,15 @@ export default function BatteryTemperature({
   return (
     <BentoCard theme={theme} withShadow={withShadow} style={{ padding: "2.5rem", ...style }} {...props}>
 
-      {/* ── Top Header ── */}
+      {/* --- Top Header --- */}
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
+        <h2 style={{ margin: 0, fontSize: "clamp(1.1rem, 6cqw, 1.6rem)", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
           Battery Temperature
         </h2>
 
         {/* Hero temp + status pill */}
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.6rem" }}>
-          <span style={{ fontSize: "2.5rem", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
+          <span style={{ fontSize: "clamp(1.8rem, 10cqw, 2.5rem)", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
             {temperature}°C
           </span>
 
@@ -191,91 +191,83 @@ export default function BatteryTemperature({
         </div>
       </div>
 
-      {/* ── Middle: Temperature Sparkline ── */}
+      {/* --- Middle: Temperature Sparkline --- */}
       <div style={{ marginTop: "1.8rem" }}>
         <TempSparkline temperature={temperature} theme={theme} height={120} />
       </div>
 
-      {/* ── Bottom: Horizontal Stats Row ── */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        marginTop: "1.6rem", 
-        gap: "0.75rem", 
+      {/* --- Bottom: Horizontal Stats Row --- */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        marginTop: "1.6rem",
+        gap: "0.75rem",
         flexWrap: "nowrap",
         overflow: "hidden"
       }}>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <Cpu size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={ChipIcon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             MOSFET
           </div>
-          <span style={{ fontSize: "1rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{mosfetTemp}°C</span>
+          <span style={{ fontSize: "clamp(0.8rem, 4cqw, 1rem)", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{mosfetTemp}°C</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <Layers size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={Layers01Icon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             Cells
           </div>
-          <span style={{ fontSize: "1rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{cellTemp}°C</span>
+          <span style={{ fontSize: "clamp(0.8rem, 4cqw, 1rem)", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{cellTemp}°C</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <History size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={TradeUpIcon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             Peak
           </div>
-          <span style={{ fontSize: "1rem", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{peakTempToday}°C</span>
+          <span style={{ fontSize: "clamp(0.8rem, 4cqw, 1rem)", fontWeight: 500, color: textColor, whiteSpace: "nowrap" }}>{peakTempToday}°C</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <LineChart size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={Analytics01Icon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             Trend
           </div>
-          <span style={{ fontSize: "1rem", fontWeight: 500, color: trendColor, whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: "clamp(0.8rem, 4cqw, 1rem)", fontWeight: 500, color: trendColor, whiteSpace: "nowrap" }}>
             {trendLabel(trend)}
           </span>
         </div>

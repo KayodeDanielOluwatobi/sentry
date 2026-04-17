@@ -3,9 +3,10 @@
 import React from "react";
 import BentoCard, { CardTheme } from "./BentoCard";
 import VoltageWaveform from "./VoltageWaveform";
-import { Activity, History, ShieldCheck } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Sine02Icon, TwentyFourHoursClockIcon, HourglassIcon } from "@hugeicons/core-free-icons";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types ────────────────────────────────────────────────────────────────────
 
 type GridState = "online" | "offline" | "unstable";
 
@@ -20,7 +21,7 @@ export interface GridStatusProps extends React.HTMLAttributes<HTMLDivElement> {
   withShadow?: boolean;
 }
 
-// ─── State config ─────────────────────────────────────────────────────────────
+// --- State config ─────────────────────────────────────────────────────────────
 
 function stateConfig(state: GridState, isDark: boolean) {
   switch (state) {
@@ -33,7 +34,7 @@ function stateConfig(state: GridState, isDark: boolean) {
   }
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// --- Component ────────────────────────────────────────────────────────────────
 
 export default function GridStatus({
   voltage = 234,
@@ -57,18 +58,18 @@ export default function GridStatus({
   return (
     <BentoCard theme={theme} withShadow={withShadow} style={{ padding: "2.5rem", ...style }} {...props}>
 
-      {/* ── Top Header ── */}
+      {/* --- Top Header --- */}
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <h2 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
+        <h2 style={{ margin: 0, fontSize: "clamp(1.1rem, 6cqw, 1.6rem)", fontWeight: 400, color: grayText, letterSpacing: "0.01em" }}>
           Grid Status
         </h2>
 
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.6rem" }}>
-          <span style={{ fontSize: "2.5rem", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
+          <span style={{ fontSize: "clamp(1.8rem, 10cqw, 2.5rem)", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
             {voltage}V
           </span>
-          <span style={{ background: state.pillBg, color: state.pillText, padding: "0.45rem 0.9rem", borderRadius: "999px", fontSize: "0.9rem", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: state.dotColor, display: "inline-block", boxShadow: gridState === "online" ? `0 0 6px 2px ${state.dotColor}55` : "none" }} />
+          <span style={{ background: state.pillBg, color: state.pillText, padding: "clamp(0.3rem, 2cqw, 0.45rem) clamp(0.6rem, 4cqw, 0.9rem)", borderRadius: "999px", fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ width: "clamp(6px, 1.5cqw, 8px)", height: "clamp(6px, 1.5cqw, 8px)", borderRadius: "50%", background: state.pillText, display: "inline-block" }} />
             {state.label}
           </span>
         </div>
@@ -79,73 +80,67 @@ export default function GridStatus({
         </div>
       </div>
 
-      {/* ── Middle: Oscilloscope Waveform ── */}
+      {/* --- Middle: Oscilloscope Waveform --- */}
       <div style={{ marginTop: "1.8rem" }}>
         <VoltageWaveform gridState={gridState} theme={theme} height={110} cycles={4} />
       </div>
 
-      {/* ── Bottom: Three stats horizontal ── */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        marginTop: "1.8rem", 
-        gap: "0.75rem", 
+      {/* --- Bottom: Three stats horizontal --- */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        marginTop: "1.8rem",
+        gap: "0.75rem",
         flexWrap: "nowrap",
-        overflow: "hidden" 
+        overflow: "hidden"
       }}>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <Activity size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={Sine02Icon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             Frequency
           </div>
-          <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{frequency} Hz</span>
+          <span style={{ fontSize: "clamp(0.85rem, 4.5cqw, 1.05rem)", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{frequency} Hz</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <History size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={TwentyFourHoursClockIcon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             Outage
           </div>
-          <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{lastOutage}</span>
+          <span style={{ fontSize: "clamp(0.85rem, 4.5cqw, 1.05rem)", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{lastOutage}</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.35rem", 
-            fontSize: "0.8rem", 
-            color: grayText, 
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            fontSize: "clamp(0.65rem, 3.2cqw, 0.8rem)",
+            color: grayText,
             letterSpacing: "0.03em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
+            whiteSpace: "nowrap"
           }}>
-            <ShieldCheck size={12} style={{ flexShrink: 0 }} />
+            <HugeiconsIcon icon={HourglassIcon} size="clamp(13px, 3.5cqw, 16px)" style={{ flexShrink: 0 }} />
             Uptime
           </div>
-          <span style={{ fontSize: "1.05rem", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{dailyAvailability}</span>
+          <span style={{ fontSize: "clamp(0.85rem, 4.5cqw, 1.05rem)", fontWeight: 500, color: textColor, letterSpacing: "0.02em", whiteSpace: "nowrap" }}>{dailyAvailability}</span>
         </div>
 
       </div>
