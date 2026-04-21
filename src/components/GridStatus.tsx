@@ -26,7 +26,7 @@ export interface GridStatusProps extends React.HTMLAttributes<HTMLDivElement> {
 function stateConfig(state: GridState, isDark: boolean) {
   switch (state) {
     case "online":
-      return { label: "Online", dotColor: "#4ade80", pillBg: isDark ? "rgba(74,222,128,0.1)" : "#eafee7", pillText: isDark ? "#86efac" : "#2a7037" };
+      return { label: "Online", dotColor: "#D4FF00", pillBg: isDark ? "rgba(212,255,0,0.12)" : "rgba(212,255,0,0.18)", pillText: isDark ? "#D4FF00" : "#5a6600" };
     case "offline":
       return { label: "Offline", dotColor: "#f87171", pillBg: isDark ? "rgba(248,113,113,0.1)" : "#fff1f1", pillText: isDark ? "#fca5a5" : "#991b1b" };
     case "unstable":
