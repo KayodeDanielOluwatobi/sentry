@@ -30,7 +30,7 @@ function stateConfig(state: GridState, isDark: boolean) {
         label: "Online", 
         dotColor: "#D4FF00", 
         pillBg: isDark ? "rgba(212,255,0,0.1)" : "rgba(212,255,0,0.25)", 
-        pillText: isDark ? "#D4FF00" : "#000",
+        pillText: "#D4FF00",
         pillBorder: isDark ? "1px solid rgba(212,255,0,0.2)" : "1px solid rgba(212,255,0,0.4)"
       };
     case "offline":
