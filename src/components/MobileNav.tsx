@@ -95,7 +95,7 @@ export default function MobileNav({
                   borderRadius: "999px",
                   border: "none",
                   background: "transparent",
-                  color: isActive ? "#0a0a0a" : grayText,
+                  color: isActive ? (isDark ? "#0a0a0a" : "#ffffff") : grayText,
                   cursor: "pointer",
                   flex: 1,
                   boxSizing: "border-box",

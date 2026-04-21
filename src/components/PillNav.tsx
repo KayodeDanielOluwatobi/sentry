@@ -83,7 +83,7 @@ export default function PillNav({ theme = "light", active = "Dashboard", onChang
                   borderRadius: "999px",
                   border: "none",
                   background: "transparent",
-                  color: isActive ? "#0a0a0a" : grayText,
+                  color: isActive ? (isDark ? "#0a0a0a" : "#ffffff") : grayText,
                   fontSize: "0.9rem",
                   fontWeight: isActive ? 600 : 400,
                   cursor: "pointer",

@@ -26,17 +26,11 @@ export interface GridStatusProps extends React.HTMLAttributes<HTMLDivElement> {
 function stateConfig(state: GridState, isDark: boolean) {
   switch (state) {
     case "online":
-      return { 
-        label: "Online", 
-        dotColor: "#000",
-        pillBg: "#D4FF00",
-        pillText: "#000",
-        pillBorder: "none"
-      };
+      return { label: "Online", dotColor: "#4ade80", pillBg: isDark ? "rgba(74,222,128,0.1)" : "#eafee7", pillText: isDark ? "#86efac" : "#2a7037" };
     case "offline":
-      return { label: "Offline", dotColor: "#f87171", pillBg: isDark ? "rgba(248,113,113,0.1)" : "#fff1f1", pillText: isDark ? "#fca5a5" : "#991b1b", pillBorder: isDark ? "1px solid rgba(248,113,113,0.2)" : "1px solid rgba(248,113,113,0.3)" };
+      return { label: "Offline", dotColor: "#f87171", pillBg: isDark ? "rgba(248,113,113,0.1)" : "#fff1f1", pillText: isDark ? "#fca5a5" : "#991b1b" };
     case "unstable":
-      return { label: "Unstable", dotColor: "#fbbf24", pillBg: isDark ? "rgba(251,191,36,0.1)" : "#fffbeb", pillText: isDark ? "#fde68a" : "#92400e", pillBorder: isDark ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(251,191,36,0.3)" };
+      return { label: "Unstable", dotColor: "#fbbf24", pillBg: isDark ? "rgba(251,191,36,0.1)" : "#fffbeb", pillText: isDark ? "#fde68a" : "#92400e" };
   }
 }
 
@@ -74,19 +68,8 @@ export default function GridStatus({
           <span style={{ fontSize: "clamp(1.8rem, 10cqw, 2.5rem)", fontWeight: 500, color: textColor, lineHeight: 1, letterSpacing: "0" }}>
             {voltage}V
           </span>
-          <span style={{ 
-            background: state.pillBg, 
-            color: state.pillText, 
-            border: (state as any).pillBorder,
-            padding: "clamp(0.3rem, 2cqw, 0.45rem) clamp(0.6rem, 4cqw, 0.9rem)", 
-            borderRadius: "999px", 
-            fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)", 
-            fontWeight: 500, 
-            display: "inline-flex", 
-            alignItems: "center", 
-            gap: "0.5rem" 
-          }}>
-            <span style={{ width: "clamp(6px, 1.5cqw, 8px)", height: "clamp(6px, 1.5cqw, 8px)", borderRadius: "50%", background: state.dotColor, display: "inline-block" }} />
+          <span style={{ background: state.pillBg, color: state.pillText, padding: "clamp(0.3rem, 2cqw, 0.45rem) clamp(0.6rem, 4cqw, 0.9rem)", borderRadius: "999px", fontSize: "clamp(0.7rem, 3.5cqw, 0.9rem)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ width: "clamp(6px, 1.5cqw, 8px)", height: "clamp(6px, 1.5cqw, 8px)", borderRadius: "50%", background: state.pillText, display: "inline-block" }} />
             {state.label}
           </span>
         </div>
