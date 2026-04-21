@@ -143,7 +143,7 @@ export default function MobileNav({
       <div
         style={{
           position: "fixed",
-          bottom: "6.5rem", // Position perfectly above the liquid glass dock
+          bottom: "8.5rem", // Position perfectly above the liquid glass dock
           left: "50%",
           transform: "translateX(-50%)",
           marginLeft: "22.5px",
