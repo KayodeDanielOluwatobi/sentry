@@ -213,7 +213,7 @@ export default function LoadManagement({
                 }}
               >
                 {m === "auto" ? (
-                  <HugeiconsIcon icon={StarsIcon} size={isNarrow ? 14 : 15} color={mode === "auto" ? (isDark ? "#000" : "#fff") : "currentColor"} variant={mode === "auto" ? "solid" : "stroke"} />
+                  <HugeiconsIcon icon={StarsIcon} size={isNarrow ? 14 : 15} color={mode === "auto" ? (isDark ? "#000" : "#fff") : "currentColor"} />
                 ) : (
                   <HugeiconsIcon icon={MouseIcon} size={isNarrow ? 14 : 15} />
                 )}
