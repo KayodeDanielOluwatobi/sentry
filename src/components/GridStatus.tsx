@@ -28,10 +28,10 @@ function stateConfig(state: GridState, isDark: boolean) {
     case "online":
       return { 
         label: "Online", 
-        dotColor: "#D4FF00", 
-        pillBg: isDark ? "rgba(212,255,0,0.1)" : "rgba(212,255,0,0.25)", 
-        pillText: "#D4FF00",
-        pillBorder: isDark ? "1px solid rgba(212,255,0,0.2)" : "1px solid rgba(212,255,0,0.4)"
+        dotColor: "#000",
+        pillBg: "#D4FF00",
+        pillText: "#000",
+        pillBorder: "none"
       };
     case "offline":
       return { label: "Offline", dotColor: "#f87171", pillBg: isDark ? "rgba(248,113,113,0.1)" : "#fff1f1", pillText: isDark ? "#fca5a5" : "#991b1b", pillBorder: isDark ? "1px solid rgba(248,113,113,0.2)" : "1px solid rgba(248,113,113,0.3)" };
