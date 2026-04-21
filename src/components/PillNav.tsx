@@ -107,9 +107,9 @@ export default function PillNav({ theme = "light", active = "Dashboard", onChang
                     style={{
                       position: "absolute",
                       inset: "-6px -6px", // Increased size slightly beyond button boundaries
-                      background: "#D4FF00",
+                      background: isDark ? "hsl(120, 100%, 50%)" : "#0d9b0d",
                       borderRadius: "999px",
-                      boxShadow: "0 2px 14px rgba(212, 255, 0, 0.3)",
+                      boxShadow: isDark ? "0 2px 14px hsla(120, 100%, 50%, 0.3)" : "0 2px 14px rgba(13, 155, 13, 0.3)",
                       zIndex: -1
                     }}
                   />

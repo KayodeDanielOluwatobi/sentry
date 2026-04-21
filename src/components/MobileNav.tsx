@@ -114,8 +114,8 @@ export default function MobileNav({
                       width: "44px",
                       height: "44px",
                       borderRadius: "50%",
-                      background: "#D4FF00",
-                      boxShadow: "0 2px 14px rgba(212, 255, 0, 0.4)",
+                      background: isDark ? "hsl(120, 100%, 50%)" : "#0d9b0d",
+                      boxShadow: isDark ? "0 2px 14px hsla(120, 100%, 50%, 0.4)" : "0 2px 14px rgba(13, 155, 13, 0.4)",
                       zIndex: -1,
                     }}
                   />
