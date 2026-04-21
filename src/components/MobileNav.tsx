@@ -143,7 +143,7 @@ export default function MobileNav({
       <div
         style={{
           position: "fixed",
-          bottom: "8.5rem", // Position perfectly above the liquid glass dock
+          bottom: "calc(0.8rem + 70px + 16px)", // Mirrors nav geometry: nav offset + nav height (24+22+24px) + gap
           left: "50%",
           transform: "translateX(-50%)",
           marginLeft: "22.5px",
