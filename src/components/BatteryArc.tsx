@@ -68,7 +68,7 @@ function tokens(isDark: boolean) {
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
 
-function Counter({ mv, colorMv, precision = 0 }: { mv: MotionValue<number>; colorMv: MotionValue<string>; precision?: number }) {
+function Counter({ mv, colorMv, precision = 0, fontSize }: { mv: MotionValue<number>; colorMv: MotionValue<string>; precision?: number; fontSize?: number | string }) {
   const [disp, setDisp] = useState("");
 
   useEffect(() => {
@@ -78,10 +78,10 @@ function Counter({ mv, colorMv, precision = 0 }: { mv: MotionValue<number>; colo
 
   return (
     <motion.span style={{
-      fontFamily: "var(--font-google-sans), sans-serif",
+      fontFamily: "var(--font-inter), sans-serif",
       fontFeatureSettings: "'tnum' on",
-      fontSize: "clamp(1.4rem, 18cqi, 2.4rem)",
-      fontWeight: 500,              // ← EDIT SOC FONT WEIGHT HERE
+      fontSize: fontSize ?? "clamp(1.4rem, 18cqi, 2.4rem)",
+      fontWeight: 600,              // ← EDIT SOC FONT WEIGHT HERE (Set to 600)
       letterSpacing: "0.01em",
       color: colorMv,
       lineHeight: 1,
@@ -205,11 +205,14 @@ export default function BatteryArc({
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      width: S,
-      height: S,
+      width: "100%",
+      height: "100%",
+      aspectRatio: "1 / 1",
+      maxWidth: S,
+      maxHeight: S,
     }}>
       <svg
-        width={S} height={S}
+        width="100%" height="100%"
         viewBox={`0 0 ${S} ${S}`}
         style={{ position: "absolute", inset: 0, overflow: "visible" }}
       >
@@ -303,7 +306,7 @@ export default function BatteryArc({
               x={label.x.toFixed(4)} y={label.y.toFixed(4)}
               textAnchor="middle" dominantBaseline="middle"
               fill={t.tickText} fontSize={S * 0.048}
-              fontFamily="var(--font-satoshi), sans-serif" fontWeight={400}
+              fontFamily="var(--font-inter), sans-serif" fontWeight={400}
               opacity={0.12}
             >
               {v}
@@ -312,47 +315,51 @@ export default function BatteryArc({
         ))}
       </svg>
 
-      {/* Center labels */}
+      {/* Center labels - perfectly centered big number */}
       <div style={{
-        position: "relative", zIndex: 1,
-        display: "flex", flexDirection: "column", alignItems: "center",
-        gap: S * 0.01, marginTop: -S * 0.04,
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)", // Centered exactly at the midpoint of the arc
+        zIndex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        pointerEvents: "none",
       }}>
-        {centerLabel && (
-          <span style={{
-            fontSize: S * 0.045, fontFamily: "var(--font-satoshi), sans-serif",
-            letterSpacing: "0.12em", color: isDark ? "#777" : "#aaa",
-            textTransform: "uppercase", fontWeight: 600,
-            marginBottom: S * 0.01
-          }}>
-            {centerLabel}
-          </span>
-        )}
-
-        {/* SOC number + faded % anchored below without affecting layout */}
-        <div style={{ position: "relative", display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: S * 0.015, marginTop: S * 0.01 }}>
-            <Counter mv={animatedCenter} colorMv={valueColor} precision={precision} />
-            {label && (
-              <span style={{ fontSize: S * 0.09, color: isDark ? "#888" : "#999", fontWeight: 600, fontFamily: "var(--font-satoshi), sans-serif" }}>
-                {label}
-              </span>
-            )}
-          </div>
-
-          {/* Faded % — sits below the number, zero layout impact */}
-          <span style={{
-            fontSize: S * 0.048,
-            fontFamily: "var(--font-google-sans), sans-serif",
-            fontWeight: 400,
-            letterSpacing: "0.1em",
-            color: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.15)",
-            lineHeight: 1,
-            marginTop: S * 0.0002,
+        {/* SOC number + % sign inline, % absolute positioned to prevent optical misalignment */}
+        <div style={{ position: "relative", display: "inline-flex", alignItems: "baseline", justifyContent: "center" }}>
+          <Counter mv={animatedCenter} colorMv={valueColor} precision={precision} fontSize={S * 0.21} />
+          <motion.span style={{
+            position: "absolute",
+            left: "100%",
+            bottom: "0.15em",
+            fontSize: S * 0.08,
+            color: valueColor,
+            fontWeight: 500,
+            fontFamily: "var(--font-inter), sans-serif",
+            marginLeft: "0px", // Reduced from 2px to sit closer to the number
           }}>
             %
-          </span>
+          </motion.span>
         </div>
+
+        {/* Label below the number, absolute positioned to not offset center height of SOC number */}
+        {label && (
+          <span style={{
+            position: "absolute",
+            top: "100%",
+            marginTop: "1px",
+            fontSize: S * 0.045,
+            fontFamily: "var(--font-inter), sans-serif",
+            letterSpacing: "0.04em",
+            color: isDark ? "#888" : "#666",
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+          }}>
+            {label === "State of Charge" ? "SOC" : label}
+          </span>
+        )}
       </div>
     </div>
   );

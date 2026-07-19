@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @font-face { font-family: 'Google Sans'; font-style: normal; font-weight: 300; src: url('https://fonts.cdnfonts.com/s/14955/ProductSans-Light.woff') format('woff'); font-display: swap; }
@@ -6,16 +7,47 @@
 @font-face { font-family: 'Google Sans'; font-style: normal; font-weight: 500; src: url('https://fonts.cdnfonts.com/s/14955/ProductSans-Medium.woff') format('woff'); font-display: swap; }
 @font-face { font-family: 'Google Sans'; font-style: normal; font-weight: 700; src: url('https://fonts.cdnfonts.com/s/14955/ProductSans-Bold.woff') format('woff'); font-display: swap; }
 
+@font-face {
+  font-family: 'Campton';
+  font-style: normal;
+  font-weight: 300;
+  src: url('/fonts/Campton-Light.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Campton';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/Campton-Medium.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Campton';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/fonts/Campton-Medium.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Campton';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/Campton-Bold.woff2') format('woff2');
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-inter: 'Inter', sans-serif;
+  --font-campton: 'Campton', sans-serif;
   --font-google-sans: 'Google Sans', sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-google-sans);
+  --font-sans: var(--font-inter);
   --font-mono: 'Space Mono', monospace;
 }
 
@@ -29,5 +61,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-google-sans);
+  font-family: var(--font-inter);
 }
