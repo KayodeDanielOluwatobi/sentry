@@ -13,26 +13,24 @@ interface BentoCardProps extends React.HTMLAttributes<HTMLDivElement> {
 export default function BentoCard({ theme = "light", withShadow = true, children, style, ...props }: BentoCardProps) {
   const isDark = theme === "dark";
 
-  // User-defined color codes
-  // Light theme: stroke #dee0e2, fill top #f3fafc to bottom #ffffff
-  // Dark theme: stroke #21211d, lighter dark #242421 at top-right 45deg, deeper dark #060702 at bottom-left
+  // Light/Dark borders
   const borderValue = isDark ? "1.5px solid #21211d" : "1.5px solid #dee0e2";
-  const backgroundValue = isDark
-    ? "linear-gradient(45deg, #060702, #1c1c1a)"
-    : "linear-gradient(to bottom, #f3fafc, #ffffff)";
+  
+  // Use solid background colors instead of gradients for perfectly smooth CSS transitions
+  const backgroundColor = isDark ? "#121212" : "#ffffff";
 
   return (
     <div
       style={{
         position: "relative",
         border: borderValue,
-        background: backgroundValue,
-        borderRadius: "32px", // Modern rounded bento aesthetic
+        backgroundColor: backgroundColor,
+        borderRadius: "32px",
         padding: "1.25rem",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden", // Constrains content cleanly
-        containerType: "inline-size", // Enable cqw units for children
+        overflow: "hidden",
+        containerType: "inline-size",
         boxShadow: withShadow
           ? (isDark
             ? "0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)"
@@ -40,11 +38,13 @@ export default function BentoCard({ theme = "light", withShadow = true, children
           : (isDark
             ? "inset 0 1px 0 rgba(255,255,255,0.03)"
             : "inset 0 1px 0 rgba(255,255,255,0.8)"),
-        transition: "border 0.4s ease, background 0.4s ease, box-shadow 0.4s ease",
+        // Simple, robust transition on all properties
+        transition: "background-color 0.2s ease, border 0.2s ease, box-shadow 0.2s ease",
         ...style,
       }}
       {...props}
     >
+      {/* ── Dot Pattern Overlay ── */}
       <div
         style={{
           position: "absolute",
@@ -55,8 +55,11 @@ export default function BentoCard({ theme = "light", withShadow = true, children
           backgroundSize: "24px 24px",
           pointerEvents: "none",
           zIndex: 0,
+          transition: "opacity 0.2s ease",
         }}
       />
+
+      {/* ── Content Container ── */}
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
         {children}
       </div>

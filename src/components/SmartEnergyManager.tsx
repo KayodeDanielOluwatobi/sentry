@@ -128,7 +128,7 @@ function LoadCard({ load, isDark, mode, cardBg, cardBorder, onToggle }: LoadCard
         minWidth: 0,
         opacity: load.isOn ? 1 : 0.55,
         cursor: mode === "manual" ? "pointer" : "default",
-        transition: "opacity 0.3s ease",
+        transition: "opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease",
       }}
     >
       {/* ── Top: Level label + status badge ── */}

@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import BentoCard from "./BentoCard";
 import { CardTheme } from "./BentoCard";
+import { ExpandIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 /**
  * Smoothly animates a numeric voltage value to a new target using
@@ -99,6 +101,7 @@ function CellCard({
         flexDirection: "column",
         gap: "0.35rem",
         minWidth: 0,
+        transition: "background-color 0.2s ease, border-color 0.2s ease",
       }}
     >
       {/* Cell Label */}
@@ -299,20 +302,31 @@ export default function CellVoltages({
             style={{
               background: "none",
               border: "none",
-              padding: 0,
-              fontSize: "clamp(0.72rem, 2.5cqi, 0.8rem)",
-              fontWeight: 400,
-              color: grayText,
+              padding: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: isDark ? "#9ca3af" : "#6b7280",
               opacity: 0.7,
               cursor: "pointer",
-              fontFamily: "var(--font-inter), sans-serif",
-              transition: "opacity 0.2s ease",
+              transition: "opacity 0.2s ease, color 0.2s ease",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            onMouseEnter={e => {
+              e.currentTarget.style.opacity = "1";
+              e.currentTarget.style.color = isDark ? "#ffffff" : "#111111";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.opacity = "0.7";
+              e.currentTarget.style.color = isDark ? "#9ca3af" : "#6b7280";
+            }}
             onClick={() => console.log("View All clicked")}
+            aria-label="Expand Cell Voltages"
           >
-            View All
+            <HugeiconsIcon
+              icon={ExpandIcon}
+              size={18}
+              strokeWidth={1} // 1px stroke weight as requested
+            />
           </button>
         </div>
 

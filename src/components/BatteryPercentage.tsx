@@ -27,6 +27,9 @@ interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
   temperature?: number;
   soh?: number;
   cycleCount?: number;
+  /** Optional overrides for future real-time BMS/Firebase telemetry */
+  dischargeRuntime?: string;
+  chargeTimeToFull?: string;
   theme?: CardTheme;
   withShadow?: boolean;
 }
@@ -37,6 +40,8 @@ export default function BatteryPercentage({
   temperature = 28.9,
   soh = 100,
   cycleCount = 12,
+  dischargeRuntime,
+  chargeTimeToFull,
   theme = "light",
   withShadow = true,
   style,
@@ -74,20 +79,27 @@ export default function BatteryPercentage({
   const current = (isCharging ? 4.5 : 0.0).toFixed(2);
   const power = Math.round(parseFloat(packVoltage) * parseFloat(current));
 
-  // Compute runtime estimation
-  const getRuntimeString = () => {
-    if (isCharging) {
-      if (soc >= 100) return "Fully Charged";
-      const remainingSoc = 100 - soc;
-      const hours = Math.floor((remainingSoc * 10) / 60);
-      const minutes = Math.round((remainingSoc * 10) % 60);
-      return `${hours}h ${minutes}m`;
-    } else {
-      if (soc <= 0) return "Empty";
-      const hours = Math.floor((soc * 15) / 60);
-      const minutes = Math.round((soc * 15) % 60);
-      return `${hours}h ${minutes}m`;
-    }
+  // NOTE: The calculation formulas below are realistic client-side fallbacks.
+  // In the future, these values will be supplied directly from the BMS via Firebase
+  // using the props `dischargeRuntime` and `chargeTimeToFull`.
+  
+  // Compute discharge runtime estimation (only active when discharging)
+  const getDischargeRuntime = () => {
+    if (dischargeRuntime) return dischargeRuntime; // Use Firebase telemetry override if available
+    if (soc <= 0) return "Empty";
+    const hours = Math.floor((soc * 15) / 60);
+    const minutes = Math.round((soc * 15) % 60);
+    return `${hours}h ${minutes}m`;
+  };
+
+  // Compute charge time to full estimation (only active when charging)
+  const getChargeTimeToFull = () => {
+    if (chargeTimeToFull) return chargeTimeToFull; // Use Firebase telemetry override if available
+    if (soc >= 100) return "Full";
+    const remainingSoc = 100 - soc;
+    const hours = Math.floor((remainingSoc * 10) / 60);
+    const minutes = Math.round((remainingSoc * 10) % 60);
+    return `${hours}h ${minutes}m`;
   };
 
   // Helper to dynamically fetch and rotate the remaining capacity battery icon
@@ -99,7 +111,8 @@ export default function BatteryPercentage({
     return BatteryEmptyIcon;
   };
 
-  const runtimeString = getRuntimeString();
+  const dischargeRuntimeString = getDischargeRuntime();
+  const chargeTimeToFullString = getChargeTimeToFull();
   const capacityString = ((soc / 100) * 100.38).toFixed(1); // Capacity scaling based on 100Ah battery pack
   const DynamicCapacityIcon = getDynamicBatteryIcon(soc);
 
@@ -225,12 +238,13 @@ export default function BatteryPercentage({
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem", // Fixed card padding
+                padding: "0.5rem",
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.3rem", // Fixed gap between Icon, Value, and Label
+                gap: "0.3rem",
                 minWidth: 0,
-                height: "auto", // Height wraps content naturally
+                height: "auto",
+                transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
               <div
@@ -262,12 +276,13 @@ export default function BatteryPercentage({
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem", // Fixed card padding
+                padding: "0.5rem",
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.3rem", // Fixed gap between Icon, Value, and Label
+                gap: "0.3rem",
                 minWidth: 0,
-                height: "auto", // Height wraps content naturally
+                height: "auto",
+                transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
               <div
@@ -275,8 +290,8 @@ export default function BatteryPercentage({
                   width: "24px",
                   height: "24px",
                   borderRadius: "50%",
-                  background: isDark ? "rgba(59, 130, 246, 0.08)" : "#eff6ff",
-                  color: isDark ? "#60a5fa" : "#1d4ed8",
+                  background: isDark ? "rgba(45, 212, 191, 0.08)" : "#f0fdfa",
+                  color: isDark ? "#2dd4bf" : "#0f766e",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -299,12 +314,13 @@ export default function BatteryPercentage({
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem", // Fixed card padding
+                padding: "0.5rem",
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.3rem", // Fixed gap between Icon, Value, and Label
+                gap: "0.3rem",
                 minWidth: 0,
-                height: "auto", // Height wraps content naturally
+                height: "auto",
+                transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
               <div
@@ -336,12 +352,13 @@ export default function BatteryPercentage({
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem", // Fixed card padding
+                padding: "0.5rem",
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.3rem", // Fixed gap between Icon, Value, and Label
+                gap: "0.3rem",
                 minWidth: 0,
-                height: "auto", // Height wraps content naturally
+                height: "auto",
+                transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
               <div
@@ -349,8 +366,8 @@ export default function BatteryPercentage({
                   width: "24px",
                   height: "24px",
                   borderRadius: "50%",
-                  background: isDark ? "rgba(249, 115, 22, 0.08)" : "#fff7ed",
-                  color: isDark ? "#fb923c" : "#c2410c",
+                  background: isDark ? "rgba(59, 130, 246, 0.08)" : "#eff6ff",
+                  color: isDark ? "#60a5fa" : "#1d4ed8",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -419,7 +436,7 @@ export default function BatteryPercentage({
             </div>
           </div>
 
-          {/* Detail 2: Estimated Runtime */}
+          {/* Detail 2: Estimated Runtime (Discharge) */}
           <div
             style={{
               display: "flex",
@@ -429,11 +446,13 @@ export default function BatteryPercentage({
               paddingRight: "0.2rem",
               paddingLeft: "0.2rem",
               minWidth: 0,
+              opacity: isCharging ? 0.35 : 1, // Greyed out when charging
+              transition: "opacity 0.2s ease",
             }}
           >
             <div
               style={{
-                width: "28px", // Increased icon circle diameter to 28px for visual thickness
+                width: "28px",
                 height: "28px",
                 borderRadius: "50%",
                 background: isDark ? "rgba(59, 130, 246, 0.08)" : "#eff6ff",
@@ -451,12 +470,12 @@ export default function BatteryPercentage({
                 Runtime
               </div>
               <div style={{ fontSize: "clamp(0.7rem, 2.5cqi, 0.8rem)", fontWeight: 700, color: textColor, marginTop: "0.02rem", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {runtimeString}
+                {isCharging ? "—" : dischargeRuntimeString}
               </div>
             </div>
           </div>
 
-          {/* Detail 3: SOH */}
+          {/* Detail 3: Time to Charge Full */}
           <div
             style={{
               display: "flex",
@@ -466,11 +485,48 @@ export default function BatteryPercentage({
               paddingRight: "0.2rem",
               paddingLeft: "0.2rem",
               minWidth: 0,
+              opacity: isCharging ? 1 : 0.35, // Greyed out when discharging
+              transition: "opacity 0.2s ease",
             }}
           >
             <div
               style={{
-                width: "28px", // Increased icon circle diameter to 28px for visual thickness
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                background: isDark ? "rgba(168, 85, 247, 0.08)" : "#faf5ff",
+                color: isDark ? "#c084fc" : "#6b21a8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <HugeiconsIcon icon={BatteryCharging01Icon} size={14} color="currentColor" strokeWidth={2} />
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: "clamp(0.5rem, 2cqi, 0.58rem)", color: grayText, fontWeight: 500, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.15 }}>
+                Time to Full
+              </div>
+              <div style={{ fontSize: "clamp(0.7rem, 2.5cqi, 0.8rem)", fontWeight: 700, color: textColor, marginTop: "0.02rem", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {isCharging ? chargeTimeToFullString : "—"}
+              </div>
+            </div>
+          </div>
+
+          {/* Detail 4: SOH (Shifted to the last column!) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "clamp(0.2rem, 1.2vw, 0.35rem)",
+              paddingLeft: "0.2rem",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                width: "28px",
                 height: "28px",
                 borderRadius: "50%",
                 background: isDark ? "rgba(248, 113, 113, 0.08)" : "#fef2f2",
@@ -489,41 +545,6 @@ export default function BatteryPercentage({
               </div>
               <div style={{ fontSize: "clamp(0.7rem, 2.5cqi, 0.8rem)", fontWeight: 700, color: textColor, marginTop: "0.02rem", lineHeight: 1.1 }}>
                 {soh} <span style={{ fontSize: "0.55rem", fontWeight: 400, color: grayText }}>%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Detail 4: Cycle Count */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "clamp(0.2rem, 1.2vw, 0.35rem)",
-              paddingLeft: "0.2rem",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                width: "28px", // Increased icon circle diameter to 28px for visual thickness
-                height: "28px",
-                borderRadius: "50%",
-                background: isDark ? "rgba(107, 114, 128, 0.08)" : "#f3f4f6",
-                color: isDark ? "#9ca3af" : "#6b7280",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <HugeiconsIcon icon={Exchange01Icon} size={14} color="currentColor" strokeWidth={2} />
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: "clamp(0.5rem, 2cqi, 0.58rem)", color: grayText, fontWeight: 500, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.15 }}>
-                Cycles
-              </div>
-              <div style={{ fontSize: "clamp(0.7rem, 2.5cqi, 0.8rem)", fontWeight: 700, color: textColor, marginTop: "0.02rem", lineHeight: 1.1 }}>
-                {cycleCount}
               </div>
             </div>
           </div>

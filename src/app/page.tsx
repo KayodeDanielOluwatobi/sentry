@@ -4,20 +4,20 @@ import { useState } from "react";
 import TopBar from "@/components/TopBar";
 import BatteryPercentage from "@/components/BatteryPercentage";
 
-import BatteryTemperature from "@/components/BatteryTemperature";
-import LoadManagement from "@/components/LoadManagement";
-import TotalLoad from "@/components/TotalLoad";
 import { NavItem } from "@/components/PillNav";
 import MobileNav from "@/components/MobileNav";
 import CellVoltages from "@/components/CellVoltages";
 import SmartEnergyManager from "@/components/SmartEnergyManager";
+import TemperaturesList from "@/components/TemperaturesList";
+import ActiveAlarms from "@/components/ActiveAlarms";
+import CycleCount from "@/components/CycleCount";
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isCharging, setIsCharging] = useState(true);
 
   const [activeTab, setActiveTab] = useState<NavItem>("Dashboard");
-  
+
   const tempValues = [25, 52, 65] as const;
   const [tempIdx, setTempIdx] = useState(0);
   const [soc, setSoc] = useState(89);
@@ -36,12 +36,26 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "1rem",
+        padding: "1rem 1rem 5.5rem 1rem",
         fontFamily: "var(--font-inter), sans-serif",
-        transition: "background 0.4s ease",
+        transition: "background 0.2s ease, color 0.2s ease",
         color: isDark ? "#ffffff" : "#111111",
       }}
     >
+      {/* Temporary Page Center Guide Line (Dashed Red)
+      <div style={{
+        position: "fixed",
+        top: 0,
+        bottom: 0,
+        left: "50%",
+        width: "2px",
+        background: "repeating-linear-gradient(to bottom, #ef4444, #ef4444 8px, transparent 8px, transparent 16px)",
+        pointerEvents: "none",
+        zIndex: 99999,
+        opacity: 0.65,
+      }} />
+      */}
+
       <div style={{ width: "100%", maxWidth: "1310px" }}>
 
         {/* ── Top Bar ── */}
@@ -67,7 +81,7 @@ export default function Home() {
 
 
         {/* ── Bento Grid (Seam-less High Density) ── */}
-        <div 
+        <div
           className="bento-grid"
           style={{
             display: "grid",
@@ -89,53 +103,53 @@ export default function Home() {
 
           {/* Row 2: Cell Voltages (Full Width) */}
           <div style={{ gridColumn: "span 3" }}>
-              <CellVoltages
-                theme={theme}
-                voltages={cellVoltages}
-                withShadow={false}
-              />
+            <CellVoltages
+              theme={theme}
+              voltages={cellVoltages}
+              withShadow={false}
+            />
           </div>
 
           {/* Row 3: Smart Energy Manager — directly under Cell Voltages */}
           <div style={{ gridColumn: "span 3" }}>
-              <SmartEnergyManager
-                theme={theme}
-              />
+            <SmartEnergyManager
+              theme={theme}
+            />
           </div>
 
-          {/* Row 4, Col 1: Battery Temperature */}
-          <div style={{ gridColumn: "span 1" }}>
-              <BatteryTemperature
+          {/* Row 4: Temperatures (Left half) + Alarms & Cycle Count stacked (Right half) — Locked side-by-side on all screens */}
+          <div style={{
+            gridColumn: "span 3",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.75rem",
+            width: "100%",
+          }}>
+            <div style={{ display: "flex", width: "100%" }}>
+              <TemperaturesList
                 theme={theme}
-                temperature={temperature}
-                withShadow={false}
               />
-          </div>
-
-          {/* Row 4, Col 2-3: Total Load Output */}
-          <div style={{ gridColumn: "span 2" }}>
-              <TotalLoad
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", justifyContent: "space-between", height: "100%" }}>
+              <ActiveAlarms
                 theme={theme}
-                currentWatts={currentLoad}
-                maxWatts={inverterMax}
+                activeCount={0}
+                style={{ flex: 1, height: "100%" }}
               />
-          </div>
-
-          {/* Row 5: Full Width Load Management */}
-          <div style={{ gridColumn: "span 3" }}>
-              <LoadManagement
+              <CycleCount
                 theme={theme}
-                soc={soc}
-                inverterMaxWatts={inverterMax}
+                cycleCount={12}
+                style={{ flex: 1, height: "100%" }}
               />
+            </div>
           </div>
         </div>
 
         {/* ── Mobile Nav Bar ── */}
-        <MobileNav 
-          theme={theme} 
-          active={activeTab} 
-          onChange={setActiveTab} 
+        <MobileNav
+          theme={theme}
+          active={activeTab}
+          onChange={setActiveTab}
         />
       </div>
     </div>
