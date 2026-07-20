@@ -37,6 +37,9 @@ export interface SmartEnergyManagerProps extends React.HTMLAttributes<HTMLDivEle
   withShadow?: boolean;
   subtitle?: string;
   loads?: ManagedLoad[];
+  mode?: "auto" | "manual";
+  onLoadsChange?: (loads: ManagedLoad[]) => void;
+  onModeChange?: (mode: "auto" | "manual") => void;
   onViewDetails?: () => void;
 }
 
@@ -48,18 +51,18 @@ const PRIORITY_PALETTE: Record<PriorityLevel, {
   iconBg: string; iconBgDark: string;
 }> = {
   critical: {
-    text: "#5b21b6", textDark: "#c084fc", // Deeper Purple (Violet-800)
-    bg: "#f3e8ff", bgDark: "rgba(167, 139, 250, 0.12)",
+    text: "#5b21b6", textDark: "#f3e8ff", // Deeper Purple for light, light violet for dark
+    bg: "#f3e8ff", bgDark: "rgba(167, 139, 250, 0.22)",
     iconBg: "rgba(91, 33, 182, 0.08)", iconBgDark: "rgba(167, 139, 250, 0.15)",
   },
   major: {
-    text: "#1e3a8a", textDark: "#3b82f6", // Deeper Blue (Blue-900)
-    bg: "#eff6ff", bgDark: "rgba(59, 130, 246, 0.12)",
+    text: "#1e3a8a", textDark: "#dbeafe", // Deeper Blue for light, light blue for dark
+    bg: "#eff6ff", bgDark: "rgba(59, 130, 246, 0.22)",
     iconBg: "rgba(30, 58, 138, 0.08)", iconBgDark: "rgba(59, 130, 246, 0.15)",
   },
   "non-essential": {
-    text: "#854d0e", textDark: "#fbbf24", // Warm medium brown (Amber-800)
-    bg: "#fef3c7", bgDark: "rgba(251, 191, 36, 0.12)",
+    text: "#854d0e", textDark: "#fef08a", // Deep brown for light, bright yellow for dark
+    bg: "#fef3c7", bgDark: "rgba(251, 191, 36, 0.22)",
     iconBg: "rgba(133, 77, 14, 0.08)", iconBgDark: "rgba(251, 191, 36, 0.15)",
   },
 };
@@ -280,6 +283,9 @@ export default function SmartEnergyManager({
   withShadow = true,
   subtitle = "Load Prioritization",
   loads: externalLoads,
+  mode: externalMode,
+  onLoadsChange,
+  onModeChange,
   onViewDetails,
   style,
   ...props
@@ -290,7 +296,7 @@ export default function SmartEnergyManager({
   const cardBg = isDark ? "rgba(255,255,255,0.025)" : "#f9fafb";
   const cardBorder = isDark ? "rgba(255,255,255,0.07)" : "#e5e7eb";
 
-  const [mode, setMode] = useState<"auto" | "manual">("auto");
+  const [mode, setMode] = useState<"auto" | "manual">(externalMode ?? "auto");
   const [loads, setLoads] = useState<ManagedLoad[]>(externalLoads ?? DEFAULT_LOADS);
 
   // Sync if external loads change (Firebase)
@@ -298,13 +304,20 @@ export default function SmartEnergyManager({
     if (externalLoads) setLoads(externalLoads);
   }, [externalLoads]);
 
+  // Sync if external mode changes
+  useEffect(() => {
+    if (externalMode) setMode(externalMode);
+  }, [externalMode]);
+
   const toggleLoad = (id: string) => {
     if (mode === "manual") {
-      setLoads(prev => prev.map(l =>
+      const nextLoads = loads.map(l =>
         l.id === id
-          ? { ...l, isOn: !l.isOn, status: !l.isOn ? "active" : "shed" }
+          ? { ...l, isOn: !l.isOn, status: !l.isOn ? "active" : "shed" as LoadStatus }
           : l
-      ));
+      );
+      setLoads(nextLoads);
+      onLoadsChange?.(nextLoads);
     }
   };
 
@@ -431,7 +444,11 @@ export default function SmartEnergyManager({
             <div
               role="switch"
               aria-checked={mode === "manual"}
-              onClick={() => setMode(m => m === "auto" ? "manual" : "auto")}
+              onClick={() => {
+                const nextMode = mode === "auto" ? "manual" : "auto";
+                setMode(nextMode);
+                onModeChange?.(nextMode);
+              }}
               style={{
                 position: "relative",
                 display: "flex",

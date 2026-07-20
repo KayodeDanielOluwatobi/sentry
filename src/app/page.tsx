@@ -4,11 +4,12 @@ import { useState } from "react";
 import TopBar from "@/components/TopBar";
 import SystemInsight from "@/components/SystemInsight";
 import BatteryPercentage from "@/components/BatteryPercentage";
+import ActivityFeed from "@/components/ActivityFeed";
 
 import { NavItem } from "@/components/PillNav";
 import MobileNav from "@/components/MobileNav";
 import CellVoltages from "@/components/CellVoltages";
-import SmartEnergyManager from "@/components/SmartEnergyManager";
+import SmartEnergyManager, { ManagedLoad } from "@/components/SmartEnergyManager";
 import TemperaturesList from "@/components/TemperaturesList";
 import ActiveAlarms from "@/components/ActiveAlarms";
 import CycleCount from "@/components/CycleCount";
@@ -26,8 +27,20 @@ export default function Home() {
   const [currentLoad, setCurrentLoad] = useState(450);
   const [cellVoltages, setCellVoltages] = useState([3.199, 3.197, 3.196, 3.199]);
 
+  const [managerMode, setManagerMode] = useState<"auto" | "manual">("auto");
+  const [managerLoads, setManagerLoads] = useState<ManagedLoad[]>([
+    { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: "active", isOn: true, icons: ["router", "wifi", "laptop"] },
+    { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: "active", isOn: true, icons: ["fan", "fridge"] },
+    { id: "3", name: "TV/Lights", level: "non-essential", status: "shed", isOn: false, icons: ["tv", "bulb"] },
+  ]);
+
   const temperature = tempValues[tempIdx];
   const isDark = theme === "dark";
+
+  const maxCellVal = Math.max(...cellVoltages);
+  const minCellVal = Math.min(...cellVoltages);
+  const cellDeltaVal = Math.round((maxCellVal - minCellVal) * 1000);
+  const activeAlarmsCount = (temperature > 45 ? 1 : 0) + (cellDeltaVal > 15 ? 1 : 0);
 
   return (
     <div
@@ -65,6 +78,12 @@ export default function Home() {
             theme={theme}
             soc={soc}
             isCharging={isCharging}
+            temperature={temperature}
+            currentLoad={currentLoad}
+            cellVoltages={cellVoltages}
+            managerMode={managerMode}
+            managerLoads={managerLoads}
+            activeAlarmsCount={activeAlarmsCount}
             onThemeToggle={() => setTheme(isDark ? "light" : "dark")}
             onMenuClick={() => console.log("Menu clicked")}
           />
@@ -101,6 +120,9 @@ export default function Home() {
               currentLoad={currentLoad}
               cellVoltages={cellVoltages}
               withShadow={false}
+              managerMode={managerMode}
+              managerLoads={managerLoads}
+              activeAlarmsCount={activeAlarmsCount}
             />
           </div>
 
@@ -124,10 +146,14 @@ export default function Home() {
             />
           </div>
 
-          {/* Row 3: Smart Energy Manager — directly under Cell Voltages */}
+          {/* Row 4: Smart Energy Manager — directly under Cell Voltages */}
           <div style={{ gridColumn: "span 3" }}>
             <SmartEnergyManager
               theme={theme}
+              loads={managerLoads}
+              mode={managerMode}
+              onLoadsChange={setManagerLoads}
+              onModeChange={setManagerMode}
             />
           </div>
 
@@ -147,7 +173,7 @@ export default function Home() {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", justifyContent: "space-between", height: "100%" }}>
               <ActiveAlarms
                 theme={theme}
-                activeCount={0}
+                activeCount={activeAlarmsCount}
                 style={{ flex: 1, height: "100%" }}
               />
               <CycleCount
@@ -156,6 +182,20 @@ export default function Home() {
                 style={{ flex: 1, height: "100%" }}
               />
             </div>
+          </div>
+
+          {/* Row 5: Activity Feed (Full Width) */}
+          <div style={{ gridColumn: "span 3" }}>
+            <ActivityFeed
+              theme={theme}
+              soc={soc}
+              isCharging={isCharging}
+              temperature={temperature}
+              currentLoad={currentLoad}
+              cellVoltages={cellVoltages}
+              managerMode={managerMode}
+              managerLoads={managerLoads}
+            />
           </div>
         </div>
 

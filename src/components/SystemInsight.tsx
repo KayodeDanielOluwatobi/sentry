@@ -2,17 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Clock01Icon,
-  FlashIcon,
-  ChipIcon,
-  Layers01Icon,
-  Analytics01Icon,
-  BatteryCharging01Icon,
-  Exchange01Icon,
-  TemperatureIcon
-} from "@hugeicons/core-free-icons";
 import BentoCard, { CardTheme } from "./BentoCard";
 
 export interface SystemInsightProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -23,6 +12,9 @@ export interface SystemInsightProps extends React.HTMLAttributes<HTMLDivElement>
   cellVoltages?: number[];
   theme?: CardTheme;
   withShadow?: boolean;
+  managerMode?: "auto" | "manual";
+  managerLoads?: Array<{ id: string; name: string; level: string; status: string; isOn: boolean }>;
+  activeAlarmsCount?: number;
 }
 
 export default function SystemInsight({
@@ -33,17 +25,28 @@ export default function SystemInsight({
   cellVoltages = [3.199, 3.197, 3.196, 3.199],
   theme = "light",
   withShadow = true,
+  managerMode = "auto",
+  managerLoads = [
+    { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: "active", isOn: true },
+    { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: "active", isOn: true },
+    { id: "3", name: "TV/Lights", level: "non-essential", status: "shed", isOn: false },
+  ],
+  activeAlarmsCount = 0,
   style,
   ...props
 }: SystemInsightProps) {
-  const isDark = theme === "dark";
-  const textColor = isDark ? "#ffffff" : "#111111";
-  const grayText = isDark ? "#9ca3af" : "#6b7280";
-  const lightGrayText = isDark ? "#666" : "#9ca3af";
+  // Always use deep premium dark forest green theme for this card
+  const backgroundValue = "linear-gradient(135deg, #042a1c 0%, #08402b 100%)";
+  const borderStyle = "1.5px solid rgba(74, 222, 128, 0.25)";
+  const textColor = "#ffffff";
+  const grayText = "rgba(255, 255, 255, 0.65)";
+  const lightGrayText = "rgba(255, 255, 255, 0.45)";
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [wifiRssi, setWifiRssi] = useState(-58);
+  const [bluetoothSignal, setBluetoothSignal] = useState(-65);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Monitor viewport resize for mobile responsive scaling
@@ -53,6 +56,46 @@ export default function SystemInsight({
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Simulate real-time signal level shifts
+  useEffect(() => {
+    const rssiInterval = setInterval(() => {
+      setWifiRssi(prev => {
+        const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+        const next = prev + delta;
+        return next < -85 ? -85 : next > -45 ? -45 : next;
+      });
+      setBluetoothSignal(prev => {
+        const delta = Math.floor(Math.random() * 3) - 1;
+        const next = prev + delta;
+        return next < -90 ? -90 : next > -40 ? -40 : next;
+      });
+    }, 5000);
+    return () => clearInterval(rssiInterval);
+  }, []);
+
+  const getWifiQuality = (rssi: number) => {
+    if (rssi >= -60) return "Excellent";
+    if (rssi >= -70) return "Good";
+    if (rssi >= -80) return "Fair";
+    return "Weak";
+  };
+
+  const getWifiSubtext = (rssi: number) => {
+    if (rssi >= -70) return "ESP32 wireless link to local network (Sentry-5G) is stable.";
+    return "ESP32 WiFi signal is degraded. Local telemetry packets buffering.";
+  };
+
+  const getBtQuality = (rssi: number) => {
+    if (rssi >= -55) return "Strong";
+    if (rssi >= -70) return "Stable";
+    return "Weak";
+  };
+
+  const getBtSubtext = (rssi: number) => {
+    if (rssi >= -70) return "ESP32 telemetry link to JK BMS is paired and streaming.";
+    return "BMS Bluetooth range threshold reached. Check ESP32 antenna.";
+  };
 
   // 1. Calculate Discharge Runtime Estimation
   const getDischargeRuntime = () => {
@@ -81,23 +124,19 @@ export default function SystemInsight({
   if (isCharging) {
     insights.push({
       id: "charging",
-      title: "Charging Status",
+      title: "Charging status",
       value: `${chargeTimeToFullString} to full`,
-      subtext: `Active power feed is replenishing cells. Current pack SOC: ${soc}%.`,
-      icon: BatteryCharging01Icon,
-      bg: isDark ? "rgba(168, 85, 247, 0.12)" : "#faf5ff",
-      textColor: isDark ? "#c084fc" : "#6b21a8",
+      subtext: `Active power feed is replenishing cells. Current pack SOC is ${soc}%.`,
+      textColor: "#e9d5ff", // Bright pastel violet
       priority: 10
     });
   } else {
     insights.push({
       id: "backup",
-      title: "Estimated Backup",
-      value: `${dischargeRuntimeString} remaining`,
-      subtext: "Capacity runtime computed against current load demand.",
-      icon: Clock01Icon,
-      bg: isDark ? "rgba(59, 130, 246, 0.12)" : "#eff6ff",
-      textColor: isDark ? "#60a5fa" : "#1d4ed8",
+      title: "Estimated backup",
+      value: `${dischargeRuntimeString}`,
+      subtext: "Based on current load and battery level",
+      textColor: "#a5f3fc", // Bright ice blue / cyan
       priority: 10
     });
   }
@@ -106,18 +145,12 @@ export default function SystemInsight({
   const isHot = temperature > 45;
   insights.push({
     id: "thermal",
-    title: "Thermal Status",
-    value: `${temperature.toFixed(1)}°C — ${isHot ? "Elevated" : "Optimal"}`,
+    title: "Thermal status",
+    value: `${temperature.toFixed(1)}°C (${isHot ? "Elevated" : "Optimal"})`,
     subtext: isHot
       ? "Warning: Battery temp is elevated. Coolant/fan dissipation active."
       : "Thermal profiles are nominal. No active cell heat risk.",
-    icon: TemperatureIcon,
-    bg: isDark 
-      ? (isHot ? "rgba(249, 115, 22, 0.12)" : "rgba(45, 212, 191, 0.12)") 
-      : (isHot ? "#fff7ed" : "#f0fdfa"),
-    textColor: isDark 
-      ? (isHot ? "#fdba74" : "#2dd4bf") 
-      : (isHot ? "#9a3412" : "#0f766e"),
+    textColor: isHot ? "#fed7aa" : "#a7f3d0", // Light peach for warning, light mint green for optimal
     priority: isHot ? 12 : 5
   });
 
@@ -128,71 +161,100 @@ export default function SystemInsight({
   const isImbalanced = cellDelta > 15;
   insights.push({
     id: "balance",
-    title: "Cell Balance Quality",
+    title: "Cell balance",
     value: `${cellDelta}mV delta (${cellDelta < 10 ? "Excellent" : "Healthy"})`,
     subtext: isImbalanced
       ? "Slight voltage variance detected across pack. Active balancing running."
       : "Cells are perfectly aligned. Pack structural SOH is 100%.",
-    icon: Layers01Icon,
-    bg: isDark 
-      ? (isImbalanced ? "rgba(251, 191, 36, 0.12)" : "rgba(74, 222, 128, 0.12)")
-      : (isImbalanced ? "#fffbeb" : "#eafee7"),
-    textColor: isDark 
-      ? (isImbalanced ? "#fde68a" : "#86efac")
-      : (isImbalanced ? "#92400e" : "#2a7037"),
+    textColor: isImbalanced ? "#fef08a" : "#c6f6d5", // Bright yellow for warning, very soft green for healthy
     priority: isImbalanced ? 9 : 4
   });
 
   // Insight D: Energy Load consumption
   insights.push({
     id: "load",
-    title: "Energy Consumption",
-    value: `${currentLoad}W active load`,
-    subtext: `Total real-time power drawing from battery terminals: ${currentLoad}W.`,
-    icon: FlashIcon,
-    bg: isDark ? "rgba(168, 85, 247, 0.12)" : "#faf5ff",
-    textColor: isDark ? "#c084fc" : "#6b21a8",
+    title: "Energy consumption",
+    value: `${currentLoad}W drawing`,
+    subtext: "Total real-time power drawing from battery terminals.",
+    textColor: "#e9d5ff", // Bright pastel violet
     priority: 3
   });
 
-  // Insight E: Smart Load prioritized status
-  const isHighLoad = currentLoad > 1000;
+  // Insight E: Smart Load prioritized status (Synced with actual Smart Energy Manager states!)
+  const activeCount = managerLoads.filter(l => l.isOn).length;
+  const shedCount = managerLoads.filter(l => !l.isOn).length;
+  const shedNames = managerLoads.filter(l => !l.isOn).map(l => {
+    if (l.name.includes("TV")) return "TV";
+    if (l.name.includes("Fans")) return "HVAC";
+    if (l.name.includes("Router")) return "IT Network";
+    return l.name;
+  });
+
+  const isManual = managerMode === "manual";
   insights.push({
     id: "smartload",
-    title: "Smart Load Status",
-    value: isHighLoad ? "Prioritization Active" : "Load Optimized",
-    subtext: isHighLoad
-      ? "High load trigger. Shedding non-essential grid outputs."
-      : "No shedding active. All load priority channels are online.",
-    icon: ChipIcon,
-    bg: isDark ? "rgba(99, 102, 241, 0.12)" : "#e0e7ff",
-    textColor: isDark ? "#818cf8" : "#3730a3",
-    priority: isHighLoad ? 8 : 2
+    title: "Smart load status",
+    value: isManual
+      ? `${activeCount} active, ${shedCount} shed (Manual)`
+      : `Auto-managed (${shedCount} shed)`,
+    subtext: shedCount > 0
+      ? `Critical circuits prioritized. Off: ${shedNames.join(", ")}.`
+      : "All load priorities online. Network drawing nominal.",
+    textColor: "#c7d2fe", // Light periwinkle blue
+    priority: (shedCount > 0 || isManual) ? 8 : 2
   });
 
   // Insight F: Inverter Efficiency
   const efficiency = 94 - Math.max(0, Math.floor((currentLoad - 500) / 250));
   insights.push({
     id: "efficiency",
-    title: "Inverter Efficiency",
-    value: `${efficiency}% efficiency`,
+    title: "Inverter efficiency",
+    value: `${efficiency}%`,
     subtext: "Conversion factor for DC-to-AC grid output is optimal.",
-    icon: Exchange01Icon,
-    bg: isDark ? "rgba(34, 197, 94, 0.12)" : "#eafee7",
-    textColor: isDark ? "#86efac" : "#2a7037",
+    textColor: "#c6f6d5", // Very soft green
     priority: 2
   });
 
   // Insight G: BMS Voltage Recovery
   insights.push({
     id: "trend",
-    title: "Recovery Trend",
-    value: "Stable Recovery",
+    title: "Recovery trend",
+    value: "Stable",
     subtext: "BMS battery cell recovery trend is steady, no voltage sag detected.",
-    icon: Analytics01Icon,
-    bg: isDark ? "rgba(20, 184, 166, 0.12)" : "#f0fdfa",
-    textColor: isDark ? "#2dd4bf" : "#0f766e",
+    textColor: "#a5f3fc", // Bright ice blue / cyan
     priority: 1
+  });
+
+  // Insight H: WiFi Connectivity
+  insights.push({
+    id: "wifi",
+    title: "WiFi connectivity",
+    value: `${wifiRssi} dBm (${getWifiQuality(wifiRssi)})`,
+    subtext: getWifiSubtext(wifiRssi),
+    textColor: "#a5f3fc", // Bright ice blue / cyan
+    priority: 3
+  });
+
+  // Insight I: Bluetooth Signal
+  insights.push({
+    id: "bluetooth",
+    title: "Bluetooth signal",
+    value: `${bluetoothSignal} dBm (${getBtQuality(bluetoothSignal)})`,
+    subtext: getBtSubtext(bluetoothSignal),
+    textColor: "#c7d2fe", // Light periwinkle blue
+    priority: 2
+  });
+
+  // Insight J: Active Alarms Status
+  insights.push({
+    id: "alarms",
+    title: "System alarms",
+    value: activeAlarmsCount > 0 ? `${activeAlarmsCount} Active` : "All Clear (0 active)",
+    subtext: activeAlarmsCount > 0
+      ? "Safety warning triggered! Pack protective overrides engaged."
+      : "BMS protective parameter boundaries verified nominal.",
+    textColor: activeAlarmsCount > 0 ? "#fed7aa" : "#c6f6d5", // light peach/orange if warning, minty light green if all clear
+    priority: activeAlarmsCount > 0 ? 15 : 2 // Highest priority (15) if alarm triggered!
   });
 
   // Sort by priority so that critical stats (e.g. warnings, active statuses) always surface first
@@ -203,8 +265,7 @@ export default function SystemInsight({
     const startRotation = () => {
       timerRef.current = setInterval(() => {
         setCurrentIndex((prev) => (prev + 1) % insights.length);
-        setSecondsAgo(0);
-      }, 15000); // 15-second rotation
+      }, 30000); // 15-second rotation
     };
 
     startRotation();
@@ -213,6 +274,11 @@ export default function SystemInsight({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [insights.length]);
+
+  // Reset timer ONLY when telemetry props or manager states actually change from database updates
+  useEffect(() => {
+    setSecondsAgo(0);
+  }, [soc, isCharging, temperature, currentLoad, cellVoltages, managerLoads, managerMode, activeAlarmsCount]);
 
   // Seconds ago timer (indicates dashboard updates)
   useEffect(() => {
@@ -226,48 +292,123 @@ export default function SystemInsight({
 
   return (
     <BentoCard
-      theme={theme}
+      theme="dark" // Forces dark overlay styling for shadows/effects
       withShadow={withShadow}
       style={{
-        padding: isMobile ? "0.65rem 0.85rem" : "1.25rem clamp(1.1rem, 4cqi, 1.6rem)",
-        borderRadius: isMobile ? "14px" : "20px",
+        padding: isMobile ? "0.45rem 0.65rem" : "0.85rem 1.35rem",
+        borderRadius: isMobile ? "11px" : "20px",
         width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        gap: isMobile ? "0.4rem" : "1rem",
-        minHeight: isMobile ? "96px" : "140px",
-        justifyContent: "space-between",
+        minHeight: isMobile ? "54px" : "84px",
+        background: backgroundValue,
+        border: borderStyle,
         ...style
       }}
       {...props}
     >
-      {/* Header section */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-        <h2 style={{ margin: 0, fontSize: isMobile ? "0.6rem" : "0.78rem", fontWeight: 600, color: grayText, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          System Insight
-        </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <span style={{ fontSize: isMobile ? "0.58rem" : "0.72rem", color: lightGrayText, fontWeight: 400 }}>
-            Updated {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}
-          </span>
-          {/* Static refresh indicator icon (no click callback, visual representation only) */}
+      {/* Horizontal Flex Wrapper inside BentoCard content container */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          height: "100%",
+          gap: "0.75rem"
+        }}
+      >
+        {/* Left side info */}
+        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? "0.2rem" : "0.45rem", minWidth: 0, flex: 1 }}>
+          {/* Title + Live Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: isMobile ? "0.2rem" : "0.4rem" }}>
+            <span style={{ fontSize: isMobile ? "0.68rem" : "0.95rem", fontWeight: 400, color: textColor }}>
+              System Insight
+            </span>
+            <span style={{
+              background: "rgba(74, 222, 128, 0.2)",
+              color: "#86efac",
+              fontSize: isMobile ? "0.45rem" : "0.58rem",
+              fontWeight: 500,
+              padding: isMobile ? "0.02rem 0.3rem" : "0.08rem 0.35rem",
+              borderRadius: "999px", // Fully rounded
+              textTransform: "uppercase",
+              letterSpacing: "0.02em"
+            }}>
+              Live
+            </span>
+          </div>
+
+          {/* Insight content animation viewport */}
+          <div style={{ overflow: "hidden", minHeight: isMobile ? "28px" : "44px", display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", width: "100%" }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeInsight.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                style={{ display: "flex", flexDirection: "column", gap: isMobile ? "0.08rem" : "0.15rem" }}
+              >
+                <div style={{ fontSize: isMobile ? "0.72rem" : "1.02rem", fontWeight: 500, color: textColor, lineHeight: 1.15 }}>
+                  <span style={{ color: activeInsight.textColor }}>{activeInsight.title}</span>: {activeInsight.value}
+                </div>
+                <div style={{ fontSize: isMobile ? "0.55rem" : "0.78rem", color: grayText, fontWeight: 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {activeInsight.subtext}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Right side status & refresh indicator */}
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "0.35rem" : "0.55rem", flexShrink: 0 }}>
+          {/* Last updated labels vertical stack */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.01rem" }}>
+            <span style={{ fontSize: isMobile ? "0.5rem" : "0.64rem", color: lightGrayText, fontWeight: 400 }}>
+              Last updated
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", color: textColor }}>
+              {/* Clock Icon Outline */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width={isMobile ? "11" : "14"}
+                height={isMobile ? "11" : "14"}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ opacity: 0.6 }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span style={{ fontSize: isMobile ? "0.62rem" : "0.78rem", fontWeight: 500 }}>
+                {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}
+              </span>
+            </div>
+          </div>
+
+          {/* Refresh indicator icon aligned to the far right */}
           <div
             style={{
               color: grayText,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: isMobile ? "2px" : "4px",
+              opacity: 0.55,
+              paddingLeft: "0.1rem",
             }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width={isMobile ? "12" : "15"}
-              height={isMobile ? "12" : "15"}
+              width={isMobile ? "11" : "14"}
+              height={isMobile ? "11" : "14"}
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.2"
+              strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -275,56 +416,6 @@ export default function SystemInsight({
             </svg>
           </div>
         </div>
-      </div>
-
-      {/* Slide & Fade animation viewport container */}
-      <div style={{ overflow: "hidden", minHeight: isMobile ? "44px" : "72px", display: "flex", alignItems: "center", position: "relative", width: "100%" }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeInsight.id}
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -15 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: isMobile ? "0.65rem" : "clamp(0.85rem, 3.5cqi, 1.25rem)",
-              width: "100%",
-            }}
-          >
-            {/* Left: Icon Badge */}
-            <div
-              style={{
-                width: isMobile ? "34px" : "48px",
-                height: isMobile ? "34px" : "48px",
-                borderRadius: isMobile ? "9px" : "14px",
-                background: activeInsight.bg,
-                color: activeInsight.textColor,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                transition: "background 0.3s ease, color 0.3s ease",
-              }}
-            >
-              <HugeiconsIcon icon={activeInsight.icon} size={isMobile ? 15 : 22} strokeWidth={2} color="currentColor" />
-            </div>
-
-            {/* Right: Info labels */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.02rem", minWidth: 0, flex: 1 }}>
-              <span style={{ fontSize: isMobile ? "0.58rem" : "0.68rem", fontWeight: 700, color: activeInsight.textColor, textTransform: "uppercase", letterSpacing: "0.04em", transition: "color 0.3s ease" }}>
-                {activeInsight.title}
-              </span>
-              <span style={{ fontSize: isMobile ? "1.05rem" : "clamp(1.15rem, 4.5vw, 1.45rem)", fontWeight: 700, color: textColor, lineHeight: 1.15 }}>
-                {activeInsight.value}
-              </span>
-              <span style={{ fontSize: isMobile ? "0.65rem" : "0.75rem", color: grayText, fontWeight: 400, marginTop: isMobile ? "0px" : "0.05rem", lineHeight: 1.2, display: "block", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                {activeInsight.subtext}
-              </span>
-            </div>
-          </motion.div>
-        </AnimatePresence>
       </div>
     </BentoCard>
   );
