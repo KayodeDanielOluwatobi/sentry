@@ -30,6 +30,10 @@ interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Optional overrides for future real-time BMS/Firebase telemetry */
   dischargeRuntime?: string;
   chargeTimeToFull?: string;
+  voltage?: number;
+  current?: number;
+  power?: number;
+  remainingCapacity?: number;
   theme?: CardTheme;
   withShadow?: boolean;
 }
@@ -42,6 +46,10 @@ export default function BatteryPercentage({
   cycleCount = 12,
   dischargeRuntime,
   chargeTimeToFull,
+  voltage: propVoltage,
+  current: propCurrent,
+  power: propPower,
+  remainingCapacity,
   theme = "light",
   withShadow = true,
   style,
@@ -74,10 +82,18 @@ export default function BatteryPercentage({
     return () => ro.disconnect();
   }, []);
 
-  // Compute realistic battery physics based on SOC
-  const packVoltage = (12.2 + (soc / 100) * 1.3).toFixed(2);
-  const current = (isCharging ? 4.5 : 0.0).toFixed(2);
-  const power = Math.round(parseFloat(packVoltage) * parseFloat(current));
+  // Compute realistic battery physics based on SOC, with Firebase telemetry overrides
+  const packVoltage = propVoltage !== undefined
+    ? propVoltage.toFixed(2)
+    : (12.2 + (soc / 100) * 1.3).toFixed(2);
+
+  const current = propCurrent !== undefined
+    ? propCurrent.toFixed(2)
+    : (isCharging ? 4.5 : 0.0).toFixed(2);
+
+  const power = propPower !== undefined
+    ? Math.round(propPower)
+    : Math.round(parseFloat(packVoltage) * parseFloat(current));
 
   // NOTE: The calculation formulas below are realistic client-side fallbacks.
   // In the future, these values will be supplied directly from the BMS via Firebase
@@ -113,7 +129,9 @@ export default function BatteryPercentage({
 
   const dischargeRuntimeString = getDischargeRuntime();
   const chargeTimeToFullString = getChargeTimeToFull();
-  const capacityString = ((soc / 100) * 100.38).toFixed(1); // Capacity scaling based on 100Ah battery pack
+  const capacityString = remainingCapacity !== undefined
+    ? remainingCapacity.toFixed(1)
+    : ((soc / 100) * 100.38).toFixed(1); // Capacity scaling based on 100Ah battery pack
   const DynamicCapacityIcon = getDynamicBatteryIcon(soc);
 
   return (

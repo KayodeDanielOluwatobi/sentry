@@ -12,6 +12,7 @@
     "@hugeicons/core-free-icons": "^4.1.1",
     "@hugeicons/react": "^1.1.6",
     "@phosphor-icons/react": "^2.1.10",
+    "firebase": "^12.16.0",
     "framer-motion": "^12.38.0",
     "liquid-glass-react": "^1.1.1",
     "lucide-react": "^1.7.0",

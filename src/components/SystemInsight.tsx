@@ -15,6 +15,10 @@ export interface SystemInsightProps extends React.HTMLAttributes<HTMLDivElement>
   managerMode?: "auto" | "manual";
   managerLoads?: Array<{ id: string; name: string; level: string; status: string; isOn: boolean }>;
   activeAlarmsCount?: number;
+  wifiRssi?: number;
+  bleRssi?: number;
+  wifiConnected?: boolean;
+  bleConnected?: boolean;
 }
 
 export default function SystemInsight({
@@ -32,6 +36,10 @@ export default function SystemInsight({
     { id: "3", name: "TV/Lights", level: "non-essential", status: "shed", isOn: false },
   ],
   activeAlarmsCount = 0,
+  wifiRssi: propWifiRssi,
+  bleRssi: propBleRssi,
+  wifiConnected,
+  bleConnected,
   style,
   ...props
 }: SystemInsightProps) {
@@ -45,9 +53,12 @@ export default function SystemInsight({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [wifiRssi, setWifiRssi] = useState(-58);
-  const [bluetoothSignal, setBluetoothSignal] = useState(-65);
+  const [internalWifiRssi, setInternalWifiRssi] = useState(-58);
+  const [internalBluetoothSignal, setInternalBluetoothSignal] = useState(-65);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const wifiRssi = propWifiRssi !== undefined ? propWifiRssi : internalWifiRssi;
+  const bluetoothSignal = propBleRssi !== undefined ? propBleRssi : internalBluetoothSignal;
 
   // Monitor viewport resize for mobile responsive scaling
   useEffect(() => {
@@ -57,24 +68,26 @@ export default function SystemInsight({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Simulate real-time signal level shifts
+  // Simulate real-time signal level shifts if not using props
   useEffect(() => {
+    if (propWifiRssi !== undefined && propBleRssi !== undefined) return;
     const rssiInterval = setInterval(() => {
-      setWifiRssi(prev => {
+      setInternalWifiRssi(prev => {
         const delta = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
         const next = prev + delta;
         return next < -85 ? -85 : next > -45 ? -45 : next;
       });
-      setBluetoothSignal(prev => {
+      setInternalBluetoothSignal(prev => {
         const delta = Math.floor(Math.random() * 3) - 1;
         const next = prev + delta;
         return next < -90 ? -90 : next > -40 ? -40 : next;
       });
     }, 5000);
     return () => clearInterval(rssiInterval);
-  }, []);
+  }, [propWifiRssi, propBleRssi]);
 
   const getWifiQuality = (rssi: number) => {
+    if (wifiConnected === false) return "Disconnected";
     if (rssi >= -60) return "Excellent";
     if (rssi >= -70) return "Good";
     if (rssi >= -80) return "Fair";
@@ -82,17 +95,20 @@ export default function SystemInsight({
   };
 
   const getWifiSubtext = (rssi: number) => {
+    if (wifiConnected === false) return "ESP32 has lost wireless connection to local network.";
     if (rssi >= -70) return "ESP32 wireless link to local network (Sentry-5G) is stable.";
     return "ESP32 WiFi signal is degraded. Local telemetry packets buffering.";
   };
 
   const getBtQuality = (rssi: number) => {
+    if (bleConnected === false) return "Disconnected";
     if (rssi >= -55) return "Strong";
     if (rssi >= -70) return "Stable";
     return "Weak";
   };
 
   const getBtSubtext = (rssi: number) => {
+    if (bleConnected === false) return "ESP32 bluetooth connection to JK BMS is offline.";
     if (rssi >= -70) return "ESP32 telemetry link to JK BMS is paired and streaming.";
     return "BMS Bluetooth range threshold reached. Check ESP32 antenna.";
   };
