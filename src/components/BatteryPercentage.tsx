@@ -40,11 +40,11 @@ interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export default function BatteryPercentage({
-  soc = 78,
-  isCharging = true,
-  temperature = 28.9,
-  soh = 100,
-  cycleCount = 12,
+  soc,
+  isCharging,
+  temperature,
+  soh,
+  cycleCount,
   dischargeRuntime,
   chargeTimeToFull,
   voltage: propVoltage,
@@ -87,15 +87,15 @@ export default function BatteryPercentage({
   // Compute realistic battery physics based on SOC, with Firebase telemetry overrides
   const packVoltage = propVoltage !== undefined
     ? propVoltage.toFixed(2)
-    : (12.2 + (soc / 100) * 1.3).toFixed(2);
+    : (soc !== undefined ? (12.2 + (soc / 100) * 1.3).toFixed(2) : "—");
 
   const current = propCurrent !== undefined
     ? propCurrent.toFixed(2)
-    : (isCharging ? 4.5 : 0.0).toFixed(2);
+    : (soc !== undefined ? (isCharging ? 4.5 : 0.0).toFixed(2) : "—");
 
   const power = propPower !== undefined
-    ? Math.round(propPower)
-    : Math.round(parseFloat(packVoltage) * parseFloat(current));
+    ? Math.round(propPower).toString()
+    : (packVoltage !== "—" && current !== "—" ? Math.round(parseFloat(packVoltage) * parseFloat(current)).toString() : "—");
 
   // NOTE: The calculation formulas below are realistic client-side fallbacks.
   // In the future, these values will be supplied directly from the BMS via Firebase
@@ -104,6 +104,7 @@ export default function BatteryPercentage({
   // Compute discharge runtime estimation (only active when discharging)
   const getDischargeRuntime = () => {
     if (dischargeRuntime) return dischargeRuntime; // Use Firebase telemetry override if available
+    if (soc === undefined) return "—";
     if (soc <= 0) return "Empty";
     
     const activeCurrent = propCurrent !== undefined ? Math.abs(propCurrent) : undefined;
@@ -134,6 +135,7 @@ export default function BatteryPercentage({
   // Compute charge time to full estimation (only active when charging)
   const getChargeTimeToFull = () => {
     if (chargeTimeToFull) return chargeTimeToFull; // Use Firebase telemetry override if available
+    if (soc === undefined) return "—";
     if (soc >= 100) return "Full";
 
     const activeCurrent = propCurrent !== undefined ? Math.abs(propCurrent) : undefined;
@@ -166,7 +168,8 @@ export default function BatteryPercentage({
   };
 
   // Helper to dynamically fetch and rotate the remaining capacity battery icon
-  const getDynamicBatteryIcon = (socVal: number) => {
+  const getDynamicBatteryIcon = (socVal: number | undefined) => {
+    if (socVal === undefined) return BatteryEmptyIcon;
     if (socVal > 80) return BatteryFullIcon;
     if (socVal > 50) return BatteryMedium02Icon; // 3 bars
     if (socVal > 20) return BatteryMedium01Icon; // 2 bars
@@ -178,7 +181,7 @@ export default function BatteryPercentage({
   const chargeTimeToFullString = getChargeTimeToFull();
   const capacityString = remainingCapacity !== undefined
     ? remainingCapacity.toFixed(1)
-    : ((soc / 100) * 100.38).toFixed(1); // Capacity scaling based on 100Ah battery pack
+    : (soc !== undefined ? ((soc / 100) * 100.38).toFixed(1) : "—"); // Capacity scaling based on 100Ah battery pack
   const DynamicCapacityIcon = getDynamicBatteryIcon(soc);
 
   return (
@@ -328,7 +331,7 @@ export default function BatteryPercentage({
                 <HugeiconsIcon icon={FlashIcon} size={13} strokeWidth={2} color="currentColor" />
               </div>
               <div style={{ fontSize: "clamp(0.8rem, 3.8cqi, 0.95rem)", fontWeight: 700, color: textColor, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {packVoltage} <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>V</span>
+                {packVoltage} {packVoltage !== "—" && <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>V</span>}
               </div>
               <div style={{ fontSize: "clamp(0.5rem, 2.2cqi, 0.58rem)", color: grayText, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 Pack Voltage
@@ -366,7 +369,7 @@ export default function BatteryPercentage({
                 <HugeiconsIcon icon={PulseRectangle02Icon} size={13} strokeWidth={2} color="currentColor" />
               </div>
               <div style={{ fontSize: "clamp(0.8rem, 3.8cqi, 0.95rem)", fontWeight: 700, color: textColor, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {current} <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>A</span>
+                {current} {current !== "—" && <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>A</span>}
               </div>
               <div style={{ fontSize: "clamp(0.5rem, 2.2cqi, 0.58rem)", color: grayText, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 Current
@@ -404,7 +407,7 @@ export default function BatteryPercentage({
                 <HugeiconsIcon icon={AtomicPowerIcon} size={13} strokeWidth={2} color="currentColor" />
               </div>
               <div style={{ fontSize: "clamp(0.8rem, 3.8cqi, 0.95rem)", fontWeight: 700, color: textColor, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {power} <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>W</span>
+                {power} {power !== "—" && <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>W</span>}
               </div>
               <div style={{ fontSize: "clamp(0.5rem, 2.2cqi, 0.58rem)", color: grayText, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 Power
@@ -442,7 +445,7 @@ export default function BatteryPercentage({
                 <HugeiconsIcon icon={TemperatureIcon} size={13} strokeWidth={2} color="currentColor" />
               </div>
               <div style={{ fontSize: "clamp(0.8rem, 3.8cqi, 0.95rem)", fontWeight: 700, color: textColor, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {temperature.toFixed(1)} <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>°C</span>
+                {temperature !== undefined ? temperature.toFixed(1) : "—"} {temperature !== undefined && <span style={{ fontSize: "0.6rem", fontWeight: 400, color: grayText }}>°C</span>}
               </div>
               <div style={{ fontSize: "clamp(0.5rem, 2.2cqi, 0.58rem)", color: grayText, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 Battery Temp
@@ -496,7 +499,7 @@ export default function BatteryPercentage({
                 Capacity
               </div>
               <div style={{ fontSize: "clamp(0.7rem, 2.5cqi, 0.8rem)", fontWeight: 700, color: textColor, marginTop: "0.02rem", lineHeight: 1.1 }}>
-                {capacityString} <span style={{ fontSize: "0.55rem", fontWeight: 400, color: grayText }}>Ah</span>
+                {capacityString} {capacityString !== "—" && <span style={{ fontSize: "0.55rem", fontWeight: 400, color: grayText }}>Ah</span>}
               </div>
             </div>
           </div>
@@ -609,7 +612,7 @@ export default function BatteryPercentage({
                 SOH
               </div>
               <div style={{ fontSize: "clamp(0.7rem, 2.5cqi, 0.8rem)", fontWeight: 700, color: textColor, marginTop: "0.02rem", lineHeight: 1.1 }}>
-                {soh} <span style={{ fontSize: "0.55rem", fontWeight: 400, color: grayText }}>%</span>
+                {soh !== undefined ? soh : "—"} {soh !== undefined && <span style={{ fontSize: "0.55rem", fontWeight: 400, color: grayText }}>%</span>}
               </div>
             </div>
           </div>

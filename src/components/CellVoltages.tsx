@@ -87,8 +87,9 @@ function CellCard({
   cardBorder,
   isDark,
 }: CellCardProps) {
+  const isNan = isNaN(voltage);
   // Animate voltage number smoothly on every change (600ms ease-out cubic)
-  const animatedVoltage = useAnimatedVoltage(voltage);
+  const animatedVoltage = useAnimatedVoltage(isNan ? 0 : voltage);
 
   return (
     <div
@@ -173,8 +174,8 @@ function CellCard({
             minWidth: 0,
           }}
         >
-          <span>{animatedVoltage.toFixed(3)}</span>
-          <span style={{ fontSize: "0.52rem", fontWeight: 400, color: grayText, marginLeft: "1px" }}>V</span>
+          <span>{isNan ? "—" : animatedVoltage.toFixed(3)}</span>
+          {!isNan && <span style={{ fontSize: "0.52rem", fontWeight: 400, color: grayText, marginLeft: "1px" }}>V</span>}
         </div>
       </div>
     </div>
@@ -184,7 +185,7 @@ function CellCard({
 
 
 export default function CellVoltages({
-  voltages = [3.199, 3.197, 3.196, 3.199],
+  voltages,
   delta: bmsProvidedDelta,
   theme = "light",
   withShadow = true,
@@ -203,16 +204,17 @@ export default function CellVoltages({
   const warningRed = isDark ? "#ef4444" : "#dc2626"; // Red for the lowest voltage cell
 
   // Calculate dynamic delta (Max - Min)
-  const cellArray = voltages.length > 0 ? voltages : [3.199, 3.197, 3.196, 3.199];
-  const maxV = Math.max(...cellArray);
-  const minV = Math.min(...cellArray);
+  const isLoaded = voltages !== undefined;
+  const cellArray = isLoaded ? voltages : [NaN, NaN, NaN, NaN];
+  const maxV = Math.max(...cellArray.filter(v => !isNaN(v)));
+  const minV = Math.min(...cellArray.filter(v => !isNaN(v)));
   // Use BMS-provided delta if available, otherwise compute locally as fallback
-  const delta = bmsProvidedDelta !== undefined
-    ? bmsProvidedDelta.toFixed(3)
-    : (maxV - minV).toFixed(3);
+  const delta = isLoaded
+    ? (bmsProvidedDelta !== undefined ? bmsProvidedDelta.toFixed(3) : (maxV - minV).toFixed(3))
+    : "—";
 
   // Find index of the first cell with the highest voltage value (to handle ties cleanly)
-  const highestIdx = cellArray.indexOf(maxV);
+  const highestIdx = isLoaded ? cellArray.indexOf(maxV) : -1;
 
   // Concentric corner radius matching main bento padding (consistent clamp scale)
   const paddingValue = "clamp(0.5rem, 2.5cqi, 1rem)";
@@ -226,6 +228,7 @@ export default function CellVoltages({
    * Linear mapping: pct = (v - 2.7) / (3.59 - 2.7). Multiplied by 7 bars.
    */
   const getActiveBarsCount = (v: number): number => {
+    if (isNaN(v)) return 0;
     const minL = 2.7;
     const maxL = 3.59;
     const pct = (v - minL) / (maxL - minL);

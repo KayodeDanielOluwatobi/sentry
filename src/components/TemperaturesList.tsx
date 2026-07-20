@@ -50,11 +50,16 @@ const DEFAULT_SENSORS: TemperatureSensor[] = [
 export default function TemperaturesList({
   theme = "light",
   withShadow = true,
-  sensors = DEFAULT_SENSORS,
+  sensors,
   onViewAll,
   style,
   ...props
 }: TemperaturesListProps) {
+  const listToRender = sensors !== undefined ? sensors : [
+    { id: "temp1", name: "Battery temperature 1", value: NaN },
+    { id: "temp2", name: "Battery temperature 2", value: NaN },
+    { id: "mosfet", name: "MOSFET", value: NaN },
+  ];
   const isDark = theme === "dark";
   const textColor = isDark ? "#ffffff" : "#111111";
   const grayText = isDark ? "#9ca3af" : "#4b5563";
@@ -163,8 +168,14 @@ export default function TemperaturesList({
             width: "100%",
           }}
         >
-          {sensors.map(sensor => {
-            const tempColors = getTempColors(sensor.value, isDark);
+          {listToRender.map(sensor => {
+            const isValNan = isNaN(sensor.value);
+            const tempColors = isValNan
+              ? {
+                  bg: isDark ? "rgba(255, 255, 255, 0.05)" : "#f3f4f6",
+                  color: isDark ? "rgba(255, 255, 255, 0.2)" : "#9ca3af",
+                }
+              : getTempColors(sensor.value, isDark);
             return (
               <div
                 key={sensor.id}
@@ -250,18 +261,20 @@ export default function TemperaturesList({
                     color: textColor,
                   }}
                 >
-                  {sensor.value.toFixed(1)}
+                  {isValNan ? "—" : sensor.value.toFixed(1)}
                 </span>
-                <span
-                  style={{
-                    fontSize: "clamp(0.68rem, 2.2cqi, 0.78rem)",
-                    fontWeight: 500,
-                    color: grayText,
-                    marginLeft: "3px",
-                  }}
-                >
-                  °C
-                </span>
+                {!isValNan && (
+                  <span
+                    style={{
+                      fontSize: "clamp(0.68rem, 2.2cqi, 0.78rem)",
+                      fontWeight: 500,
+                      color: grayText,
+                      marginLeft: "3px",
+                    }}
+                  >
+                    °C
+                  </span>
+                )}
               </div>
             </div>
           );

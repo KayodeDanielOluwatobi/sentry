@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { DashboardSquare01Icon, Settings01Icon, Activity01Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { AutomotiveBattery01Icon, RenewableEnergyIcon, Activity01Icon, UserIcon } from "@hugeicons/core-free-icons";
 
 import LiquidGlass from "liquid-glass-react";
 
-export type NavItem = "Dashboard" | "Controls" | "Diagnostics" | "Profile";
+export type NavItem = "Battery" | "Energy" | "Diagnostics" | "Profile";
 
 interface PillNavProps {
   theme?: "light" | "dark";
@@ -15,14 +15,14 @@ interface PillNavProps {
   onChange?: (item: NavItem) => void;
 }
 
-export default function PillNav({ theme = "light", active = "Dashboard", onChange }: PillNavProps) {
+export default function PillNav({ theme = "light", active = "Battery", onChange }: PillNavProps) {
   const isDark = theme === "dark";
   const textColor = isDark ? "#fff" : "#111";
   const grayText = isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)";
 
   const navItems: { id: NavItem; icon: any }[] = [
-    { id: "Dashboard", icon: DashboardSquare01Icon },
-    { id: "Controls", icon: Settings01Icon },
+    { id: "Battery", icon: AutomotiveBattery01Icon },
+    { id: "Energy", icon: RenewableEnergyIcon },
     { id: "Diagnostics", icon: Activity01Icon },
     { id: "Profile", icon: UserIcon },
   ];

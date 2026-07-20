@@ -18,26 +18,21 @@ import CycleCount from "@/components/CycleCount";
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [isCharging, setIsCharging] = useState(true);
-  const [activeTab, setActiveTab] = useState<NavItem>("Dashboard");
+  const [isCharging, setIsCharging] = useState<boolean | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<NavItem>("Battery");
 
-  // Real-time telemetry state variables
-  const [soc, setSoc] = useState(89);
-  const [currentLoad, setCurrentLoad] = useState(450);
-  const [cellVoltages, setCellVoltages] = useState([3.199, 3.197, 3.196, 3.199]);
-  const [cycleCount, setCycleCount] = useState(12);
+  // Real-time telemetry state variables (initially undefined for split-second loading)
+  const [soc, setSoc] = useState<number | undefined>(undefined);
+  const [currentLoad, setCurrentLoad] = useState<number | undefined>(undefined);
+  const [cellVoltages, setCellVoltages] = useState<number[] | undefined>(undefined);
+  const [cycleCount, setCycleCount] = useState<number | undefined>(undefined);
   const [voltage, setVoltage] = useState<number | undefined>(undefined);
   const [current, setCurrent] = useState<number | undefined>(undefined);
   const [power, setPower] = useState<number | undefined>(undefined);
   const [remainingCapacity, setRemainingCapacity] = useState<number | undefined>(undefined);
   const [fullCapacity, setFullCapacity] = useState<number | undefined>(undefined);
-  const [soh, setSoh] = useState<number>(100);
-
-  const [temperatures, setTemperatures] = useState([
-    { id: "temp1", name: "Battery temperature 1", value: 28.2 },
-    { id: "temp2", name: "Battery temperature 2", value: 29.1 },
-    { id: "mosfet", name: "MOSFET", value: 30.4 },
-  ]);
+  const [soh, setSoh] = useState<number | undefined>(undefined);
+  const [temperatures, setTemperatures] = useState<any[] | undefined>(undefined);
 
   // Connection and signal strength states
   const [wifiRssi, setWifiRssi] = useState<number | undefined>(undefined);
@@ -56,14 +51,47 @@ export default function Home() {
 
   // Firebase Realtime Database Real-Time Telemetry Subscription
   useEffect(() => {
+    let hasLoadedFirebase = false;
+
+    // Split-second loading timeout (800ms) to display JSON defaults if Firebase hasn't resolved
+    const fallbackTimeout = setTimeout(() => {
+      if (!hasLoadedFirebase) {
+        console.log("Firebase did not resolve in 800ms. Applying default JSON telemetry.");
+        setIsCharging(false); // chargeState: "Idle"
+        setSoc(60);
+        setCurrentLoad(0); // dischargingPower: 0
+        setCellVoltages([3.186, 3.186, 3.185, 3.185]);
+        setCycleCount(0);
+        setVoltage(12.743);
+        setCurrent(0);
+        setPower(0);
+        setRemainingCapacity(59.66);
+        setFullCapacity(100);
+        setSoh(100);
+        setTemperatures([
+          { id: "temp1", name: "Battery temperature 1", value: 25.7 },
+          { id: "temp2", name: "Battery temperature 2", value: 25.7 },
+          { id: "mosfet", name: "MOSFET", value: 26.9 },
+        ]);
+        setWifiConnected(true);
+        setWifiRssi(-41);
+        setBleConnected(true);
+        setBleRssi(0);
+      }
+    }, 800);
+
     if (!db) {
       console.warn("Firebase Database is not initialized. Sentry telemetry will run in simulated fallback mode.");
-      return;
+      return () => clearTimeout(fallbackTimeout);
     }
+
     const rootRef = ref(db, "/");
     const unsubscribe = onValue(rootRef, (snapshot) => {
       const data = snapshot.val();
       if (!data) return;
+
+      hasLoadedFirebase = true;
+      clearTimeout(fallbackTimeout);
 
       // 1. Battery Telemetry parsing
       if (data.battery) {
@@ -90,10 +118,10 @@ export default function Home() {
 
         if (cv) {
           setCellVoltages([
-            cv.cell1 ?? 3.199,
-            cv.cell2 ?? 3.197,
-            cv.cell3 ?? 3.196,
-            cv.cell4 ?? 3.199,
+            cv.cell1 ?? 3.186,
+            cv.cell2 ?? 3.186,
+            cv.cell3 ?? 3.185,
+            cv.cell4 ?? 3.185,
           ]);
         }
 
@@ -105,9 +133,9 @@ export default function Home() {
 
         if (temps) {
           setTemperatures([
-            { id: "temp1", name: "Battery temperature 1", value: temps.temp1 ?? 25.0 },
-            { id: "temp2", name: "Battery temperature 2", value: temps.temp2 ?? 25.0 },
-            { id: "mosfet", name: "MOSFET", value: temps.mos ?? 25.0 },
+            { id: "temp1", name: "Battery temperature 1", value: temps.temp1 ?? 25.7 },
+            { id: "temp2", name: "Battery temperature 2", value: temps.temp2 ?? 25.7 },
+            { id: "mosfet", name: "MOSFET", value: temps.mos ?? 26.9 },
           ]);
         }
 
@@ -137,7 +165,10 @@ export default function Home() {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(fallbackTimeout);
+      unsubscribe();
+    };
   }, []);
 
   // Write handlers - structured and commented out per user request for future implementation
@@ -169,17 +200,18 @@ export default function Home() {
     */
   };
 
-  const temperature = temperatures.find(t => t.id === "temp1")?.value ?? 25;
+  const temperature = temperatures?.find(t => t.id === "temp1")?.value;
   const isDark = theme === "dark";
 
-  const maxCellVal = Math.max(...cellVoltages);
-  const minCellVal = Math.min(...cellVoltages);
-  const cellDeltaVal = Math.round((maxCellVal - minCellVal) * 1000);
+  const cellDeltaVal = cellVoltages !== undefined && cellVoltages.length > 0
+    ? Math.round((Math.max(...cellVoltages) - Math.min(...cellVoltages)) * 1000)
+    : 0;
+
   const activeAlarmsCount = 
-    (temperature > 45 ? 1 : 0) + 
+    ((temperature !== undefined && temperature > 45) ? 1 : 0) + 
     (cellDeltaVal > 15 ? 1 : 0) + 
     (hasBmsError ? 1 : 0) +
-    (soc < 10 ? 1 : 0);
+    ((soc !== undefined && soc < 10) ? 1 : 0);
 
   return (
     <div
@@ -233,105 +265,125 @@ export default function Home() {
             gridAutoRows: "auto"
           }}
         >
-          {/* Row 1: System Insight (Full Width) */}
-          <div style={{ gridColumn: "span 3" }}>
-            <SystemInsight
-              theme={theme}
-              soc={soc}
-              isCharging={isCharging}
-              temperature={temperature}
-              currentLoad={currentLoad}
-              cellVoltages={cellVoltages}
-              withShadow={false}
-              managerMode={managerMode}
-              managerLoads={managerLoads}
-              activeAlarmsCount={activeAlarmsCount}
-              wifiRssi={wifiRssi}
-              bleRssi={bleRssi}
-              wifiConnected={wifiConnected}
-              bleConnected={bleConnected}
-            />
-          </div>
+          {activeTab === "Battery" && (
+            <>
+              {/* Row 1: System Insight (Full Width) */}
+              <div style={{ gridColumn: "span 3" }}>
+                <SystemInsight
+                  theme={theme}
+                  soc={soc}
+                  isCharging={isCharging}
+                  temperature={temperature}
+                  currentLoad={currentLoad}
+                  cellVoltages={cellVoltages}
+                  withShadow={false}
+                  managerMode={managerMode}
+                  managerLoads={managerLoads}
+                  activeAlarmsCount={activeAlarmsCount}
+                  wifiRssi={wifiRssi}
+                  bleRssi={bleRssi}
+                  wifiConnected={wifiConnected}
+                  bleConnected={bleConnected}
+                />
+              </div>
 
-          {/* Row 2: Battery Percentage (Full Width) */}
-          <div style={{ gridColumn: "span 3" }}>
-            <BatteryPercentage
-              theme={theme}
-              isCharging={isCharging}
-              withShadow={false}
-              soc={soc}
-              temperature={temperature}
-              voltage={voltage}
-              current={current}
-              power={power}
-              remainingCapacity={remainingCapacity}
-              fullCapacity={fullCapacity}
-              soh={soh}
-            />
-          </div>
+              {/* Row 2: Battery Percentage (Full Width) */}
+              <div style={{ gridColumn: "span 3" }}>
+                <BatteryPercentage
+                  theme={theme}
+                  isCharging={isCharging}
+                  withShadow={false}
+                  soc={soc}
+                  temperature={temperature}
+                  voltage={voltage}
+                  current={current}
+                  power={power}
+                  remainingCapacity={remainingCapacity}
+                  fullCapacity={fullCapacity}
+                  soh={soh}
+                />
+              </div>
 
-          {/* Row 3: Cell Voltages (Full Width) */}
-          <div style={{ gridColumn: "span 3" }}>
-            <CellVoltages
-              theme={theme}
-              voltages={cellVoltages}
-              withShadow={false}
-              delta={cellDeltaVal / 1000}
-            />
-          </div>
+              {/* Row 3: Cell Voltages (Full Width) */}
+              <div style={{ gridColumn: "span 3" }}>
+                <CellVoltages
+                  theme={theme}
+                  voltages={cellVoltages}
+                  withShadow={false}
+                  delta={cellVoltages !== undefined && cellVoltages.length > 0 ? cellDeltaVal / 1000 : undefined}
+                />
+              </div>
 
-          {/* Row 4: Smart Energy Manager — directly under Cell Voltages */}
-          <div style={{ gridColumn: "span 3" }}>
-            <SmartEnergyManager
-              theme={theme}
-              loads={managerLoads}
-              mode={managerMode}
-              onLoadsChange={handleLoadsChange}
-              onModeChange={handleModeChange}
-            />
-          </div>
+              {/* Row 4: Temperatures (Left half) + Alarms & Cycle Count stacked (Right half) */}
+              <div style={{
+                gridColumn: "span 3",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.75rem",
+                width: "100%",
+              }}>
+                <div style={{ display: "flex", width: "100%" }}>
+                  <TemperaturesList
+                    theme={theme}
+                    sensors={temperatures}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", justifyContent: "space-between", height: "100%" }}>
+                  <ActiveAlarms
+                    theme={theme}
+                    activeCount={activeAlarmsCount}
+                    style={{ flex: 1, height: "100%" }}
+                  />
+                  <CycleCount
+                    theme={theme}
+                    cycleCount={cycleCount}
+                    style={{ flex: 1, height: "100%" }}
+                  />
+                </div>
+              </div>
 
-          {/* Row 5: Temperatures (Left half) + Alarms & Cycle Count stacked (Right half) */}
-          <div style={{
-            gridColumn: "span 3",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "0.75rem",
-            width: "100%",
-          }}>
-            <div style={{ display: "flex", width: "100%" }}>
-              <TemperaturesList
+              {/* Row 5: Activity Feed (Full Width) */}
+              <div style={{ gridColumn: "span 3" }}>
+                <ActivityFeed
+                  theme={theme}
+                  soc={soc}
+                  isCharging={isCharging}
+                  temperature={temperature}
+                  currentLoad={currentLoad}
+                  cellVoltages={cellVoltages}
+                  managerMode={managerMode}
+                  managerLoads={managerLoads}
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === "Energy" && (
+            /* Smart Energy Manager — moved to the Energy tab */
+            <div style={{ gridColumn: "span 3" }}>
+              <SmartEnergyManager
                 theme={theme}
-                sensors={temperatures}
+                loads={managerLoads}
+                mode={managerMode}
+                onLoadsChange={handleLoadsChange}
+                onModeChange={handleModeChange}
               />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", justifyContent: "space-between", height: "100%" }}>
-              <ActiveAlarms
-                theme={theme}
-                activeCount={activeAlarmsCount}
-                style={{ flex: 1, height: "100%" }}
-              />
-              <CycleCount
-                theme={theme}
-                cycleCount={cycleCount}
-                style={{ flex: 1, height: "100%" }}
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Row 6: Activity Feed (Full Width) */}
-          <div style={{ gridColumn: "span 3" }}>
-            <ActivityFeed
-              theme={theme}
-              soc={soc}
-              isCharging={isCharging}
-              temperature={temperature}
-              currentLoad={currentLoad}
-              cellVoltages={cellVoltages}
-              managerMode={managerMode}
-              managerLoads={managerLoads}
-            />
-          </div>
+          {activeTab === "Diagnostics" && (
+            <div style={{ gridColumn: "span 3", padding: "3rem 1.5rem", textAlign: "center", color: isDark ? "#888" : "#555" }}>
+              <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.2rem", fontWeight: 600 }}>Diagnostics</h3>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>Advanced battery cell diagnostics and historical telemetry analysis.</p>
+            </div>
+          )}
+
+          {activeTab === "Profile" && (
+            <div style={{ gridColumn: "span 3", padding: "3rem 1.5rem", textAlign: "center", color: isDark ? "#888" : "#555" }}>
+              <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.2rem", fontWeight: 600 }}>Profile</h3>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>System settings, user preferences, and notification configurations.</p>
+            </div>
+          )}
         </div>
 
         {/* ── Mobile Nav Bar ── */}

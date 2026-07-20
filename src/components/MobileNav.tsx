@@ -3,10 +3,10 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Home01Icon, PreferenceHorizontalIcon, Activity03Icon, UserIcon } from "@hugeicons/core-free-icons";
+import { AutomotiveBattery01Icon, RenewableEnergyIcon, Activity03Icon, UserIcon } from "@hugeicons/core-free-icons";
 import LiquidGlass from "liquid-glass-react";
 
-export type NavItem = "Dashboard" | "Controls" | "Diagnostics" | "Profile";
+export type NavItem = "Battery" | "Energy" | "Diagnostics" | "Profile";
 
 interface MobileNavProps {
   theme?: "light" | "dark";
@@ -16,7 +16,7 @@ interface MobileNavProps {
 
 export default function MobileNav({
   theme = "light",
-  active = "Dashboard",
+  active = "Battery",
   onChange,
 }: MobileNavProps) {
   const isDark = theme === "dark";
@@ -40,8 +40,8 @@ export default function MobileNav({
   const inactiveColor = isDark ? "rgba(255, 255, 255, 0.4)" : "#4b5563";
 
   const navItems: { id: NavItem; icon: any; label: string }[] = [
-    { id: "Dashboard", icon: Home01Icon, label: "Dashboard" },
-    { id: "Controls", icon: PreferenceHorizontalIcon, label: "Controls" },
+    { id: "Battery", icon: AutomotiveBattery01Icon, label: "Battery" },
+    { id: "Energy", icon: RenewableEnergyIcon, label: "Energy" },
     { id: "Diagnostics", icon: Activity03Icon, label: "Diagnostics" },
     { id: "Profile", icon: UserIcon, label: "Profile" },
   ];

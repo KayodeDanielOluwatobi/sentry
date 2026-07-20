@@ -105,17 +105,7 @@ export default function BatteryArc({
   size = 300,
 }: BatteryArcProps) {
 
-  // ── Dummy drifting data — swap with Firebase onValue() ──
-  const [dummy, setDummy] = useState(58);
-  useEffect(() => {
-    if (ext !== undefined) return;
-    const id = setInterval(() =>
-      setDummy((p) => Math.min(100, Math.max(0, Math.round(p + (Math.random() - 0.48) * 3))))
-      , 2500);
-    return () => clearInterval(id);
-  }, [ext]);
-
-  const rawTargetSoc = ext !== undefined ? Math.min(100, Math.max(0, ext)) : dummy;
+  const rawTargetSoc = ext !== undefined ? Math.min(100, Math.max(0, ext)) : 0;
   const isDark = theme === "dark";
   const t = tokens(isDark);
 
@@ -329,19 +319,33 @@ export default function BatteryArc({
       }}>
         {/* SOC number + % sign inline, % absolute positioned to prevent optical misalignment */}
         <div style={{ position: "relative", display: "inline-flex", alignItems: "baseline", justifyContent: "center" }}>
-          <Counter mv={animatedCenter} colorMv={valueColor} precision={precision} fontSize={S * 0.21} />
-          <motion.span style={{
-            position: "absolute",
-            left: "100%",
-            bottom: "0.15em",
-            fontSize: S * 0.08,
-            color: valueColor,
-            fontWeight: 500,
-            fontFamily: "var(--font-inter), sans-serif",
-            marginLeft: "0px", // Reduced from 2px to sit closer to the number
-          }}>
-            %
-          </motion.span>
+          {ext === undefined ? (
+            <span style={{
+              fontFamily: "var(--font-inter), sans-serif",
+              fontSize: S * 0.21,
+              fontWeight: 600,
+              color: isDark ? "#444" : "#ccc",
+              lineHeight: 1,
+            }}>
+              —
+            </span>
+          ) : (
+            <>
+              <Counter mv={animatedCenter} colorMv={valueColor} precision={precision} fontSize={S * 0.21} />
+              <motion.span style={{
+                position: "absolute",
+                left: "100%",
+                bottom: "0.15em",
+                fontSize: S * 0.08,
+                color: valueColor,
+                fontWeight: 500,
+                fontFamily: "var(--font-inter), sans-serif",
+                marginLeft: "0px", // Reduced from 2px to sit closer to the number
+              }}>
+                %
+              </motion.span>
+            </>
+          )}
         </div>
 
         {/* Label below the number, absolute positioned to not offset center height of SOC number */}
