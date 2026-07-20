@@ -1,0 +1,18 @@
+{
+  "name": "Sentry Inverter Monitor",
+  "short_name": "Sentry",
+  "description": "Premium real-time battery and smart load telemetry dashboard.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#042a1c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-sentry.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

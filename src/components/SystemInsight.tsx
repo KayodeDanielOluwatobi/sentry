@@ -39,8 +39,8 @@ export default function SystemInsight({
   activeAlarmsCount = 0,
   wifiRssi: propWifiRssi,
   bleRssi: propBleRssi,
-  wifiConnected,
-  bleConnected,
+  wifiConnected: propWifiConnected,
+  bleConnected: propBleConnected,
   lastFirebaseUpdate,
   style,
   ...props
@@ -61,6 +61,10 @@ export default function SystemInsight({
 
   const wifiRssi = propWifiRssi !== undefined ? propWifiRssi : internalWifiRssi;
   const bluetoothSignal = propBleRssi !== undefined ? propBleRssi : internalBluetoothSignal;
+
+  const isOffline = typeof secondsAgo === "number" && secondsAgo > 30;
+  const wifiConnected = isOffline ? false : propWifiConnected;
+  const bleConnected = isOffline ? false : propBleConnected;
 
   // Monitor viewport resize for mobile responsive scaling
   useEffect(() => {
@@ -348,8 +352,8 @@ export default function SystemInsight({
               System Insight
             </span>
             <span style={{
-              background: "rgba(74, 222, 128, 0.2)",
-              color: "#86efac",
+              background: isOffline ? "rgba(239, 68, 68, 0.2)" : "rgba(74, 222, 128, 0.2)",
+              color: isOffline ? "#fca5a5" : "#86efac",
               fontSize: isMobile ? "0.45rem" : "0.58rem",
               fontWeight: 500,
               padding: isMobile ? "0.02rem 0.3rem" : "0.08rem 0.35rem",
@@ -357,7 +361,7 @@ export default function SystemInsight({
               textTransform: "uppercase",
               letterSpacing: "0.02em"
             }}>
-              Live
+              {isOffline ? "Offline" : "Live"}
             </span>
           </div>
 
@@ -408,7 +412,7 @@ export default function SystemInsight({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
               <span style={{ fontSize: isMobile ? "0.62rem" : "0.78rem", fontWeight: 500 }}>
-                {secondsAgo === "—" ? "—" : (secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`)}
+                {secondsAgo === "—" ? "—" : (isOffline ? (secondsAgo < 60 ? `Offline (${secondsAgo}s ago)` : `Offline (${Math.floor(secondsAgo / 60)}m ago)`) : (secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`))}
               </span>
             </div>
           </div>

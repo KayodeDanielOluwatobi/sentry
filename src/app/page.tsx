@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ref, onValue, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import TopBar from "@/components/TopBar";
@@ -84,6 +84,17 @@ export default function Home() {
     }
   ]);
 
+  const prevLastUpdateRef = useRef<number | undefined>(undefined);
+
+  // Register PWA service worker on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js")
+        .then((reg) => console.log("Service Worker registered successfully:", reg.scope))
+        .catch((err) => console.error("Service Worker registration failed:", err));
+    }
+  }, []);
+
   // Load manager states
   const [managerMode, setManagerMode] = useState<"auto" | "manual">("auto");
   const [managerLoads, setManagerLoads] = useState<ManagedLoad[]>([
@@ -124,9 +135,17 @@ export default function Home() {
       }
     }, 800);
 
+    let mockInterval: NodeJS.Timeout | undefined;
     if (!db) {
       console.warn("Firebase Database is not initialized. Sentry telemetry will run in simulated fallback mode.");
-      return () => clearTimeout(fallbackTimeout);
+      // In mock mode, simulate periodic telemetry updates
+      mockInterval = setInterval(() => {
+        setLastFirebaseUpdate(Date.now());
+      }, 8000);
+      return () => {
+        clearTimeout(fallbackTimeout);
+        if (mockInterval) clearInterval(mockInterval);
+      };
     }
 
     const rootRef = ref(db, "/");
@@ -136,7 +155,32 @@ export default function Home() {
 
       hasLoadedFirebase = true;
       clearTimeout(fallbackTimeout);
-      setLastFirebaseUpdate(Date.now());
+
+      // Only reset the "Last updated" clock if the ESP32 lastUpdate field actually changed
+      if (data.battery && data.battery.connectivity) {
+        const currentLastUpdate = data.battery.connectivity.lastUpdate;
+        
+        // Cache this timestamp locally to persist the offline timer across page refreshes
+        const cachedBmsVal = typeof window !== "undefined" ? localStorage.getItem("lastUpdateBmsVal") : null;
+        const cachedTimestamp = typeof window !== "undefined" ? localStorage.getItem("lastFirebaseUpdateTimestamp") : null;
+
+        if (cachedBmsVal && cachedTimestamp && currentLastUpdate.toString() === cachedBmsVal) {
+          // No new telemetry was sent by the ESP32; retrieve the cached packet receipt time
+          setLastFirebaseUpdate(parseInt(cachedTimestamp, 10));
+          prevLastUpdateRef.current = currentLastUpdate;
+        } else if (currentLastUpdate !== prevLastUpdateRef.current) {
+          // Fresh telemetry packet received! Record and update cache.
+          const now = Date.now();
+          setLastFirebaseUpdate(now);
+          prevLastUpdateRef.current = currentLastUpdate;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("lastUpdateBmsVal", currentLastUpdate.toString());
+            localStorage.setItem("lastFirebaseUpdateTimestamp", now.toString());
+          }
+        }
+      } else {
+        setLastFirebaseUpdate(Date.now());
+      }
 
       // 1. Battery Telemetry parsing
       if (data.battery) {
