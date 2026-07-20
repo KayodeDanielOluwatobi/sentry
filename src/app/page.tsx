@@ -56,6 +56,10 @@ export default function Home() {
 
   // Firebase Realtime Database Real-Time Telemetry Subscription
   useEffect(() => {
+    if (!db) {
+      console.warn("Firebase Database is not initialized. Sentry telemetry will run in simulated fallback mode.");
+      return;
+    }
     const rootRef = ref(db, "/");
     const unsubscribe = onValue(rootRef, (snapshot) => {
       const data = snapshot.val();
