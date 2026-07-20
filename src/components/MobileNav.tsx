@@ -4,7 +4,6 @@ import React from "react";
 import { motion } from "framer-motion";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AutomotiveBattery01Icon, RenewableEnergyIcon, Activity03Icon, UserIcon } from "@hugeicons/core-free-icons";
-import LiquidGlass from "liquid-glass-react";
 
 export type NavItem = "Battery" | "Energy" | "Diagnostics" | "Profile";
 
@@ -136,52 +135,29 @@ export default function MobileNav({
   );
 
   return (
-    <div className="navbar-wrapper" style={{ display: "contents" }}>
-      <style dangerouslySetInnerHTML={{ __html: `
-        .navbar-wrapper > span {
-          display: none !important;
-        }
-      `}} />
-      <LiquidGlass
-        // The key prop forces a clean destroy & remount of the canvas context on layout change
-        key={isMobile ? "mobile-nav" : "desktop-nav"}
-        displacementScale={isMobile ? 40 : 45}
-        blurAmount={0.08}
-        saturation={130}
-        aberrationIntensity={isMobile ? 3 : 3}
-        elasticity={isMobile ? 0 : 0.15}
-        cornerRadius={0} // Stretched flat to bottom
-        padding={isMobile ? "14px 20px 22px 20px" : "16px 44px 20px 44px"}
-        style={{
-          position: "fixed",
-          bottom: isMobile ? "-55px" : "-45px", // Pull WebGL margin below viewport edge
-          left: "50%",
-          transform: "translateX(-50%)",
-          marginLeft: isMobile ? "-4px" : "385.8px", // Center guide verification offset
-          width: "100vw", // Stretched edge-to-edge
-          zIndex: 9999,
-          borderTop: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(255, 255, 255, 0.4)",
-          boxShadow: isDark
-            ? "0 -10px 30px rgba(0, 0, 0, 0.3)"
-            : "0 -8px 24px rgba(0, 0, 0, 0.03)",
-        }}
-      >
-        {/* Temporary Navbar Center Guide Line (Dashed Blue)
-        <div style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: "50%",
-          width: "2px",
-          background: "repeating-linear-gradient(to bottom, #3b82f6, #3b82f6 8px, transparent 8px, transparent 16px)",
-          pointerEvents: "none",
-          zIndex: 99999,
-          opacity: 0.65,
-        }} />
-        */}
-
+    <div
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        width: "100%",
+        background: isDark ? "rgba(10, 10, 10, 0.85)" : "rgba(255, 255, 255, 0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderTop: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.08)",
+        boxShadow: isDark
+          ? "0 -10px 30px rgba(0, 0, 0, 0.4)"
+          : "0 -8px 24px rgba(0, 0, 0, 0.04)",
+        zIndex: 9999,
+        padding: isMobile ? "12px 24px 20px 24px" : "14px 44px 18px 44px",
+        boxSizing: "border-box",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: "1280px" }}>
         {renderNavContent()}
-      </LiquidGlass>
+      </div>
     </div>
   );
 }

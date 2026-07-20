@@ -54,6 +54,17 @@ export default function TopBar({
   const [bellHover, setBellHover] = useState(false);
   const [themeHover, setThemeHover] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [lastOpenedTime, setLastOpenedTime] = useState<number>(0);
+
+  const toggleNotifications = () => {
+    const nextState = !showNotifications;
+    setShowNotifications(nextState);
+    if (nextState) {
+      setLastOpenedTime(Date.now());
+    }
+  };
+
+  const hasUnread = events.some((evt: any) => new Date(evt.timestamp).getTime() > lastOpenedTime);
 
   const getNotificationSeverityColors = (severity: string, isDark: boolean) => {
     switch (severity) {
@@ -487,7 +498,7 @@ export default function TopBar({
           <button
             type="button"
             aria-label="Notifications"
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={toggleNotifications}
             onMouseEnter={() => setBellHover(true)}
             onMouseLeave={() => setBellHover(false)}
             style={{
@@ -498,7 +509,7 @@ export default function TopBar({
             }}
           >
             <HugeiconsIcon icon={NotificationIcon} size={24} color="currentColor" strokeWidth={1.8} />
-            {events.length > 0 && (
+            {hasUnread && (
               <span
                 style={{
                   position: "absolute",
