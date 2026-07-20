@@ -266,7 +266,7 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "1rem 1rem 5.5rem 1rem",
+        padding: "1rem 1rem 8rem 1rem",
         fontFamily: "var(--font-inter), sans-serif",
         transition: "background 0.2s ease, color 0.2s ease",
         color: isDark ? "#ffffff" : "#111111",
