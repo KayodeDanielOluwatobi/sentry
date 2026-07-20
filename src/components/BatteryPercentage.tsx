@@ -34,6 +34,7 @@ interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
   current?: number;
   power?: number;
   remainingCapacity?: number;
+  fullCapacity?: number;
   theme?: CardTheme;
   withShadow?: boolean;
 }
@@ -50,6 +51,7 @@ export default function BatteryPercentage({
   current: propCurrent,
   power: propPower,
   remainingCapacity,
+  fullCapacity,
   theme = "light",
   withShadow = true,
   style,
@@ -103,8 +105,29 @@ export default function BatteryPercentage({
   const getDischargeRuntime = () => {
     if (dischargeRuntime) return dischargeRuntime; // Use Firebase telemetry override if available
     if (soc <= 0) return "Empty";
-    const hours = Math.floor((soc * 15) / 60);
-    const minutes = Math.round((soc * 15) % 60);
+    
+    const activeCurrent = propCurrent !== undefined ? Math.abs(propCurrent) : undefined;
+    
+    // If no real current from props, fall back to mock calculation
+    if (activeCurrent === undefined) {
+      const hours = Math.floor((soc * 15) / 60);
+      const minutes = Math.round((soc * 15) % 60);
+      return `${hours}h ${minutes}m`;
+    }
+
+    if (activeCurrent < 0.05) {
+      return "Idle / No Load";
+    }
+
+    const activeCapacity = remainingCapacity !== undefined 
+      ? remainingCapacity 
+      : (soc / 100) * 100.38;
+
+    const totalHours = activeCapacity / activeCurrent;
+    const hours = Math.floor(totalHours);
+    const minutes = Math.round((totalHours - hours) * 60);
+
+    if (hours > 999) return ">999h";
     return `${hours}h ${minutes}m`;
   };
 
@@ -112,9 +135,33 @@ export default function BatteryPercentage({
   const getChargeTimeToFull = () => {
     if (chargeTimeToFull) return chargeTimeToFull; // Use Firebase telemetry override if available
     if (soc >= 100) return "Full";
-    const remainingSoc = 100 - soc;
-    const hours = Math.floor((remainingSoc * 10) / 60);
-    const minutes = Math.round((remainingSoc * 10) % 60);
+
+    const activeCurrent = propCurrent !== undefined ? Math.abs(propCurrent) : undefined;
+    
+    // If no real current from props, fall back to mock calculation
+    if (activeCurrent === undefined) {
+      const remainingSoc = 100 - soc;
+      const hours = Math.floor((remainingSoc * 10) / 60);
+      const minutes = Math.round((remainingSoc * 10) % 60);
+      return `${hours}h ${minutes}m`;
+    }
+
+    if (activeCurrent < 0.05) {
+      return "Idle / Low Current";
+    }
+
+    const activeCapacity = remainingCapacity !== undefined 
+      ? remainingCapacity 
+      : (soc / 100) * 100.38;
+
+    const activeFullCapacity = fullCapacity !== undefined ? fullCapacity : 100.0;
+    const capacityNeeded = Math.max(0, activeFullCapacity - activeCapacity);
+
+    const totalHours = capacityNeeded / activeCurrent;
+    const hours = Math.floor(totalHours);
+    const minutes = Math.round((totalHours - hours) * 60);
+
+    if (hours > 999) return ">999h";
     return `${hours}h ${minutes}m`;
   };
 

@@ -30,6 +30,7 @@ export default function Home() {
   const [current, setCurrent] = useState<number | undefined>(undefined);
   const [power, setPower] = useState<number | undefined>(undefined);
   const [remainingCapacity, setRemainingCapacity] = useState<number | undefined>(undefined);
+  const [fullCapacity, setFullCapacity] = useState<number | undefined>(undefined);
   const [soh, setSoh] = useState<number>(100);
 
   const [temperatures, setTemperatures] = useState([
@@ -79,6 +80,7 @@ export default function Home() {
           if (live.current !== undefined) setCurrent(live.current);
           if (live.power !== undefined) setPower(live.power);
           if (live.remainingCapacity !== undefined) setRemainingCapacity(live.remainingCapacity);
+          if (live.fullCapacity !== undefined) setFullCapacity(live.fullCapacity);
           if (live.soh !== undefined) setSoh(live.soh);
         }
 
@@ -259,6 +261,7 @@ export default function Home() {
               current={current}
               power={power}
               remainingCapacity={remainingCapacity}
+              fullCapacity={fullCapacity}
               soh={soh}
             />
           </div>
