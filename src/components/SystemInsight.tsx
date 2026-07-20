@@ -43,8 +43,16 @@ export default function SystemInsight({
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsAgo, setSecondsAgo] = useState(0);
-  const [isRotating, setIsRotating] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Monitor viewport resize for mobile responsive scaling
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // 1. Calculate Discharge Runtime Estimation
   const getDischargeRuntime = () => {
@@ -190,13 +198,13 @@ export default function SystemInsight({
   // Sort by priority so that critical stats (e.g. warnings, active statuses) always surface first
   insights.sort((a, b) => b.priority - a.priority);
 
-  // Auto rotate insights every 9 seconds
+  // Auto rotate insights every 15 seconds
   useEffect(() => {
     const startRotation = () => {
       timerRef.current = setInterval(() => {
         setCurrentIndex((prev) => (prev + 1) % insights.length);
         setSecondsAgo(0);
-      }, 9000);
+      }, 15000); // 15-second rotation
     };
 
     startRotation();
@@ -206,32 +214,13 @@ export default function SystemInsight({
     };
   }, [insights.length]);
 
-  // Seconds ago timer
+  // Seconds ago timer (indicates dashboard updates)
   useEffect(() => {
     const countTimer = setInterval(() => {
       setSecondsAgo((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(countTimer);
   }, []);
-
-  // Force reset rotation on manual refresh click
-  const handleRefresh = () => {
-    setIsRotating(true);
-    setCurrentIndex((prev) => (prev + 1) % insights.length);
-    setSecondsAgo(0);
-
-    // Reset autoplay interval timer
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % insights.length);
-      setSecondsAgo(0);
-    }, 9000);
-
-    // Reset rotation icon animation after 600ms
-    setTimeout(() => {
-      setIsRotating(false);
-    }, 600);
-  };
 
   const activeInsight = insights[currentIndex] || insights[0];
 
@@ -240,13 +229,13 @@ export default function SystemInsight({
       theme={theme}
       withShadow={withShadow}
       style={{
-        padding: "1.25rem clamp(1.1rem, 4cqi, 1.6rem)",
-        borderRadius: "20px",
+        padding: isMobile ? "0.65rem 0.85rem" : "1.25rem clamp(1.1rem, 4cqi, 1.6rem)",
+        borderRadius: isMobile ? "14px" : "20px",
         width: "100%",
         display: "flex",
         flexDirection: "column",
-        gap: "1rem",
-        minHeight: "140px",
+        gap: isMobile ? "0.4rem" : "1rem",
+        minHeight: isMobile ? "96px" : "140px",
         justifyContent: "space-between",
         ...style
       }}
@@ -254,59 +243,42 @@ export default function SystemInsight({
     >
       {/* Header section */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-        <h2 style={{ margin: 0, fontSize: "0.78rem", fontWeight: 600, color: grayText, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <h2 style={{ margin: 0, fontSize: isMobile ? "0.6rem" : "0.78rem", fontWeight: 600, color: grayText, textTransform: "uppercase", letterSpacing: "0.05em" }}>
           System Insight
         </h2>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <span style={{ fontSize: "0.72rem", color: lightGrayText, fontWeight: 400 }}>
+          <span style={{ fontSize: isMobile ? "0.58rem" : "0.72rem", color: lightGrayText, fontWeight: 400 }}>
             Updated {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}
           </span>
-          <button
-            onClick={handleRefresh}
+          {/* Static refresh indicator icon (no click callback, visual representation only) */}
+          <div
             style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px",
               color: grayText,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "50%",
-              transition: "background 0.2s ease, color 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
-              e.currentTarget.style.color = textColor;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "none";
-              e.currentTarget.style.color = grayText;
+              padding: isMobile ? "2px" : "4px",
             }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="15"
-              height="15"
+              width={isMobile ? "12" : "15"}
+              height={isMobile ? "12" : "15"}
               fill="none"
               stroke="currentColor"
               strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={{
-                transform: isRotating ? "rotate(360deg)" : "rotate(0deg)",
-                transition: isRotating ? "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
-              }}
             >
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l.73-.73" />
             </svg>
-          </button>
+          </div>
         </div>
       </div>
 
       {/* Slide & Fade animation viewport container */}
-      <div style={{ overflow: "hidden", minHeight: "72px", display: "flex", alignItems: "center", position: "relative", width: "100%" }}>
+      <div style={{ overflow: "hidden", minHeight: isMobile ? "44px" : "72px", display: "flex", alignItems: "center", position: "relative", width: "100%" }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeInsight.id}
@@ -317,16 +289,16 @@ export default function SystemInsight({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "clamp(0.85rem, 3.5cqi, 1.25rem)",
+              gap: isMobile ? "0.65rem" : "clamp(0.85rem, 3.5cqi, 1.25rem)",
               width: "100%",
             }}
           >
             {/* Left: Icon Badge */}
             <div
               style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "14px",
+                width: isMobile ? "34px" : "48px",
+                height: isMobile ? "34px" : "48px",
+                borderRadius: isMobile ? "9px" : "14px",
                 background: activeInsight.bg,
                 color: activeInsight.textColor,
                 display: "flex",
@@ -336,18 +308,18 @@ export default function SystemInsight({
                 transition: "background 0.3s ease, color 0.3s ease",
               }}
             >
-              <HugeiconsIcon icon={activeInsight.icon} size={22} strokeWidth={2} color="currentColor" />
+              <HugeiconsIcon icon={activeInsight.icon} size={isMobile ? 15 : 22} strokeWidth={2} color="currentColor" />
             </div>
 
             {/* Right: Info labels */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem", minWidth: 0, flex: 1 }}>
-              <span style={{ fontSize: "0.68rem", fontWeight: 700, color: activeInsight.textColor, textTransform: "uppercase", letterSpacing: "0.04em", transition: "color 0.3s ease" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.02rem", minWidth: 0, flex: 1 }}>
+              <span style={{ fontSize: isMobile ? "0.58rem" : "0.68rem", fontWeight: 700, color: activeInsight.textColor, textTransform: "uppercase", letterSpacing: "0.04em", transition: "color 0.3s ease" }}>
                 {activeInsight.title}
               </span>
-              <span style={{ fontSize: "clamp(1.15rem, 4.5vw, 1.45rem)", fontWeight: 700, color: textColor, lineHeight: 1.15 }}>
+              <span style={{ fontSize: isMobile ? "1.05rem" : "clamp(1.15rem, 4.5vw, 1.45rem)", fontWeight: 700, color: textColor, lineHeight: 1.15 }}>
                 {activeInsight.value}
               </span>
-              <span style={{ fontSize: "0.75rem", color: grayText, fontWeight: 400, marginTop: "0.05rem", lineHeight: 1.2, display: "block", textOverflow: "ellipsis", overflow: "hidden" }}>
+              <span style={{ fontSize: isMobile ? "0.65rem" : "0.75rem", color: grayText, fontWeight: 400, marginTop: isMobile ? "0px" : "0.05rem", lineHeight: 1.2, display: "block", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                 {activeInsight.subtext}
               </span>
             </div>
