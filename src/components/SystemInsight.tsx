@@ -19,6 +19,7 @@ export interface SystemInsightProps extends React.HTMLAttributes<HTMLDivElement>
   bleRssi?: number;
   wifiConnected?: boolean;
   bleConnected?: boolean;
+  lastFirebaseUpdate?: number;
 }
 
 export default function SystemInsight({
@@ -40,6 +41,7 @@ export default function SystemInsight({
   bleRssi: propBleRssi,
   wifiConnected,
   bleConnected,
+  lastFirebaseUpdate,
   style,
   ...props
 }: SystemInsightProps) {
@@ -51,7 +53,7 @@ export default function SystemInsight({
   const lightGrayText = "rgba(255, 255, 255, 0.45)";
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [secondsAgo, setSecondsAgo] = useState(0);
+  const [secondsAgo, setSecondsAgo] = useState<number | string>("—");
   const [isMobile, setIsMobile] = useState(false);
   const [internalWifiRssi, setInternalWifiRssi] = useState(-58);
   const [internalBluetoothSignal, setInternalBluetoothSignal] = useState(-65);
@@ -291,18 +293,23 @@ export default function SystemInsight({
     };
   }, [insights.length]);
 
-  // Reset timer ONLY when telemetry props or manager states actually change from database updates
+  // Compute seconds elapsed since the last real Firebase database snapshot update
   useEffect(() => {
-    setSecondsAgo(0);
-  }, [soc, isCharging, temperature, currentLoad, cellVoltages, managerLoads, managerMode, activeAlarmsCount]);
+    if (lastFirebaseUpdate === undefined) {
+      setSecondsAgo("—");
+      return;
+    }
 
-  // Seconds ago timer (indicates dashboard updates)
-  useEffect(() => {
-    const countTimer = setInterval(() => {
-      setSecondsAgo((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(countTimer);
-  }, []);
+    const updateTimer = () => {
+      const elapsedMs = Date.now() - lastFirebaseUpdate;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      setSecondsAgo(elapsedSec >= 0 ? elapsedSec : 0);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [lastFirebaseUpdate]);
 
   const activeInsight = insights[currentIndex] || insights[0];
 
@@ -401,7 +408,7 @@ export default function SystemInsight({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
               <span style={{ fontSize: isMobile ? "0.62rem" : "0.78rem", fontWeight: 500 }}>
-                {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}
+                {secondsAgo === "—" ? "—" : (secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`)}
               </span>
             </div>
           </div>

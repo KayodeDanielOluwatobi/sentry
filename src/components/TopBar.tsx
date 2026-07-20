@@ -21,6 +21,7 @@ interface TopBarProps {
   managerMode?: "auto" | "manual";
   managerLoads?: Array<{ id: string; name: string; level: "critical" | "major" | "non-essential"; status: string; isOn: boolean }>;
   activeAlarmsCount?: number;
+  events?: any[];
 }
 
 export default function TopBar({
@@ -43,6 +44,7 @@ export default function TopBar({
     { id: "3", name: "TV/Lights", level: "non-essential", status: "shed", isOn: false },
   ],
   activeAlarmsCount = 0,
+  events = [],
 }: TopBarProps) {
   const isDark = theme === "dark";
   const textColor = isDark ? "#ffffff" : "#111111";
@@ -51,6 +53,31 @@ export default function TopBar({
   const [menuHover, setMenuHover] = useState(false);
   const [bellHover, setBellHover] = useState(false);
   const [themeHover, setThemeHover] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const getNotificationSeverityColors = (severity: string, isDark: boolean) => {
+    switch (severity) {
+      case "critical": return { iconColor: "#ef4444" };
+      case "warning": return { iconColor: "#f97316" };
+      case "success": return { iconColor: "#22c55e" };
+      case "info": return { iconColor: "#3b82f6" };
+      case "discovery": return { iconColor: "#a855f7" };
+      case "neutral":
+      default:
+        return { iconColor: isDark ? "#ffffff" : "#111111" };
+    }
+  };
+
+  const getRelativeTimeText = (date: Date) => {
+    const diffMs = Date.now() - new Date(date).getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return "just now";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    return new Date(date).toLocaleDateString();
+  };
 
   // States for headline selection and history
   const [currentHeadline, setCurrentHeadline] = useState("System dashboard active. ⚡");
@@ -456,36 +483,124 @@ export default function TopBar({
         </button>
 
         {/* Notifications */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          onClick={onNotificationClick}
-          onMouseEnter={() => setBellHover(true)}
-          onMouseLeave={() => setBellHover(false)}
-          style={{
-            ...iconButtonStyle,
-            transform: bellHover ? "scale(1.08)" : "scale(1)",
-            justifyContent: "flex-end",
-            width: "28px",
-          }}
-        >
-          <HugeiconsIcon icon={NotificationIcon} size={24} color="currentColor" strokeWidth={1.8} />
-          {hasNotification && (
-            <span
-              style={{
-                position: "absolute",
-                top: "2px",
-                right: "0px",
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: "#ef4444",
-                border: `1.5px solid ${isDark ? "#080808" : "#ebf0f5"}`,
-                boxSizing: "content-box",
-              }}
-            />
-          )}
-        </button>
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            aria-label="Notifications"
+            onClick={() => setShowNotifications(!showNotifications)}
+            onMouseEnter={() => setBellHover(true)}
+            onMouseLeave={() => setBellHover(false)}
+            style={{
+              ...iconButtonStyle,
+              transform: bellHover ? "scale(1.08)" : "scale(1)",
+              justifyContent: "center",
+              width: "28px",
+            }}
+          >
+            <HugeiconsIcon icon={NotificationIcon} size={24} color="currentColor" strokeWidth={1.8} />
+            {events.length > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "2px",
+                  right: "0px",
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: "#ef4444",
+                  border: `1.5px solid ${isDark ? "#080808" : "#ebf0f5"}`,
+                  boxSizing: "content-box",
+                }}
+              />
+            )}
+          </button>
+
+          <AnimatePresence>
+            {showNotifications && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                style={{
+                  position: "absolute",
+                  top: "40px",
+                  right: "0px",
+                  width: "320px",
+                  maxHeight: "380px",
+                  background: isDark ? "rgba(18, 18, 18, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                  backdropFilter: "blur(12px)",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"}`,
+                  borderRadius: "14px",
+                  boxShadow: isDark 
+                    ? "0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(255,255,255,0.05)" 
+                    : "0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0,0,0,0.05)",
+                  zIndex: 99999,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* Header */}
+                <div style={{
+                  padding: "0.75rem 1rem",
+                  borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 700, color: textColor }}>Notifications</span>
+                  <span style={{ fontSize: "0.68rem", color: grayText }}>{events.length} logs</span>
+                </div>
+
+                {/* Scrollable list */}
+                <div style={{
+                  overflowY: "auto",
+                  flex: 1,
+                  maxHeight: "280px",
+                }}>
+                  {events.length === 0 ? (
+                    <div style={{ padding: "2rem", textAlign: "center", color: grayText, fontSize: "0.75rem" }}>
+                      No new alerts
+                    </div>
+                  ) : (
+                    events.slice(0, 6).map((evt: any) => {
+                      const sevColors = getNotificationSeverityColors(evt.severity, isDark);
+                      return (
+                        <div
+                          key={evt.id}
+                          style={{
+                            padding: "0.7rem 1rem",
+                            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+                            display: "flex",
+                            gap: "0.55rem",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <span style={{
+                            width: "6px",
+                            height: "6px",
+                            borderRadius: "50%",
+                            background: sevColors.iconColor,
+                            marginTop: "5px",
+                            flexShrink: 0,
+                          }} />
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem", minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: textColor, textAlign: "left" }}>{evt.title}</span>
+                            <span style={{ fontSize: "0.68rem", color: grayText, lineHeight: 1.25, textAlign: "left" }}>{evt.message}</span>
+                            <span style={{ fontSize: "0.58rem", color: isDark ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.4)", marginTop: "2px", textAlign: "left" }}>
+                              {getRelativeTimeText(evt.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

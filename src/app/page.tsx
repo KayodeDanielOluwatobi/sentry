@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import TopBar from "@/components/TopBar";
 import SystemInsight from "@/components/SystemInsight";
 import BatteryPercentage from "@/components/BatteryPercentage";
-import ActivityFeed from "@/components/ActivityFeed";
+import ActivityFeed, { ActivityEvent } from "@/components/ActivityFeed";
 
 import { NavItem } from "@/components/PillNav";
 import MobileNav from "@/components/MobileNav";
@@ -40,6 +40,49 @@ export default function Home() {
   const [wifiConnected, setWifiConnected] = useState<boolean | undefined>(undefined);
   const [bleConnected, setBleConnected] = useState<boolean | undefined>(undefined);
   const [hasBmsError, setHasBmsError] = useState(false);
+  const [lastFirebaseUpdate, setLastFirebaseUpdate] = useState<number | undefined>(undefined);
+
+  const [events, setEvents] = useState<ActivityEvent[]>([
+    {
+      id: "evt_101",
+      type: "load_shed",
+      severity: "warning",
+      title: "Battery preservation activated",
+      message: "Non-essential load was disconnected after SOC fell below 60%.",
+      timestamp: new Date(Date.now() - 120 * 1000), // 2 min ago
+      badge: "Automatic",
+      runtimeGain: "+1h 18m",
+      level: "non-essential"
+    },
+    {
+      id: "evt_102",
+      type: "load_restore",
+      severity: "success",
+      title: "Non-essential load restored",
+      message: "Non-essential load was restored after SOC rose above 65%.",
+      timestamp: new Date(Date.now() - 1080 * 1000), // 18 min ago
+      badge: "Recovered",
+      level: "non-essential"
+    },
+    {
+      id: "evt_103",
+      type: "wifi_restored",
+      severity: "success",
+      title: "WiFi network reconnected",
+      message: "ESP32 wireless network connection established.",
+      timestamp: new Date(Date.now() - 3600 * 1000), // 1 hour ago
+      badge: "Recovered"
+    },
+    {
+      id: "evt_104",
+      type: "cell_imbalance",
+      severity: "warning",
+      title: "Cell imbalance detected",
+      message: "Voltage delta exceeded 15mV threshold.",
+      timestamp: new Date(Date.now() - 7200 * 1000), // 2 hours ago
+      badge: "Automatic"
+    }
+  ]);
 
   // Load manager states
   const [managerMode, setManagerMode] = useState<"auto" | "manual">("auto");
@@ -77,6 +120,7 @@ export default function Home() {
         setWifiRssi(-41);
         setBleConnected(true);
         setBleRssi(0);
+        setLastFirebaseUpdate(Date.now());
       }
     }, 800);
 
@@ -92,6 +136,7 @@ export default function Home() {
 
       hasLoadedFirebase = true;
       clearTimeout(fallbackTimeout);
+      setLastFirebaseUpdate(Date.now());
 
       // 1. Battery Telemetry parsing
       if (data.battery) {
@@ -243,6 +288,7 @@ export default function Home() {
             activeAlarmsCount={activeAlarmsCount}
             onThemeToggle={() => setTheme(isDark ? "light" : "dark")}
             onMenuClick={() => console.log("Menu clicked")}
+            events={events}
           />
         </div>
 
@@ -265,28 +311,29 @@ export default function Home() {
             gridAutoRows: "auto"
           }}
         >
+          {/* Row 1: System Insight (Persistent Header - Full Width across all tabs) */}
+          <div style={{ gridColumn: "span 3" }}>
+            <SystemInsight
+              theme={theme}
+              soc={soc}
+              isCharging={isCharging}
+              temperature={temperature}
+              currentLoad={currentLoad}
+              cellVoltages={cellVoltages}
+              withShadow={false}
+              managerMode={managerMode}
+              managerLoads={managerLoads}
+              activeAlarmsCount={activeAlarmsCount}
+              wifiRssi={wifiRssi}
+              bleRssi={bleRssi}
+              wifiConnected={wifiConnected}
+              bleConnected={bleConnected}
+              lastFirebaseUpdate={lastFirebaseUpdate}
+            />
+          </div>
+
           {activeTab === "Battery" && (
             <>
-              {/* Row 1: System Insight (Full Width) */}
-              <div style={{ gridColumn: "span 3" }}>
-                <SystemInsight
-                  theme={theme}
-                  soc={soc}
-                  isCharging={isCharging}
-                  temperature={temperature}
-                  currentLoad={currentLoad}
-                  cellVoltages={cellVoltages}
-                  withShadow={false}
-                  managerMode={managerMode}
-                  managerLoads={managerLoads}
-                  activeAlarmsCount={activeAlarmsCount}
-                  wifiRssi={wifiRssi}
-                  bleRssi={bleRssi}
-                  wifiConnected={wifiConnected}
-                  bleConnected={bleConnected}
-                />
-              </div>
-
               {/* Row 2: Battery Percentage (Full Width) */}
               <div style={{ gridColumn: "span 3" }}>
                 <BatteryPercentage
@@ -341,20 +388,6 @@ export default function Home() {
                   />
                 </div>
               </div>
-
-              {/* Row 5: Activity Feed (Full Width) */}
-              <div style={{ gridColumn: "span 3" }}>
-                <ActivityFeed
-                  theme={theme}
-                  soc={soc}
-                  isCharging={isCharging}
-                  temperature={temperature}
-                  currentLoad={currentLoad}
-                  cellVoltages={cellVoltages}
-                  managerMode={managerMode}
-                  managerLoads={managerLoads}
-                />
-              </div>
             </>
           )}
 
@@ -372,9 +405,20 @@ export default function Home() {
           )}
 
           {activeTab === "Diagnostics" && (
-            <div style={{ gridColumn: "span 3", padding: "3rem 1.5rem", textAlign: "center", color: isDark ? "#888" : "#555" }}>
-              <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.2rem", fontWeight: 600 }}>Diagnostics</h3>
-              <p style={{ margin: 0, fontSize: "0.9rem" }}>Advanced battery cell diagnostics and historical telemetry analysis.</p>
+            /* Activity Feed — moved to Diagnostics tab! */
+            <div style={{ gridColumn: "span 3" }}>
+              <ActivityFeed
+                theme={theme}
+                soc={soc}
+                isCharging={isCharging}
+                temperature={temperature}
+                currentLoad={currentLoad}
+                cellVoltages={cellVoltages}
+                managerMode={managerMode}
+                managerLoads={managerLoads}
+                events={events}
+                onEventsChange={setEvents}
+              />
             </div>
           )}
 

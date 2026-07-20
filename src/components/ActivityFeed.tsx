@@ -38,6 +38,8 @@ export interface ActivityFeedProps extends React.HTMLAttributes<HTMLDivElement> 
   cellVoltages?: number[];
   managerMode?: "auto" | "manual";
   managerLoads?: Array<{ id: string; name: string; level: "critical" | "major" | "non-essential"; status: string; isOn: boolean }>;
+  events?: ActivityEvent[];
+  onEventsChange?: (updateFn: any) => void;
 }
 
 // ─── Severe Color Mapping Helper ──────────────────────────────────────────────
@@ -175,6 +177,8 @@ export default function ActivityFeed({
   cellVoltages = [3.199, 3.197, 3.196, 3.199],
   managerMode = "auto",
   managerLoads = [],
+  events: propEvents,
+  onEventsChange: propOnEventsChange,
   style,
   ...props
 }: ActivityFeedProps) {
@@ -188,8 +192,8 @@ export default function ActivityFeed({
   const [isMobile, setIsMobile] = useState(false);
   const [now, setNow] = useState(new Date());
 
-  // Setup Mockup Seed History Events
-  const [events, setEvents] = useState<ActivityEvent[]>([
+  // Setup Mockup Seed History Events with local fallback
+  const [localEvents, setLocalEvents] = useState<ActivityEvent[]>([
     {
       id: "evt_101",
       type: "load_shed",
@@ -230,6 +234,15 @@ export default function ActivityFeed({
       badge: "Automatic"
     }
   ]);
+
+  const events = propEvents !== undefined ? propEvents : localEvents;
+  const setEvents = (updateFn: any) => {
+    if (propOnEventsChange) {
+      propOnEventsChange(updateFn);
+    } else {
+      setLocalEvents(updateFn);
+    }
+  };
 
   // Monitor resize for mobile responsive scaling
   useEffect(() => {
@@ -374,7 +387,7 @@ export default function ActivityFeed({
     prevSoc.current = soc;
 
     if (newEvts.length > 0) {
-      setEvents(prev => [...newEvts, ...prev]);
+      setEvents((prev: ActivityEvent[]) => [...newEvts, ...prev]);
     }
   }, [managerMode, managerLoads, isCharging, soc]);
 
