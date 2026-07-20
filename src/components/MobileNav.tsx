@@ -136,45 +136,52 @@ export default function MobileNav({
   );
 
   return (
-    <LiquidGlass
-      // The key prop forces a clean destroy & remount of the canvas context on layout change
-      key={isMobile ? "mobile-nav" : "desktop-nav"}
-      displacementScale={isMobile ? 40 : 45}
-      blurAmount={0.08}
-      saturation={130}
-      aberrationIntensity={isMobile ? 3 : 3}
-      elasticity={isMobile ? 0 : 0.15}
-      cornerRadius={0} // Stretched flat to bottom
-      padding={isMobile ? "14px 20px 22px 20px" : "16px 44px 20px 44px"}
-      style={{
-        position: "fixed",
-        bottom: isMobile ? "-55px" : "-45px", // Pull WebGL margin below viewport edge
-        left: "50%",
-        transform: "translateX(-50%)",
-        marginLeft: isMobile ? "-4px" : "385.8px", // Center guide verification offset
-        width: "100vw", // Stretched edge-to-edge
-        zIndex: 9999,
-        borderTop: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(255, 255, 255, 0.4)",
-        boxShadow: isDark
-          ? "0 -10px 30px rgba(0, 0, 0, 0.3)"
-          : "0 -8px 24px rgba(0, 0, 0, 0.03)",
-      }}
-    >
-      {/* Temporary Navbar Center Guide Line (Dashed Blue)
-      <div style={{
-        position: "absolute",
-        top: 0,
-        bottom: 0,
-        left: "50%",
-        width: "2px",
-        background: "repeating-linear-gradient(to bottom, #3b82f6, #3b82f6 8px, transparent 8px, transparent 16px)",
-        pointerEvents: "none",
-        zIndex: 99999,
-        opacity: 0.65,
-      }} />
-      */}
+    <div className="navbar-wrapper" style={{ display: "contents" }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .navbar-wrapper > span {
+          display: none !important;
+        }
+      `}} />
+      <LiquidGlass
+        // The key prop forces a clean destroy & remount of the canvas context on layout change
+        key={isMobile ? "mobile-nav" : "desktop-nav"}
+        displacementScale={isMobile ? 40 : 45}
+        blurAmount={0.08}
+        saturation={130}
+        aberrationIntensity={isMobile ? 3 : 3}
+        elasticity={isMobile ? 0 : 0.15}
+        cornerRadius={0} // Stretched flat to bottom
+        padding={isMobile ? "14px 20px 22px 20px" : "16px 44px 20px 44px"}
+        style={{
+          position: "fixed",
+          bottom: isMobile ? "-55px" : "-45px", // Pull WebGL margin below viewport edge
+          left: "50%",
+          transform: "translateX(-50%)",
+          marginLeft: isMobile ? "-4px" : "385.8px", // Center guide verification offset
+          width: "100vw", // Stretched edge-to-edge
+          zIndex: 9999,
+          borderTop: isDark ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(255, 255, 255, 0.4)",
+          boxShadow: isDark
+            ? "0 -10px 30px rgba(0, 0, 0, 0.3)"
+            : "0 -8px 24px rgba(0, 0, 0, 0.03)",
+        }}
+      >
+        {/* Temporary Navbar Center Guide Line (Dashed Blue)
+        <div style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: "50%",
+          width: "2px",
+          background: "repeating-linear-gradient(to bottom, #3b82f6, #3b82f6 8px, transparent 8px, transparent 16px)",
+          pointerEvents: "none",
+          zIndex: 99999,
+          opacity: 0.65,
+        }} />
+        */}
 
-      {renderNavContent()}
-    </LiquidGlass>
+        {renderNavContent()}
+      </LiquidGlass>
+    </div>
   );
 }

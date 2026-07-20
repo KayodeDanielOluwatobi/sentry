@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import TopBar from "@/components/TopBar";
-import BatteryPercentage from "@/components/BatteryPercentage";
+import SystemInsight from "@/components/SystemInsight";
 
 import { NavItem } from "@/components/PillNav";
 import MobileNav from "@/components/MobileNav";
@@ -90,14 +90,16 @@ export default function Home() {
             gridAutoRows: "auto"
           }}
         >
-          {/* Row 1: Battery Percentage (Full Width) */}
+          {/* Row 1: System Insight (Full Width) */}
           <div style={{ gridColumn: "span 3" }}>
-            <BatteryPercentage
+            <SystemInsight
               theme={theme}
-              isCharging={isCharging}
-              withShadow={false}
               soc={soc}
+              isCharging={isCharging}
               temperature={temperature}
+              currentLoad={currentLoad}
+              cellVoltages={cellVoltages}
+              withShadow={false}
             />
           </div>
 
