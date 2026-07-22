@@ -321,7 +321,7 @@ function HomeInner() {
     // Filter records within the time window
     const filtered = historyRecords.filter(r => now - r.timestamp <= rangeMs);
 
-    const pointsCount = scale === "hours" ? 12 : 7;
+    const pointsCount = scale === "hours" ? 120 : 168;
 
     // Fallback if we have fewer records than the requested points count
     if (filtered.length === 0) return [];

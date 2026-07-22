@@ -95,6 +95,10 @@ export default function SentryLineChart({
     if (pointsCount < 2) return [];
     const linesCount = lineColors.length;
 
+    // Calculate maximum allowed time gap before breaking the line (4% of total time span)
+    const timeSpan = maxTime - minTime;
+    const gapThreshold = timeSpan > 0 ? timeSpan * 0.04 : Infinity;
+
     return Array.from({ length: linesCount }).map((_, lineIdx) => {
       // Group contiguous online points into separate segments to create breaks
       const segments: any[][] = [];
@@ -102,11 +106,22 @@ export default function SentryLineChart({
 
       data.forEach((dPoint, i) => {
         const pt = getCoordinates(i, dPoint.values[lineIdx] ?? minVal, dPoint.timestamp);
+        
+        // Check for time gaps larger than our threshold to detect offline periods
+        const prevPointData = i > 0 ? data[i - 1] : null;
+        const hasTimeGap = prevPointData && dPoint.timestamp && prevPointData.timestamp && 
+                           (dPoint.timestamp - prevPointData.timestamp > gapThreshold);
+
         if (dPoint.isOffline) {
           if (currentSegment.length > 0) {
             segments.push(currentSegment);
             currentSegment = [];
           }
+        } else if (hasTimeGap) {
+          if (currentSegment.length > 0) {
+            segments.push(currentSegment);
+          }
+          currentSegment = [pt];
         } else {
           currentSegment.push(pt);
         }
