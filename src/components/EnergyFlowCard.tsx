@@ -19,6 +19,7 @@ export interface EnergyFlowCardProps extends React.HTMLAttributes<HTMLDivElement
   inverterEfficiency?: number;
   batteryToInverterFlow?: boolean;
   inverterToLoadFlow?: boolean;
+  lastFirebaseUpdate?: number;
 }
 
 // ─── Flow Path Connector Component ──────────────────────────────────────────
@@ -28,7 +29,8 @@ function FlowConnector({
   targetColor,
   gradientId,
   isDark,
-  isMobile
+  isMobile,
+  offline = false
 }: {
   active: boolean;
   sourceColor: string;
@@ -36,8 +38,11 @@ function FlowConnector({
   gradientId: string;
   isDark: boolean;
   isMobile: boolean;
+  offline?: boolean;
 }) {
-  const arrowColor = active ? targetColor : (isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)");
+  // Arrow and line colors based on state
+  const isFlowing = active && !offline;
+  const arrowColor = isFlowing ? targetColor : (isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)");
 
   return (
     <div
@@ -74,83 +79,94 @@ function FlowConnector({
           </linearGradient>
         </defs>
 
-        {/* Crisp High-Visibility Solid Connecting Line */}
+        {/* Connecting Background Line */}
         <line
           x1="6"
           y1="12"
           x2="94"
           y2="12"
-          stroke={active ? `url(#${gradientId})` : (isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)")}
+          stroke={isFlowing ? `url(#${gradientId})` : (isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)")}
           strokeWidth={isMobile ? "3" : "2.8"}
           strokeLinecap="round"
-          style={{ opacity: active ? 0.05 : 1 }}
+          style={{ opacity: isFlowing ? 0.05 : 1 }}
         />
 
-        {/* Animated Graduated Fluid Flow Dots (Disappearing 20px before Chevron) */}
+        {/* Flowing dots if active and online */}
         {active && (
           <g>
-            <circle cx="10" cy="12" r={isMobile ? "4.5" : "3.5"} fill={`url(#${gradientId})`}>
-              <animate
-                attributeName="cx"
-                values="10;84"
-                dur="2.6s"
-                repeatCount="indefinite"
-                calcMode="spline"
-                keyTimes="0; 1"
-                keySplines="0.4 0 0.6 1"
-              />
-              <animate
-                attributeName="opacity"
-                values="0;0.25;1;0.75;0"
-                keyTimes="0;0.15;0.5;0.8;1"
-                dur="2.6s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx="10" cy="12" r={isMobile ? "4" : "3"} fill={`url(#${gradientId})`}>
-              <animate
-                attributeName="cx"
-                values="10;84"
-                dur="2.6s"
-                begin="0.86s"
-                repeatCount="indefinite"
-                calcMode="spline"
-                keyTimes="0; 1"
-                keySplines="0.4 0 0.6 1"
-              />
-              <animate
-                attributeName="opacity"
-                values="0;0.25;1;0.75;0"
-                keyTimes="0;0.15;0.5;0.8;1"
-                dur="2.6s"
-                begin="0.86s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle cx="10" cy="12" r={isMobile ? "3.5" : "2.5"} fill={`url(#${gradientId})`}>
-              <animate
-                attributeName="cx"
-                values="10;84"
-                dur="2.6s"
-                begin="1.72s"
-                repeatCount="indefinite"
-                calcMode="spline"
-                keyTimes="0; 1"
-                keySplines="0.4 0 0.6 1"
-              />
-              <animate
-                attributeName="opacity"
-                values="0;0.25;1;0.75;0"
-                keyTimes="0;0.15;0.5;0.8;1"
-                dur="2.6s"
-                begin="1.72s"
-                repeatCount="indefinite"
-              />
-            </circle>
+            {isFlowing ? (
+              <>
+                <circle cx="10" cy="12" r={isMobile ? "4.5" : "3.5"} fill={`url(#${gradientId})`}>
+                  <animate
+                    attributeName="cx"
+                    values="10;84"
+                    dur="2.6s"
+                    repeatCount="indefinite"
+                    calcMode="spline"
+                    keyTimes="0; 1"
+                    keySplines="0.4 0 0.6 1"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0;0.25;1;0.75;0"
+                    keyTimes="0;0.15;0.5;0.8;1"
+                    dur="2.6s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle cx="10" cy="12" r={isMobile ? "4" : "3"} fill={`url(#${gradientId})`}>
+                  <animate
+                    attributeName="cx"
+                    values="10;84"
+                    dur="2.6s"
+                    begin="0.86s"
+                    repeatCount="indefinite"
+                    calcMode="spline"
+                    keyTimes="0; 1"
+                    keySplines="0.4 0 0.6 1"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0;0.25;1;0.75;0"
+                    keyTimes="0;0.15;0.5;0.8;1"
+                    dur="2.6s"
+                    begin="0.86s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle cx="10" cy="12" r={isMobile ? "3.5" : "2.5"} fill={`url(#${gradientId})`}>
+                  <animate
+                    attributeName="cx"
+                    values="10;84"
+                    dur="2.6s"
+                    begin="1.72s"
+                    repeatCount="indefinite"
+                    calcMode="spline"
+                    keyTimes="0; 1"
+                    keySplines="0.4 0 0.6 1"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0;0.25;1;0.75;0"
+                    keyTimes="0;0.15;0.5;0.8;1"
+                    dur="2.6s"
+                    begin="1.72s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              </>
+            ) : (
+              // Frozen and greyed-out dots spaced along the line
+              <>
+                <circle cx="30" cy="12" r={isMobile ? "4.5" : "3.5"} fill={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.14)"} />
+                <circle cx="55" cy="12" r={isMobile ? "4" : "3"} fill={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.14)"} />
+                <circle cx="80" cy="12" r={isMobile ? "3.5" : "2.5"} fill={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.14)"} />
+              </>
+            )}
           </g>
         )}
 
-        {/* Larger Chevron Right Arrow with 3px stroke */}
+        {/* Chevron Chevron Right Arrow */}
         <path
           d="M 94 19 L 105 12 L 94 5"
           fill="none"
@@ -174,6 +190,7 @@ export default function EnergyFlowCard({
   inverterEfficiency = 94,
   batteryToInverterFlow = true,
   inverterToLoadFlow = true,
+  lastFirebaseUpdate,
   style,
   ...props
 }: EnergyFlowCardProps) {
@@ -184,6 +201,7 @@ export default function EnergyFlowCard({
   const nodeBorder = isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb";
 
   const [isMobile, setIsMobile] = useState(false);
+  const [secondsAgo, setSecondsAgo] = useState<number | string>("—");
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -192,11 +210,32 @@ export default function EnergyFlowCard({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Compute seconds elapsed since the last real Firebase update
+  useEffect(() => {
+    if (lastFirebaseUpdate === undefined) {
+      setSecondsAgo("—");
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsedMs = Date.now() - lastFirebaseUpdate;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      setSecondsAgo(elapsedSec >= 0 ? elapsedSec : 0);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [lastFirebaseUpdate]);
+
+  // Determine active system state using the 30-second heartbeat check logic
+  const isOffline = lastFirebaseUpdate === undefined || (typeof secondsAgo === "number" && secondsAgo > 30);
+
   // Standardized inner padding matching BentoCard design system on mobile
   const paddingValue = isMobile ? "1.25rem 1.25rem 1.15rem 1.25rem" : "clamp(0.75rem, 2.5cqi, 1.25rem)";
 
   // Overall system flow status
-  const isSystemFlowing = batteryToInverterFlow || inverterToLoadFlow;
+  const isSystemFlowing = !isOffline && (batteryToInverterFlow || inverterToLoadFlow);
 
   return (
     <BentoCard
@@ -235,7 +274,7 @@ export default function EnergyFlowCard({
           </span>
         </div>
 
-        {/* Live Status Pill */}
+        {/* Live / Offline Status Pill */}
         <div
           style={{
             display: "flex",
@@ -243,12 +282,16 @@ export default function EnergyFlowCard({
             gap: "0.35rem",
             padding: isMobile ? "0.15rem 0.5rem" : "0.2rem 0.6rem",
             borderRadius: "9999px",
-            background: isSystemFlowing
-              ? (isDark ? "rgba(34, 197, 94, 0.10)" : "rgba(34, 197, 94, 0.06)")
-              : (isDark ? "rgba(156, 163, 175, 0.12)" : "rgba(156, 163, 175, 0.08)"),
-            border: isSystemFlowing
-              ? (isDark ? "1px solid rgba(34, 197, 94, 0.22)" : "1px solid rgba(34, 197, 94, 0.18)")
-              : (isDark ? "1px solid rgba(156, 163, 175, 0.2)" : "1px solid rgba(156, 163, 175, 0.15)")
+            background: isOffline
+              ? (isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.06)")
+              : isSystemFlowing
+                ? (isDark ? "rgba(34, 197, 94, 0.10)" : "rgba(34, 197, 94, 0.06)")
+                : (isDark ? "rgba(156, 163, 175, 0.12)" : "rgba(156, 163, 175, 0.08)"),
+            border: isOffline
+              ? (isDark ? "1px solid rgba(239, 68, 68, 0.22)" : "1px solid rgba(239, 68, 68, 0.18)")
+              : isSystemFlowing
+                ? (isDark ? "1px solid rgba(34, 197, 94, 0.22)" : "1px solid rgba(34, 197, 94, 0.18)")
+                : (isDark ? "1px solid rgba(156, 163, 175, 0.2)" : "1px solid rgba(156, 163, 175, 0.15)")
           }}
         >
           <span
@@ -256,7 +299,7 @@ export default function EnergyFlowCard({
               width: "6px",
               height: "6px",
               borderRadius: "50%",
-              background: isSystemFlowing ? "#22c55e" : "#9ca3af",
+              background: isOffline ? "#ef4444" : isSystemFlowing ? "#22c55e" : "#9ca3af",
               boxShadow: "none"
             }}
           />
@@ -264,10 +307,14 @@ export default function EnergyFlowCard({
             style={{
               fontSize: isMobile ? "0.62rem" : "0.68rem",
               fontWeight: 600,
-              color: isSystemFlowing ? (isDark ? "#86efac" : "#15803d") : grayText
+              color: isOffline
+                ? (isDark ? "#fca5a5" : "#c53030")
+                : isSystemFlowing
+                  ? (isDark ? "#86efac" : "#15803d")
+                  : grayText
             }}
           >
-            {isSystemFlowing ? "Live" : "Idle"}
+            {isOffline ? "Offline" : isSystemFlowing ? "Live" : "Idle"}
           </span>
         </div>
       </div>
@@ -344,6 +391,7 @@ export default function EnergyFlowCard({
           gradientId="flowGradBatteryToInverter"
           isDark={isDark}
           isMobile={isMobile}
+          offline={isOffline}
         />
 
         {/* Node 2: Inverter */}
@@ -407,6 +455,7 @@ export default function EnergyFlowCard({
           gradientId="flowGradInverterToLoads"
           isDark={isDark}
           isMobile={isMobile}
+          offline={isOffline}
         />
 
         {/* Node 3: Loads */}

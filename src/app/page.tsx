@@ -959,6 +959,7 @@ function HomeInner() {
                   isCharging={isCharging ?? false}
                   batteryToInverterFlow={true}
                   inverterToLoadFlow={true}
+                  lastFirebaseUpdate={lastFirebaseUpdate}
                 />
               </div>
 
