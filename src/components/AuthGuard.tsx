@@ -24,6 +24,23 @@ export default function AuthGuard({ children, theme = "light" }: AuthGuardProps)
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
   useEffect(() => {
+    const shouldBypass = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
+
+    if (shouldBypass) {
+      setUser({
+        id: "mock-dev-user",
+        email: "developer@sentry.local",
+        app_metadata: {},
+        user_metadata: {
+          full_name: "Developer Mode",
+          avatar_url: "",
+        },
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+      } as User);
+      return;
+    }
+
     // Immediately restore any existing session (handles page refresh & redirect return)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);

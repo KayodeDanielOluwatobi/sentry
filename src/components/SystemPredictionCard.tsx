@@ -216,7 +216,7 @@ function PredictionModal({
           inset: 0,
           background: "rgba(0,0,0,0.65)",
           backdropFilter: "blur(6px)",
-          zIndex: 999,
+          zIndex: 1000000,
           animation: "overlayFadeIn 0.2s ease",
         }}
       />
@@ -229,15 +229,14 @@ function PredictionModal({
           alignItems: "center",
           justifyContent: "center",
           padding: "1rem",
-          zIndex: 1000,
+          zIndex: 1000001,
           pointerEvents: "none",
         }}
       >
         <div
           style={{
             width: "min(520px, 96vw)",
-            maxHeight: "88vh",
-            overflowY: "auto",
+            maxHeight: "90vh",
             borderRadius: "22px",
             background: isDark
               ? "linear-gradient(145deg, #0f0620 0%, #1a0a35 50%, #0d1226 100%)"
@@ -250,6 +249,8 @@ function PredictionModal({
             pointerEvents: "all",
             position: "relative",
             overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {/* Scan line effect */}
@@ -261,16 +262,16 @@ function PredictionModal({
             pointerEvents: "none",
           }} />
 
-          <div style={{ padding: "1.5rem" }}>
+          <div style={{ padding: "clamp(1.1rem, 4cqi, 1.4rem)", display: "flex", flexDirection: "column", overflowY: "auto", gap: "1rem" }}>
             {/* Modal Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.4rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-                <AISphere size={40} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <AISphere size={36} />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "1rem", color: isDark ? "#e9d5ff" : "#4c1d95", fontFamily: "var(--font-inter), sans-serif" }}>
+                  <div style={{ fontWeight: 700, fontSize: "clamp(0.88rem, 3cqi, 1rem)", color: isDark ? "#e9d5ff" : "#4c1d95", fontFamily: "var(--font-inter), sans-serif" }}>
                     AI Prediction Engine
                   </div>
-                  <div style={{ fontSize: "0.72rem", color: isDark ? "rgba(255,255,255,0.5)" : "#6b7280", marginTop: "0.15rem" }}>
+                  <div style={{ fontSize: "clamp(0.62rem, 2cqi, 0.68rem)", color: isDark ? "rgba(255,255,255,0.5)" : "#6b7280", marginTop: "0.1rem" }}>
                     Phase 1 · Real-time telemetry analytics
                   </div>
                 </div>
@@ -281,32 +282,31 @@ function PredictionModal({
                   background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
                   border: "none",
                   borderRadius: "10px",
-                  width: 32, height: 32,
+                  width: 30, height: 30,
                   cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   color: isDark ? "#9ca3af" : "#6b7280",
                 }}
               >
-                <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={1.8} />
+                <HugeiconsIcon icon={Cancel01Icon} size={15} strokeWidth={1.8} />
               </button>
             </div>
 
             {/* Summary banner */}
             <div style={{
-              borderRadius: "14px",
+              borderRadius: "12px",
               background: isDark ? "rgba(168,85,247,0.14)" : "rgba(168,85,247,0.08)",
               border: `1px solid ${isDark ? "rgba(168,85,247,0.28)" : "rgba(168,85,247,0.18)"}`,
-              padding: "0.9rem 1.1rem",
+              padding: "0.75rem 1rem",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: "1.2rem",
             }}>
               <div>
-                <div style={{ fontSize: "0.7rem", color: isDark ? "rgba(255,255,255,0.55)" : "#6b7280", marginBottom: "0.2rem" }}>
+                <div style={{ fontSize: "clamp(0.6rem, 1.8cqi, 0.68rem)", color: isDark ? "rgba(255,255,255,0.55)" : "#6b7280", marginBottom: "0.15rem" }}>
                   {bannerLabel}
                 </div>
-                <div style={{ fontSize: "1.7rem", fontWeight: 800, color: isDark ? "#c084fc" : "#7e22ce", letterSpacing: "-0.03em", fontFamily: "var(--font-inter), sans-serif" }}>
+                <div style={{ fontSize: "clamp(1.3rem, 5cqi, 1.55rem)", fontWeight: 800, color: isDark ? "#c084fc" : "#7e22ce", letterSpacing: "-0.03em", fontFamily: "var(--font-inter), sans-serif" }}>
                   {bannerMetric}
                 </div>
               </div>
@@ -314,9 +314,9 @@ function PredictionModal({
                 <div style={{
                   background: "rgba(239,68,68,0.15)",
                   border: "1px solid rgba(239,68,68,0.3)",
-                  borderRadius: "10px",
-                  padding: "0.4rem 0.75rem",
-                  fontSize: "0.7rem",
+                  borderRadius: "8px",
+                  padding: "0.3rem 0.6rem",
+                  fontSize: "clamp(0.58rem, 1.6cqi, 0.65rem)",
                   fontWeight: 700,
                   color: "#f87171",
                 }}>
@@ -325,22 +325,29 @@ function PredictionModal({
               )}
             </div>
 
-            {/* Prediction rows */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+            {/* Prediction rows - Scrollable list container */}
+            <div style={{ 
+              display: "flex", 
+              flexDirection: "column", 
+              gap: "0.55rem",
+              maxHeight: "clamp(180px, 35vh, 260px)",
+              overflowY: "auto",
+              paddingRight: "4px",
+            }}>
               {rows.map((row, i) => (
                 <div key={i} style={{
                   display: "flex",
                   alignItems: "flex-start",
-                  gap: "0.75rem",
-                  padding: "0.85rem 1rem",
-                  borderRadius: "12px",
-                  background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-                  border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"}`,
+                  gap: "0.6rem",
+                  padding: "0.7rem 0.85rem",
+                  borderRadius: "10px",
+                  background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                  border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"}`,
                 }}>
                   {/* Icon */}
                   <div style={{ 
-                    width: "32px",
-                    height: "32px",
+                    width: "28px",
+                    height: "28px",
                     borderRadius: "50%",
                     background: isDark ? "rgba(168, 85, 247, 0.15)" : "rgba(168, 85, 247, 0.08)",
                     display: "flex",
@@ -349,32 +356,32 @@ function PredictionModal({
                     flexShrink: 0,
                     color: isDark ? "#c084fc" : "#7e22ce"
                   }}>
-                    <HugeiconsIcon icon={row.icon} size={16} strokeWidth={2} />
+                    <HugeiconsIcon icon={row.icon} size={14} strokeWidth={2} />
                   </div>
                   {/* Text */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.82rem", color: isDark ? "#e5e7eb" : "#111", marginBottom: "0.15rem", fontFamily: "var(--font-inter), sans-serif" }}>
+                    <div style={{ fontWeight: 600, fontSize: "clamp(0.72rem, 2cqi, 0.8rem)", color: isDark ? "#e5e7eb" : "#111", marginBottom: "0.1rem", fontFamily: "var(--font-inter), sans-serif" }}>
                       {row.label}
                     </div>
                     {row.detail && (
-                      <div style={{ fontSize: "0.7rem", color: isDark ? "rgba(255,255,255,0.45)" : "#6b7280", lineHeight: 1.5 }}>
+                      <div style={{ fontSize: "clamp(0.6rem, 1.8cqi, 0.65rem)", color: isDark ? "rgba(255,255,255,0.45)" : "#6b7280", lineHeight: 1.4 }}>
                         {row.detail}
                       </div>
                     )}
                   </div>
                   {/* Value + Confidence */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem", flexShrink: 0 }}>
-                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: isDark ? "#c084fc" : "#7e22ce", fontFamily: "var(--font-inter), sans-serif" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.15rem", flexShrink: 0 }}>
+                    <span style={{ fontWeight: 700, fontSize: "clamp(0.78rem, 2.2cqi, 0.85rem)", color: isDark ? "#c084fc" : "#7e22ce", fontFamily: "var(--font-inter), sans-serif" }}>
                       {row.value}
                     </span>
                     <span style={{
-                      fontSize: "0.6rem",
+                      fontSize: "clamp(0.5rem, 1.5cqi, 0.58rem)",
                       fontWeight: 600,
                       color: confidenceColor(row.confidence),
-                      background: `${confidenceColor(row.confidence)}18`,
-                      padding: "0.1rem 0.45rem",
+                      background: `${confidenceColor(row.confidence)}14`,
+                      padding: "0.05rem 0.35rem",
                       borderRadius: "99px",
-                      letterSpacing: "0.04em",
+                      letterSpacing: "0.02em",
                       textTransform: "uppercase",
                     }}>
                       {confidenceLabel(row.confidence)}
@@ -386,43 +393,42 @@ function PredictionModal({
 
             {/* Future plans and integrations */}
             <div style={{
-              marginTop: "1.2rem",
-              padding: "1rem",
-              borderRadius: "14px",
-              background: isDark ? "rgba(168, 85, 247, 0.06)" : "rgba(168, 85, 247, 0.03)",
-              border: `1px dashed ${isDark ? "rgba(168, 85, 247, 0.25)" : "rgba(168, 85, 247, 0.15)"}`,
+              padding: "0.85rem",
+              borderRadius: "12px",
+              background: isDark ? "rgba(168, 85, 247, 0.05)" : "rgba(168, 85, 247, 0.02)",
+              border: `1px dashed ${isDark ? "rgba(168, 85, 247, 0.2)" : "rgba(168, 85, 247, 0.12)"}`,
             }}>
               <div style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "0.5rem",
-                fontSize: "0.78rem",
+                gap: "0.4rem",
+                fontSize: "clamp(0.72rem, 2cqi, 0.78rem)",
                 fontWeight: 700,
                 color: isDark ? "#c084fc" : "#7e22ce",
-                marginBottom: "0.4rem",
+                marginBottom: "0.3rem",
                 fontFamily: "var(--font-inter), sans-serif",
               }}>
-                <HugeiconsIcon icon={SparklesIcon} size={14} />
+                <HugeiconsIcon icon={SparklesIcon} size={13} />
                 <span>Roadmap & Future Integrations</span>
               </div>
               <ul style={{
                 margin: 0,
-                paddingLeft: "1.1rem",
-                fontSize: "0.68rem",
+                paddingLeft: "1rem",
+                fontSize: "clamp(0.6rem, 1.8cqi, 0.65rem)",
                 color: isDark ? "rgba(255,255,255,0.6)" : "#4b5563",
-                lineHeight: 1.6,
+                lineHeight: 1.5,
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.25rem",
+                gap: "0.2rem",
               }}>
-                <li><strong>Phase 2 (Cloud training)</strong>: Aggregate user usage cycles into Firebase to train custom regressions, boosting accuracy.</li>
-                <li><strong>Weather Correlation</strong>: Connect solar prediction to live local weather forecasts to plan discharge cycles.</li>
-                <li><strong>Proactive Load Control</strong>: Enable auto-shedding prior to thresholds during high-discharge events.</li>
+                <li><strong>Phase 2 (Cloud training)</strong>: Aggregate telemetry to train custom regression models.</li>
+                <li><strong>Weather Correlation</strong>: Connect solar predictions to live weather forecasts.</li>
+                <li><strong>Proactive Load Control</strong>: Auto-shed circuits prior to low battery thresholds.</li>
               </ul>
             </div>
 
             {/* Footer */}
-            <div style={{ marginTop: "1.2rem", fontSize: "0.67rem", color: isDark ? "rgba(255,255,255,0.3)" : "#9ca3af", textAlign: "center", fontFamily: "var(--font-inter), sans-serif" }}>
+            <div style={{ fontSize: "clamp(0.58rem, 1.8cqi, 0.62rem)", color: isDark ? "rgba(255,255,255,0.3)" : "#9ca3af", textAlign: "center", fontFamily: "var(--font-inter), sans-serif" }}>
               Powered by rolling telemetry analytics · dV/dt slope · Phase 1 AI Engine
             </div>
           </div>
