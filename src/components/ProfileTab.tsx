@@ -75,6 +75,9 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
     await supabase.auth.signOut();
   };
 
+  const userEmail = authUser?.email || "";
+  const isOwner = userEmail.toLowerCase() === "dkayode61@gmail.com";
+
   return (
     <div
       style={{
@@ -184,32 +187,63 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
             {authUser?.user_metadata?.full_name ?? authUser?.email ?? "Sentry Operator"}
           </span>
           <span style={{ fontSize: "0.82rem", color: mutedText }}>
-            {authUser?.email ?? "operator@sentry.io"}
+            {userEmail}
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.4rem" }}>
-            <span style={{
-              fontSize: "0.6rem",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              color: "#38bdf8",
-              background: isDark ? "rgba(56, 189, 248, 0.15)" : "#e0f2fe",
-              padding: "0.15rem 0.6rem",
-              borderRadius: "99px",
-              border: `1px solid ${isDark ? "rgba(56, 189, 248, 0.2)" : "transparent"}`,
-            }}>
-              Grid Administrator
-            </span>
-            <span style={{
-              fontSize: "0.6rem",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              color: isDark ? "#c084fc" : "#7c3aed",
-              background: isDark ? "rgba(192, 132, 252, 0.12)" : "#f3e8ff",
-              padding: "0.15rem 0.6rem",
-              borderRadius: "99px",
-            }}>
-              Key Owner
-            </span>
+            {isOwner ? (
+              <>
+                <span style={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  color: "#38bdf8",
+                  background: isDark ? "rgba(56, 189, 248, 0.15)" : "#e0f2fe",
+                  padding: "0.15rem 0.6rem",
+                  borderRadius: "99px",
+                  border: `1px solid ${isDark ? "rgba(56, 189, 248, 0.2)" : "transparent"}`,
+                }}>
+                  Grid Administrator
+                </span>
+                <span style={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  color: isDark ? "#c084fc" : "#7c3aed",
+                  background: isDark ? "rgba(192, 132, 252, 0.12)" : "#f3e8ff",
+                  padding: "0.15rem 0.6rem",
+                  borderRadius: "99px",
+                }}>
+                  Key Owner
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  color: isDark ? "#34d399" : "#059669",
+                  background: isDark ? "rgba(52, 211, 153, 0.12)" : "#ecfdf5",
+                  padding: "0.15rem 0.6rem",
+                  borderRadius: "99px",
+                  border: `1px solid ${isDark ? "rgba(52, 211, 153, 0.2)" : "transparent"}`,
+                }}>
+                  Sentry Observer
+                </span>
+                <span style={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  color: isDark ? "#fbbf24" : "#d97706",
+                  background: isDark ? "rgba(251, 191, 36, 0.12)" : "#fffbeb",
+                  padding: "0.15rem 0.6rem",
+                  borderRadius: "99px",
+                  border: `1px solid ${isDark ? "rgba(251, 191, 36, 0.2)" : "transparent"}`,
+                }}>
+                  Read-Only Access
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -308,7 +342,6 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
                   strokeLinecap="round"
                   style={{ opacity: 0.15 }}
                 />
-                {/* Flowing dots only render if bleConnected is true */}
                 {bleConnected ? (
                   <>
                     <circle cx="0" cy="8" r="7" fill={accentColor}>
@@ -321,10 +354,10 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
                     </circle>
                   </>
                 ) : (
-                  // Offline static grey indicators
                   <>
-                    <circle cx="25" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
-                    <circle cx="75" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    {/* Frozen and greyed-out dots */}
+                    <circle cx="30" cy="8" r="7" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="70" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
                   </>
                 )}
               </svg>
@@ -391,8 +424,8 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
                   </>
                 ) : (
                   <>
-                    <circle cx="25" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
-                    <circle cx="75" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="30" cy="8" r="7" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="70" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
                   </>
                 )}
               </svg>
@@ -459,8 +492,8 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
                   </>
                 ) : (
                   <>
-                    <circle cx="25" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
-                    <circle cx="75" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="30" cy="8" r="7" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="70" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
                   </>
                 )}
               </svg>
@@ -644,7 +677,7 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
           gap: "1rem",
         }}
       >
-        {/* Toggle Panel */}
+        {/* Toggle Panel with iOS Toggle Switches */}
         <div style={{
           background: glassBg,
           border: `1px solid ${glassBorder}`,
@@ -652,10 +685,10 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
           padding: "1.25rem",
           display: "flex",
           flexDirection: "column",
-          gap: "0.85rem",
+          gap: "1.1rem",
           backdropFilter: "blur(8px)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.1rem" }}>
             <HugeiconsIcon icon={Settings01Icon} size={18} color={accentColor} />
             <h4 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 800, color: textColor }}>
               Sentry Panel Settings
@@ -663,73 +696,116 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
           </div>
 
           {/* Sync Switch */}
-          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ fontSize: "0.75rem", fontWeight: 600, color: textColor }}>High-Rate Synchronization</span>
               <span style={{ fontSize: "0.6rem", color: mutedText }}>Pulls metrics every 100ms</span>
             </div>
-            <input 
-              type="checkbox" 
-              checked={highRateSync}
-              onChange={(e) => handleToggleSync(e.target.checked)}
+            
+            {/* Custom iOS switch knob container */}
+            <div 
+              onClick={() => handleToggleSync(!highRateSync)}
               style={{
-                width: "36px",
-                height: "20px",
-                appearance: "none",
-                background: highRateSync ? accentColor : (isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb"),
+                width: "40px",
+                height: "22px",
                 borderRadius: "99px",
+                background: highRateSync ? "#10b981" : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
                 position: "relative",
                 cursor: "pointer",
-                transition: "background 0.2s ease",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                flexShrink: 0,
+                boxShadow: highRateSync ? "0 0 8px rgba(16, 185, 201, 0.15)" : "none",
               }}
-            />
-          </label>
+            >
+              <div 
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "50%",
+                  background: "#ffffff",
+                  position: "absolute",
+                  top: "2px",
+                  left: highRateSync ? "20px" : "2px",
+                  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+              />
+            </div>
+          </div>
 
           {/* Audio Switch */}
-          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ fontSize: "0.75rem", fontWeight: 600, color: textColor }}>Synthesized Voice Alarms</span>
               <span style={{ fontSize: "0.6rem", color: mutedText }}>Announces critical cell failures</span>
             </div>
-            <input 
-              type="checkbox" 
-              checked={audioWarnings}
-              onChange={(e) => handleToggleAudio(e.target.checked)}
+            
+            <div 
+              onClick={() => handleToggleAudio(!audioWarnings)}
               style={{
-                width: "36px",
-                height: "20px",
-                appearance: "none",
-                background: audioWarnings ? accentColor : (isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb"),
+                width: "40px",
+                height: "22px",
                 borderRadius: "99px",
+                background: audioWarnings ? "#10b981" : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
                 position: "relative",
                 cursor: "pointer",
-                transition: "background 0.2s ease",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                flexShrink: 0,
+                boxShadow: audioWarnings ? "0 0 8px rgba(16, 185, 201, 0.15)" : "none",
               }}
-            />
-          </label>
+            >
+              <div 
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "50%",
+                  background: "#ffffff",
+                  position: "absolute",
+                  top: "2px",
+                  left: audioWarnings ? "20px" : "2px",
+                  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+              />
+            </div>
+          </div>
 
           {/* Push Switch */}
-          <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ fontSize: "0.75rem", fontWeight: 600, color: textColor }}>Critical Push Alerts</span>
               <span style={{ fontSize: "0.6rem", color: mutedText }}>Fires system notifications when idle</span>
             </div>
-            <input 
-              type="checkbox" 
-              checked={pushAlerts}
-              onChange={(e) => handleTogglePush(e.target.checked)}
+            
+            <div 
+              onClick={() => handleTogglePush(!pushAlerts)}
               style={{
-                width: "36px",
-                height: "20px",
-                appearance: "none",
-                background: pushAlerts ? accentColor : (isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb"),
+                width: "40px",
+                height: "22px",
                 borderRadius: "99px",
+                background: pushAlerts ? "#10b981" : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
                 position: "relative",
                 cursor: "pointer",
-                transition: "background 0.2s ease",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                flexShrink: 0,
+                boxShadow: pushAlerts ? "0 0 8px rgba(16, 185, 201, 0.15)" : "none",
               }}
-            />
-          </label>
+            >
+              <div 
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  borderRadius: "50%",
+                  background: "#ffffff",
+                  position: "absolute",
+                  top: "2px",
+                  left: pushAlerts ? "20px" : "2px",
+                  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Action Panel */}
