@@ -9,6 +9,7 @@ import SystemInsight from "@/components/SystemInsight";
 import BatteryPercentage from "@/components/BatteryPercentage";
 import ActivityFeed, { ActivityEvent } from "@/components/ActivityFeed";
 import AuthGuard, { useAuthUser } from "@/components/AuthGuard";
+import BentoCard from "@/components/BentoCard";
 
 import { NavItem } from "@/components/PillNav";
 import MobileNav from "@/components/MobileNav";
@@ -38,6 +39,8 @@ function HomeInner() {
     if (email) return email.split("@")[0];
     return "User";
   })();
+
+  const isOwner = authUser?.email?.toLowerCase() === "dkayode61@gmail.com";
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isCharging, setIsCharging] = useState<boolean | undefined>(undefined);
@@ -81,6 +84,12 @@ function HomeInner() {
   const [hasBmsError, setHasBmsError] = useState(false);
   const [bmsErrorsBitmask, setBmsErrorsBitmask] = useState<number>(0);
   const [lastFirebaseUpdate, setLastFirebaseUpdate] = useState<number | undefined>(undefined);
+  const [isInverterOff, setIsInverterOff] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sentry_inverter_off") === "true";
+    }
+    return false;
+  });
 
   const [wireResistances, setWireResistances] = useState<number[]>([1.2, 1.5, 1.1, 1.4]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -658,19 +667,25 @@ function HomeInner() {
       }
 
       // 2. Load Manager State parsing (Initialize from database only if user hasn't set local manual choices)
-      if (data.loadManager && !hasLoadedLoadManagerRef.current) {
+      if (data.loadManager) {
         const lm = data.loadManager;
-        hasLoadedLoadManagerRef.current = true;
-        const hasCached = typeof window !== "undefined" && localStorage.getItem("sentry_manual_loads");
-        if (!hasCached) {
-          const fetchedLoads: ManagedLoad[] = [
-            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: lm.load1 ? "active" : "shed", isOn: !!lm.load1, icons: ["router", "wifi", "laptop"] },
-            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: lm.load2 ? "active" : "shed", isOn: !!lm.load2, icons: ["fan", "fridge"] },
-            { id: "3", name: "TV/Lights", level: "non-essential", status: lm.load3 ? "active" : "shed", isOn: !!lm.load3, icons: ["tv", "bulb"] },
-          ];
-          setManagerLoads(fetchedLoads);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("sentry_manual_loads", JSON.stringify(fetchedLoads));
+        if (lm.inverterOff !== undefined) {
+          setIsInverterOff(!!lm.inverterOff);
+        }
+
+        if (!hasLoadedLoadManagerRef.current) {
+          hasLoadedLoadManagerRef.current = true;
+          const hasCached = typeof window !== "undefined" && localStorage.getItem("sentry_manual_loads");
+          if (!hasCached) {
+            const fetchedLoads: ManagedLoad[] = [
+              { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: lm.load1 ? "active" : "shed", isOn: !!lm.load1, icons: ["router", "wifi", "laptop"] },
+              { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: lm.load2 ? "active" : "shed", isOn: !!lm.load2, icons: ["fan", "fridge"] },
+              { id: "3", name: "TV/Lights", level: "non-essential", status: lm.load3 ? "active" : "shed", isOn: !!lm.load3, icons: ["tv", "bulb"] },
+            ];
+            setManagerLoads(fetchedLoads);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("sentry_manual_loads", JSON.stringify(fetchedLoads));
+            }
           }
         }
       }
@@ -809,9 +824,38 @@ function HomeInner() {
     }
   };
 
+  const handleInverterToggle = (val: boolean) => {
+    setIsInverterOff(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sentry_inverter_off", String(val));
+    }
+
+    // Append to Activity Logs
+    const newEvent: ActivityEvent = {
+      id: `evt_inverter_${Date.now()}`,
+      type: val ? "load_shed" : "load_restore",
+      severity: val ? "critical" : "success",
+      title: val ? "Inverter Emergency Shutdown Triggered" : "Inverter AC Power Restored",
+      message: val 
+        ? "Master DC relay command sent. Disconnecting BMS pack from inverter bus."
+        : "Master DC relay command sent. Re-establishing pack connection to inverter bus.",
+      timestamp: new Date(),
+      badge: "Relay Control"
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    setNotifications(prev => [newEvent, ...prev]);
+
+    if (db) {
+      update(ref(db, "/loadManager"), { inverterOff: val })
+        .catch(err => console.error("Error writing inverter state to Firebase:", err));
+    }
+  };
+
   const temperature = temperatures?.find(t => t.id === "temp1")?.value;
   const isDark = theme === "dark";
   const navGreen = isDark ? "#4ade80" : "#0d9b0d";
+  const textColor = isDark ? "#ffffff" : "#111111";
+  const mutedText = isDark ? "#9ca3af" : "#6b7280";
 
   const cellDeltaVal = cellVoltages !== undefined && cellVoltages.length > 0
     ? Math.round((Math.max(...cellVoltages) - Math.min(...cellVoltages)) * 1000)
@@ -1020,6 +1064,158 @@ function HomeInner() {
                   mode={managerMode}
                   historyRecords={historyRecords}
                 />
+              </div>
+
+              {/* Inverter Isolation Relay Card (Emergency Shutoff Control) */}
+              <div style={{ gridColumn: "span 3" }}>
+                <BentoCard
+                  theme={theme}
+                  withShadow={false}
+                  style={{
+                    backgroundColor: isDark ? "rgba(239, 68, 68, 0.05)" : "rgba(254, 242, 242, 0.75)",
+                    borderColor: isDark ? "rgba(239, 68, 68, 0.25)" : "rgba(239, 68, 68, 0.2)",
+                    padding: "1.25rem",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  <div style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    width: "100%",
+                  }}>
+                    {/* Header Info */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: "0.5rem",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span style={{ fontSize: "1.2rem", filter: "drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3))" }}>
+                            🚨
+                          </span>
+                          <h3 style={{
+                            margin: 0,
+                            fontSize: "0.92rem",
+                            fontWeight: 800,
+                            color: textColor,
+                            letterSpacing: "-0.01em",
+                          }}>
+                            Inverter Isolation Relay
+                          </h3>
+                        </div>
+
+                        {/* Status Badge */}
+                        <span style={{
+                          fontSize: "0.58rem",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          padding: "0.2rem 0.6rem",
+                          borderRadius: "99px",
+                          letterSpacing: "0.02em",
+                          background: isInverterOff 
+                            ? "rgba(239, 68, 68, 0.15)" 
+                            : (isDark ? "rgba(74, 222, 128, 0.15)" : "rgba(16, 185, 129, 0.12)"),
+                          color: isInverterOff 
+                            ? "#ef4444" 
+                            : (isDark ? "#4ade80" : "#0d9b0d"),
+                          transition: "all 0.3s ease",
+                        }}>
+                          {isInverterOff ? "⚠️ RELAY OPEN (OFFLINE)" : "✅ RELAY CLOSED (ONLINE)"}
+                        </span>
+                      </div>
+
+                      <p style={{
+                        margin: 0,
+                        fontSize: "0.68rem",
+                        color: mutedText,
+                        lineHeight: 1.45,
+                      }}>
+                        Allows remote trip control of the master DC contactor inline with the battery bank. 
+                        <strong style={{ color: textColor }}> Warning:</strong> Disconnecting the inverter will instantly drop the AC power grid output for all active house circuits.
+                      </p>
+                    </div>
+
+                    {/* Action Button Section */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      marginTop: "0.25rem",
+                      width: "100%"
+                    }}>
+                      <button
+                        onClick={() => handleInverterToggle(!isInverterOff)}
+                        disabled={!isOwner}
+                        style={{
+                          width: "100%",
+                          maxWidth: "360px",
+                          padding: "0.75rem 1rem",
+                          borderRadius: "12px",
+                          border: "none",
+                          fontSize: "0.78rem",
+                          fontWeight: 700,
+                          cursor: isOwner ? "pointer" : "not-allowed",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
+                          boxShadow: !isOwner 
+                            ? "none" 
+                            : (isInverterOff 
+                              ? (isDark ? "0 4px 12px rgba(74, 222, 128, 0.2)" : "0 4px 12px rgba(13, 155, 13, 0.15)") 
+                              : "0 4px 12px rgba(239, 68, 68, 0.25)"),
+                          background: !isOwner
+                            ? (isDark ? "rgba(255, 255, 255, 0.05)" : "#e5e7eb")
+                            : (isInverterOff ? navGreen : "#ef4444"),
+                          color: !isOwner
+                            ? (isDark ? "rgba(255, 255, 255, 0.3)" : "#9ca3af")
+                            : "#ffffff",
+                          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.03em",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (isOwner) {
+                            e.currentTarget.style.transform = "scale(1.02)";
+                            e.currentTarget.style.filter = "brightness(1.1)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (isOwner) {
+                            e.currentTarget.style.transform = "scale(1)";
+                            e.currentTarget.style.filter = "brightness(1)";
+                          }
+                        }}
+                      >
+                        {isInverterOff ? "🔌 TURN ON THE INVERTER" : "⚠️ TURN OFF THE INVERTER"}
+                      </button>
+
+                      {/* Access restriction details */}
+                      {!isOwner && (
+                        <span style={{
+                          fontSize: "0.58rem",
+                          color: isDark ? "rgba(239, 68, 68, 0.7)" : "#b91c1c",
+                          fontWeight: 600,
+                          textAlign: "center",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.25rem",
+                        }}>
+                          🔒 Administrative bypass active. Relay controller restricted to Grid Owner.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </BentoCard>
               </div>
             </>
           )}
