@@ -232,8 +232,8 @@ export default function BatteryPercentage({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              flex: `0 0 ${gaugeSize * 1.15}px`, // Scaled column size for larger battery arc
-              width: `${gaugeSize * 1.15}px`,
+              flex: `0 0 ${gaugeSize}px`, // Column size matches the measured grid height exactly
+              width: `${gaugeSize}px`,
               padding: "0.25rem 0",
               minWidth: 0,
             }}
@@ -242,7 +242,7 @@ export default function BatteryPercentage({
               soc={soc}
               isCharging={isCharging}
               theme={theme}
-              size={gaugeSize * 1.15} // Increased battery arc size
+              size={gaugeSize - 12} // Tracks grid height with a tight offset to maximize size
               label="SOC"
             />
             {/* Status Pill Badge */}
@@ -289,28 +289,26 @@ export default function BatteryPercentage({
             </div>
           </div>
 
-          {/* 2x2 Metric Grid Column (Natural height wrapper containing cards) */}
           <div
             ref={gridRef}
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(2, 1fr)",
               gridTemplateRows: "auto auto", // Let rows wrap naturally depending on children
-              gap: "0.45rem", // Fixed gap between the small bento cards
+              gap: "0.6rem", // Increased gap to match gauge height
               flex: 1,
               width: "100%",
               minWidth: 0,
               alignSelf: "flex-start", // Let the grid shrink to fit its content height naturally
             }}
           >
-            {/* Metric 1: Pack Voltage */}
             <div
               style={{
                 position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem",
+                padding: "0.68rem 0.5rem", // Increased padding
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.3rem",
@@ -372,14 +370,13 @@ export default function BatteryPercentage({
               </div>
             </div>
 
-            {/* Metric 2: Current */}
             <div
               style={{
                 position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem",
+                padding: "0.68rem 0.5rem", // Increased padding
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.3rem",
@@ -441,14 +438,13 @@ export default function BatteryPercentage({
               </div>
             </div>
 
-            {/* Metric 3: Power */}
             <div
               style={{
                 position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem",
+                padding: "0.68rem 0.5rem", // Increased padding
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.3rem",
@@ -510,14 +506,13 @@ export default function BatteryPercentage({
               </div>
             </div>
 
-            {/* Metric 4: Battery Temp */}
             <div
               style={{
                 position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
-                padding: "0.5rem",
+                padding: "0.68rem 0.5rem", // Increased padding
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.3rem",
