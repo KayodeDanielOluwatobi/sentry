@@ -258,7 +258,7 @@ export default function EnergyFlowCard({
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
-          marginBottom: isMobile ? "1.25rem" : "1.75rem"
+          marginBottom: isMobile ? "0.5rem" : "1.75rem"
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -333,21 +333,21 @@ export default function EnergyFlowCard({
         {/* Node 1: Battery */}
         <div
           style={{
-            width: isMobile ? "78px" : "130px",
+            width: isMobile ? "68px" : "130px",
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             background: nodeBg,
             border: `1px solid ${nodeBorder}`,
-            borderRadius: isMobile ? "14px" : "20px",
+            borderRadius: isMobile ? "12px" : "20px",
             overflow: "hidden"
           }}
         >
           <div
             style={{
               width: "100%",
-              padding: isMobile ? "0.65rem 0.15rem" : "1.25rem 1rem",
+              padding: isMobile ? "0.4rem 0.1rem" : "1.25rem 1rem",
               background: isDark ? "rgba(34, 197, 94, 0.12)" : "rgba(34, 197, 94, 0.08)",
               display: "flex",
               alignItems: "center",
@@ -356,14 +356,14 @@ export default function EnergyFlowCard({
           >
             <HugeiconsIcon
               icon={AutomotiveBattery01Icon}
-              size={isMobile ? 22 : 32}
+              size={isMobile ? 18 : 32}
               color="#22c55e"
               strokeWidth={1.8}
             />
           </div>
           <div
             style={{
-              padding: isMobile ? "0.4rem 0.1rem" : "0.85rem 0.5rem",
+              padding: isMobile ? "0.25rem 0.05rem" : "0.85rem 0.5rem",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -371,13 +371,13 @@ export default function EnergyFlowCard({
               width: "100%"
             }}
           >
-            <span style={{ fontSize: isMobile ? "0.62rem" : "0.75rem", fontWeight: 500, color: grayText }}>
+            <span style={{ fontSize: isMobile ? "0.52rem" : "0.75rem", fontWeight: 500, color: grayText }}>
               Battery
             </span>
-            <span style={{ fontSize: isMobile ? "0.82rem" : "1.25rem", fontWeight: 700, color: textColor, lineHeight: 1.1 }}>
+            <span style={{ fontSize: isMobile ? "0.72rem" : "1.25rem", fontWeight: 700, color: textColor, lineHeight: 1.1 }}>
               {Math.round(soc)}%
             </span>
-            <span style={{ fontSize: isMobile ? "0.55rem" : "0.65rem", fontWeight: 500, color: grayText }}>
+            <span style={{ fontSize: isMobile ? "0.5rem" : "0.65rem", fontWeight: 500, color: grayText }}>
               SOC
             </span>
           </div>
@@ -397,21 +397,21 @@ export default function EnergyFlowCard({
         {/* Node 2: Inverter */}
         <div
           style={{
-            width: isMobile ? "78px" : "130px",
+            width: isMobile ? "68px" : "130px",
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             background: nodeBg,
             border: `1px solid ${nodeBorder}`,
-            borderRadius: isMobile ? "14px" : "20px",
+            borderRadius: isMobile ? "12px" : "20px",
             overflow: "hidden"
           }}
         >
           <div
             style={{
               width: "100%",
-              padding: isMobile ? "0.65rem 0.15rem" : "1.25rem 1rem",
+              padding: isMobile ? "0.4rem 0.1rem" : "1.25rem 1rem",
               background: isDark ? "rgba(59, 130, 246, 0.12)" : "rgba(59, 130, 246, 0.08)",
               display: "flex",
               alignItems: "center",
@@ -420,14 +420,14 @@ export default function EnergyFlowCard({
           >
             <HugeiconsIcon
               icon={Sine01Icon}
-              size={isMobile ? 22 : 32}
+              size={isMobile ? 18 : 32}
               color="#3b82f6"
               strokeWidth={1.8}
             />
           </div>
           <div
             style={{
-              padding: isMobile ? "0.4rem 0.1rem" : "0.85rem 0.5rem",
+              padding: isMobile ? "0.25rem 0.05rem" : "0.85rem 0.5rem",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -435,13 +435,13 @@ export default function EnergyFlowCard({
               width: "100%"
             }}
           >
-            <span style={{ fontSize: isMobile ? "0.62rem" : "0.75rem", fontWeight: 500, color: grayText }}>
+            <span style={{ fontSize: isMobile ? "0.52rem" : "0.75rem", fontWeight: 500, color: grayText }}>
               Inverter
             </span>
-            <span style={{ fontSize: isMobile ? "0.82rem" : "1.25rem", fontWeight: 700, color: textColor, lineHeight: 1.1 }}>
+            <span style={{ fontSize: isMobile ? "0.72rem" : "1.25rem", fontWeight: 700, color: textColor, lineHeight: 1.1 }}>
               {inverterEfficiency}%
             </span>
-            <span style={{ fontSize: isMobile ? "0.55rem" : "0.65rem", fontWeight: 500, color: grayText }}>
+            <span style={{ fontSize: isMobile ? "0.5rem" : "0.65rem", fontWeight: 500, color: grayText }}>
               Efficiency
             </span>
           </div>
@@ -461,21 +461,21 @@ export default function EnergyFlowCard({
         {/* Node 3: Loads */}
         <div
           style={{
-            width: isMobile ? "78px" : "130px",
+            width: isMobile ? "68px" : "130px",
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             background: nodeBg,
             border: `1px solid ${nodeBorder}`,
-            borderRadius: isMobile ? "14px" : "20px",
+            borderRadius: isMobile ? "12px" : "20px",
             overflow: "hidden"
           }}
         >
           <div
             style={{
               width: "100%",
-              padding: isMobile ? "0.65rem 0.15rem" : "1.25rem 1rem",
+              padding: isMobile ? "0.4rem 0.1rem" : "1.25rem 1rem",
               background: isDark ? "rgba(168, 85, 247, 0.12)" : "rgba(168, 85, 247, 0.08)",
               display: "flex",
               alignItems: "center",
@@ -484,14 +484,14 @@ export default function EnergyFlowCard({
           >
             <HugeiconsIcon
               icon={House03Icon}
-              size={isMobile ? 22 : 32}
+              size={isMobile ? 18 : 32}
               color="#a855f7"
               strokeWidth={1.8}
             />
           </div>
           <div
             style={{
-              padding: isMobile ? "0.4rem 0.1rem" : "0.85rem 0.5rem",
+              padding: isMobile ? "0.25rem 0.05rem" : "0.85rem 0.5rem",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -499,13 +499,13 @@ export default function EnergyFlowCard({
               width: "100%"
             }}
           >
-            <span style={{ fontSize: isMobile ? "0.62rem" : "0.75rem", fontWeight: 500, color: grayText }}>
+            <span style={{ fontSize: isMobile ? "0.52rem" : "0.75rem", fontWeight: 500, color: grayText }}>
               Loads
             </span>
-            <span style={{ fontSize: isMobile ? "0.82rem" : "1.25rem", fontWeight: 700, color: textColor, lineHeight: 1.1 }}>
-              {Math.round(currentLoad)} <span style={{ fontSize: isMobile ? "0.62rem" : "0.9rem", fontWeight: 600 }}>W</span>
+            <span style={{ fontSize: isMobile ? "0.72rem" : "1.25rem", fontWeight: 700, color: textColor, lineHeight: 1.1 }}>
+              {Math.round(currentLoad)} <span style={{ fontSize: isMobile ? "0.55rem" : "0.9rem", fontWeight: 600 }}>W</span>
             </span>
-            <span style={{ fontSize: isMobile ? "0.55rem" : "0.65rem", fontWeight: 500, color: grayText }}>
+            <span style={{ fontSize: isMobile ? "0.5rem" : "0.65rem", fontWeight: 500, color: grayText }}>
               {isCharging ? "Charging" : "Consuming"}
             </span>
           </div>

@@ -192,7 +192,7 @@ Access permissions are enforced based on the Supabase authenticated Google accou
 ## 🎓 Academic Disclaimer & Acknowledgements
 This project is submitted in partial fulfillment of the requirements for the award of the Bachelor of Technology (B.Tech) degree from the **Federal University of Technology, Akure (FUTA)**. 
 
-All designs, firmware libraries, database schemas, and application architectures were developed under the supervision of the Department of Electrical and Electronics Engineering/Computer Engineering, FUTA. 
+All designs, firmware libraries, database schemas, and application architectures were developed under the supervision of the Department of Electrical and Electronics Engineering, FUTA. 
 
 ---
 *Developed by Kayode Daniel Oluwatobi.*  

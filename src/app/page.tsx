@@ -1072,148 +1072,74 @@ function HomeInner() {
                   theme={theme}
                   withShadow={false}
                   style={{
-                    backgroundColor: isDark ? "rgba(239, 68, 68, 0.05)" : "rgba(254, 242, 242, 0.75)",
-                    borderColor: isDark ? "rgba(239, 68, 68, 0.25)" : "rgba(239, 68, 68, 0.2)",
-                    padding: "1.25rem",
+                    backgroundColor: "#b91c1c", // Saturated solid warning red
+                    borderColor: "#991b1b",
+                    padding: "0.85rem 1rem",
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 >
                   <div style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "1rem",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "0.75rem",
                     width: "100%",
                   }}>
                     {/* Header Info */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "0.5rem",
-                    }}>
-                      <div style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: "0.5rem",
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <span style={{ fontSize: "1.2rem", filter: "drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3))" }}>
-                            🚨
-                          </span>
-                          <h3 style={{
-                            margin: 0,
-                            fontSize: "0.92rem",
-                            fontWeight: 800,
-                            color: textColor,
-                            letterSpacing: "-0.01em",
-                          }}>
-                            Inverter Isolation Relay
-                          </h3>
-                        </div>
-
-                        {/* Status Badge */}
-                        <span style={{
-                          fontSize: "0.58rem",
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          padding: "0.2rem 0.6rem",
-                          borderRadius: "99px",
-                          letterSpacing: "0.02em",
-                          background: isInverterOff 
-                            ? "rgba(239, 68, 68, 0.15)" 
-                            : (isDark ? "rgba(74, 222, 128, 0.15)" : "rgba(16, 185, 129, 0.12)"),
-                          color: isInverterOff 
-                            ? "#ef4444" 
-                            : (isDark ? "#4ade80" : "#0d9b0d"),
-                          transition: "all 0.3s ease",
-                        }}>
-                          {isInverterOff ? "⚠️ RELAY OPEN (OFFLINE)" : "✅ RELAY CLOSED (ONLINE)"}
-                        </span>
-                      </div>
-
-                      <p style={{
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ fontSize: "1.1rem" }}>🚨</span>
+                      <h3 style={{
                         margin: 0,
-                        fontSize: "0.68rem",
-                        color: mutedText,
-                        lineHeight: 1.45,
+                        fontSize: "0.88rem",
+                        fontWeight: 800,
+                        color: "#ffffff",
+                        letterSpacing: "-0.01em",
                       }}>
-                        Allows remote trip control of the master DC contactor inline with the battery bank. 
-                        <strong style={{ color: textColor }}> Warning:</strong> Disconnecting the inverter will instantly drop the AC power grid output for all active house circuits.
-                      </p>
+                        Inverter Isolation Relay
+                      </h3>
+                      <span style={{
+                        fontSize: "0.52rem",
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        padding: "0.15rem 0.45rem",
+                        borderRadius: "99px",
+                        letterSpacing: "0.02em",
+                        background: isInverterOff ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)",
+                        color: "#ffffff",
+                      }}>
+                        {isInverterOff ? "OPEN (OFF)" : "CLOSED (ON)"}
+                      </span>
                     </div>
 
-                    {/* Action Button Section */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      marginTop: "0.25rem",
-                      width: "100%"
-                    }}>
-                      <button
-                        onClick={() => handleInverterToggle(!isInverterOff)}
-                        disabled={!isOwner}
-                        style={{
-                          width: "100%",
-                          maxWidth: "360px",
-                          padding: "0.75rem 1rem",
-                          borderRadius: "12px",
-                          border: "none",
-                          fontSize: "0.78rem",
-                          fontWeight: 700,
-                          cursor: isOwner ? "pointer" : "not-allowed",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "0.5rem",
-                          boxShadow: !isOwner 
-                            ? "none" 
-                            : (isInverterOff 
-                              ? (isDark ? "0 4px 12px rgba(74, 222, 128, 0.2)" : "0 4px 12px rgba(13, 155, 13, 0.15)") 
-                              : "0 4px 12px rgba(239, 68, 68, 0.25)"),
-                          background: !isOwner
-                            ? (isDark ? "rgba(255, 255, 255, 0.05)" : "#e5e7eb")
-                            : (isInverterOff ? navGreen : "#ef4444"),
-                          color: !isOwner
-                            ? (isDark ? "rgba(255, 255, 255, 0.3)" : "#9ca3af")
-                            : "#ffffff",
-                          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.03em",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (isOwner) {
-                            e.currentTarget.style.transform = "scale(1.02)";
-                            e.currentTarget.style.filter = "brightness(1.1)";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (isOwner) {
-                            e.currentTarget.style.transform = "scale(1)";
-                            e.currentTarget.style.filter = "brightness(1)";
-                          }
-                        }}
-                      >
-                        {isInverterOff ? "🔌 TURN ON THE INVERTER" : "⚠️ TURN OFF THE INVERTER"}
-                      </button>
-
-                      {/* Access restriction details */}
-                      {!isOwner && (
-                        <span style={{
-                          fontSize: "0.58rem",
-                          color: isDark ? "rgba(239, 68, 68, 0.7)" : "#b91c1c",
-                          fontWeight: 600,
-                          textAlign: "center",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                        }}>
-                          🔒 Administrative bypass active. Relay controller restricted to Grid Owner.
-                        </span>
-                      )}
-                    </div>
+                    {/* Action Button */}
+                    <button
+                      onClick={() => handleInverterToggle(!isInverterOff)}
+                      style={{
+                        padding: "0.45rem 0.9rem",
+                        borderRadius: "8px",
+                        border: "none",
+                        fontSize: "0.72rem",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                        background: isInverterOff ? "#4ade80" : "#ffffff", // Vibrant green when off to restore power, white when on to turn off
+                        color: isInverterOff ? "#064e3b" : "#b91c1c", // High contrast colors
+                        transition: "all 0.2s ease",
+                        textTransform: "uppercase",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "scale(1.03)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
+                    >
+                      {isInverterOff ? "🔌 Turn On Inverter" : "⚠️ Turn Off Inverter"}
+                    </button>
                   </div>
                 </BentoCard>
               </div>
