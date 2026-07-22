@@ -6,6 +6,7 @@ interface DataPoint {
   label: string;
   values: number[]; // can have multiple lines (e.g. [3.20, 3.21, 3.19, 3.20])
   isOffline?: boolean;
+  timestamp?: number;
 }
 
 interface SentryLineChartProps {
@@ -54,6 +55,11 @@ export default function SentryLineChart({
     return range > 0 ? rawMax + range * 0.1 : rawMax * 1.05;
   }, [allValues, yMax]);
 
+  // Compute absolute time window bounds for true linear X-axis scaling
+  const timestamps = useMemo(() => data.map(d => d.timestamp).filter(Boolean) as number[], [data]);
+  const minTime = useMemo(() => (timestamps.length > 0 ? Math.min(...timestamps) : 0), [timestamps]);
+  const maxTime = useMemo(() => (timestamps.length > 0 ? Math.max(...timestamps) : 1), [timestamps]);
+
   // Viewport dimensions
   const paddingLeft = 45;
   const paddingRight = 15;
@@ -66,12 +72,19 @@ export default function SentryLineChart({
 
   const pointsCount = data.length;
 
-  // Convert (index, value) to SVG coordinate space
-  const getCoordinates = (index: number, value: number) => {
+  // Convert (index, value, timestamp) to SVG coordinate space
+  const getCoordinates = (index: number, value: number, itemTimestamp?: number) => {
     if (pointsCount <= 1) {
       return { x: paddingLeft + chartWidth / 2, y: paddingTop + chartHeight / 2 };
     }
-    const x = paddingLeft + (index / (pointsCount - 1)) * chartWidth;
+    
+    // Map linearly based on timestamp difference if available; fallback to index ratio
+    let xPercent = index / (pointsCount - 1);
+    if (itemTimestamp !== undefined && maxTime !== minTime) {
+      xPercent = (itemTimestamp - minTime) / (maxTime - minTime);
+    }
+    const x = paddingLeft + xPercent * chartWidth;
+    
     const denom = maxVal - minVal;
     const y = paddingTop + chartHeight - (denom > 0 ? ((value - minVal) / denom) * chartHeight : chartHeight / 2);
     return { x, y };
@@ -88,7 +101,7 @@ export default function SentryLineChart({
       let currentSegment: any[] = [];
 
       data.forEach((dPoint, i) => {
-        const pt = getCoordinates(i, dPoint.values[lineIdx] ?? minVal);
+        const pt = getCoordinates(i, dPoint.values[lineIdx] ?? minVal, dPoint.timestamp);
         if (dPoint.isOffline) {
           if (currentSegment.length > 0) {
             segments.push(currentSegment);
@@ -235,7 +248,13 @@ export default function SentryLineChart({
         {data.map((dPoint, idx) => {
           const showLabel = idx === 0 || idx === Math.floor(pointsCount / 2) || idx === pointsCount - 1;
           if (!showLabel) return null;
-          const x = paddingLeft + (idx / (pointsCount - 1)) * chartWidth;
+          
+          let xPercent = idx / (pointsCount - 1);
+          if (dPoint.timestamp !== undefined && maxTime !== minTime) {
+            xPercent = (dPoint.timestamp - minTime) / (maxTime - minTime);
+          }
+          const x = paddingLeft + xPercent * chartWidth;
+
           return (
             <text
               key={idx}
