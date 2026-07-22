@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   DatabaseIcon, 
   BluetoothIcon, 
@@ -17,15 +17,52 @@ interface ProfileTabProps {
   theme: "light" | "dark";
   authUser: any;
   supabase: any;
+  bleConnected?: boolean;
+  wifiConnected?: boolean;
 }
 
-export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProps) {
+export default function ProfileTab({ theme, authUser, supabase, bleConnected = true, wifiConnected = true }: ProfileTabProps) {
   const isDark = theme === "dark";
   const [selectedNode, setSelectedNode] = useState<"bms" | "esp32" | "nodemcu" | "cloud">("bms");
 
   const [highRateSync, setHighRateSync] = useState(true);
   const [audioWarnings, setAudioWarnings] = useState(false);
   const [pushAlerts, setPushAlerts] = useState(true);
+
+  // Load settings from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cachedSync = localStorage.getItem("sentry_high_rate_sync");
+      if (cachedSync !== null) setHighRateSync(cachedSync === "true");
+
+      const cachedAudio = localStorage.getItem("sentry_audio_warnings");
+      if (cachedAudio !== null) setAudioWarnings(cachedAudio === "true");
+
+      const cachedPush = localStorage.getItem("sentry_push_alerts");
+      if (cachedPush !== null) setPushAlerts(cachedPush === "true");
+    }
+  }, []);
+
+  const handleToggleSync = (val: boolean) => {
+    setHighRateSync(val);
+    localStorage.setItem("sentry_high_rate_sync", String(val));
+  };
+
+  const handleToggleAudio = (val: boolean) => {
+    setAudioWarnings(val);
+    localStorage.setItem("sentry_audio_warnings", String(val));
+    // Trigger preview utterance
+    if (val && typeof window !== "undefined" && window.speechSynthesis) {
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance("Sentry speech warnings activated.");
+      synth.speak(utterance);
+    }
+  };
+
+  const handleTogglePush = (val: boolean) => {
+    setPushAlerts(val);
+    localStorage.setItem("sentry_push_alerts", String(val));
+  };
 
   // Theme styling helpers
   const glassBg = isDark ? "rgba(255, 255, 255, 0.02)" : "rgba(255, 255, 255, 0.5)";
@@ -52,10 +89,6 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
         @keyframes pulseOrbit {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
-        }
-        @keyframes packetFlow {
-          0% { stroke-dashoffset: 24; }
-          100% { stroke-dashoffset: 0; }
         }
       `}</style>
 
@@ -227,7 +260,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             position: "relative",
           }}>
             
-            {/* Node 1: BMS (Icon + Center Aligned Text) */}
+            {/* Node 1: BMS */}
             <div 
               onClick={() => setSelectedNode("bms")}
               style={{
@@ -235,17 +268,16 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "80px",
+                width: "65px",
                 flexShrink: 0,
                 transform: selectedNode === "bms" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "14px",
+                width: "44px",
+                height: "44px",
+                borderRadius: "12px",
                 background: selectedNode === "bms" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -256,7 +288,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "bms" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "bms" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={BluetoothIcon} size={22} />
+                <HugeiconsIcon icon={BluetoothIcon} size={20} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "bms" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 JK-BMS
@@ -266,26 +298,39 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
               </span>
             </div>
 
-            {/* Cable A: BMS to ESP32 (Dashed line with packetFlow keyframe animation) */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "16px", padding: "0 0.1rem" }}>
+            {/* Cable A: BMS to ESP32 */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.1rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
-                  stroke={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} 
+                  stroke={bleConnected ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)")} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
+                  style={{ opacity: 0.15 }}
                 />
-                <line 
-                  x1="0" y1="8" x2="100" y2="8" 
-                  stroke={accentColor} 
-                  strokeWidth="2.5" 
-                  strokeDasharray="6, 6"
-                  style={{ animation: "packetFlow 0.8s linear infinite" }}
-                />
+                {/* Flowing dots only render if bleConnected is true */}
+                {bleConnected ? (
+                  <>
+                    <circle cx="0" cy="8" r="7" fill={accentColor}>
+                      <animate attributeName="cx" values="0;100" dur="2.4s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.4s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="0" cy="8" r="4" fill={accentColor}>
+                      <animate attributeName="cx" values="0;100" dur="2.4s" begin="0.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.4s" begin="0.8s" repeatCount="indefinite" />
+                    </circle>
+                  </>
+                ) : (
+                  // Offline static grey indicators
+                  <>
+                    <circle cx="25" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="75" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                  </>
+                )}
               </svg>
             </div>
 
-            {/* Node 2: ESP32 DevKit (Icon + Center Aligned Text) */}
+            {/* Node 2: ESP32 DevKit */}
             <div 
               onClick={() => setSelectedNode("esp32")}
               style={{
@@ -293,17 +338,16 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "80px",
+                width: "75px",
                 flexShrink: 0,
                 transform: selectedNode === "esp32" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "14px",
+                width: "44px",
+                height: "44px",
+                borderRadius: "12px",
                 background: selectedNode === "esp32" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -314,36 +358,47 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "esp32" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "esp32" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={CpuIcon} size={22} />
+                <HugeiconsIcon icon={CpuIcon} size={20} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "esp32" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 ESP32 DevKit
               </span>
               <span style={{ fontSize: "0.46rem", color: mutedText, opacity: 0.65, whiteSpace: "nowrap" }}>
-                BMS Data Parser
+                Data Parser
               </span>
             </div>
 
             {/* Cable B: ESP32 to NodeMCU */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "16px", padding: "0 0.1rem" }}>
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.1rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
-                  stroke={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} 
+                  stroke={(bleConnected && wifiConnected) ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)")} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
+                  style={{ opacity: 0.15 }}
                 />
-                <line 
-                  x1="0" y1="8" x2="100" y2="8" 
-                  stroke={accentColor} 
-                  strokeWidth="2.5" 
-                  strokeDasharray="6, 6"
-                  style={{ animation: "packetFlow 0.5s linear infinite" }}
-                />
+                {(bleConnected && wifiConnected) ? (
+                  <>
+                    <circle cx="0" cy="8" r="7" fill={accentColor}>
+                      <animate attributeName="cx" values="0;100" dur="2.0s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="0" cy="8" r="4" fill={accentColor}>
+                      <animate attributeName="cx" values="0;100" dur="2.0s" begin="0.66s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" begin="0.66s" repeatCount="indefinite" />
+                    </circle>
+                  </>
+                ) : (
+                  <>
+                    <circle cx="25" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="75" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                  </>
+                )}
               </svg>
             </div>
 
-            {/* Node 3: NodeMCU (Icon + Center Aligned Text) */}
+            {/* Node 3: NodeMCU */}
             <div 
               onClick={() => setSelectedNode("nodemcu")}
               style={{
@@ -351,17 +406,16 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "80px",
+                width: "65px",
                 flexShrink: 0,
                 transform: selectedNode === "nodemcu" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "14px",
+                width: "44px",
+                height: "44px",
+                borderRadius: "12px",
                 background: selectedNode === "nodemcu" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -372,7 +426,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "nodemcu" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "nodemcu" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={WifiIcon} size={22} />
+                <HugeiconsIcon icon={WifiIcon} size={20} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "nodemcu" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 NodeMCU
@@ -383,25 +437,36 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             </div>
 
             {/* Cable C: NodeMCU to Cloud */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "16px", padding: "0 0.1rem" }}>
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.1rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
-                  stroke={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} 
+                  stroke={wifiConnected ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)")} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
+                  style={{ opacity: 0.15 }}
                 />
-                <line 
-                  x1="0" y1="8" x2="100" y2="8" 
-                  stroke={accentColor} 
-                  strokeWidth="2.5" 
-                  strokeDasharray="6, 6"
-                  style={{ animation: "packetFlow 1.2s linear infinite" }}
-                />
+                {wifiConnected ? (
+                  <>
+                    <circle cx="0" cy="8" r="7" fill={accentColor}>
+                      <animate attributeName="cx" values="0;100" dur="2.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.8s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="0" cy="8" r="4" fill={accentColor}>
+                      <animate attributeName="cx" values="0;100" dur="2.8s" begin="0.9s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.8s" begin="0.9s" repeatCount="indefinite" />
+                    </circle>
+                  </>
+                ) : (
+                  <>
+                    <circle cx="25" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                    <circle cx="75" cy="8" r="4" fill={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"} />
+                  </>
+                )}
               </svg>
             </div>
 
-            {/* Node 4: Cloud (Icon + Center Aligned Text) */}
+            {/* Node 4: Cloud */}
             <div 
               onClick={() => setSelectedNode("cloud")}
               style={{
@@ -409,17 +474,16 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "80px",
+                width: "70px",
                 flexShrink: 0,
                 transform: selectedNode === "cloud" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "14px",
+                width: "44px",
+                height: "44px",
+                borderRadius: "12px",
                 background: selectedNode === "cloud" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -430,7 +494,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "cloud" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "cloud" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={DatabaseIcon} size={22} />
+                <HugeiconsIcon icon={DatabaseIcon} size={20} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "cloud" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 Firebase
@@ -459,10 +523,11 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>🔋 BMS (JK-B1A8S10P) Specifications</span>
-                <span style={{ fontSize: "0.52rem", background: "rgba(56, 189, 248, 0.15)", color: accentColor, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>ACTIVE BLE</span>
+                <span style={{ fontSize: "0.52rem", background: bleConnected ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: bleConnected ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {bleConnected ? "ACTIVE BLE" : "DISCONNECTED"}
+                </span>
               </div>
               
-              {/* Responsive specs layout (using auto-fit grid, wider gap, and responsive font-size to prevent wrap glitches) */}
               <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", 
@@ -488,7 +553,9 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>🧠 Board 1: ESP32 DevKit Node</span>
-                <span style={{ fontSize: "0.52rem", background: "rgba(56, 189, 248, 0.15)", color: accentColor, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>CO-EXISTS BLE+WIFI</span>
+                <span style={{ fontSize: "0.52rem", background: bleConnected ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: bleConnected ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {bleConnected ? "CO-EXISTS BLE+WIFI" : "OFFLINE"}
+                </span>
               </div>
               <div style={{ 
                 display: "grid", 
@@ -515,7 +582,9 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>⚡ Board 2: NodeMCU ESP8266 Node</span>
-                <span style={{ fontSize: "0.52rem", background: "rgba(56, 189, 248, 0.15)", color: accentColor, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>CLOUD UPLOADER</span>
+                <span style={{ fontSize: "0.52rem", background: wifiConnected ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: wifiConnected ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {wifiConnected ? "CLOUD UPLOADER" : "WIFI OFFLINE"}
+                </span>
               </div>
               <div style={{ 
                 display: "grid", 
@@ -542,7 +611,9 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>☁️ Cloud Services & Databases</span>
-                <span style={{ fontSize: "0.52rem", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>REALTIME ONLINE</span>
+                <span style={{ fontSize: "0.52rem", background: wifiConnected ? "rgba(16, 185, 129, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: wifiConnected ? "#10b981" : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {wifiConnected ? "REALTIME ONLINE" : "DISCONNECTED"}
+                </span>
               </div>
               <div style={{ 
                 display: "grid", 
@@ -600,7 +671,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <input 
               type="checkbox" 
               checked={highRateSync}
-              onChange={(e) => setHighRateSync(e.target.checked)}
+              onChange={(e) => handleToggleSync(e.target.checked)}
               style={{
                 width: "36px",
                 height: "20px",
@@ -623,7 +694,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <input 
               type="checkbox" 
               checked={audioWarnings}
-              onChange={(e) => setAudioWarnings(e.target.checked)}
+              onChange={(e) => handleToggleAudio(e.target.checked)}
               style={{
                 width: "36px",
                 height: "20px",
@@ -646,7 +717,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
             <input 
               type="checkbox" 
               checked={pushAlerts}
-              onChange={(e) => setPushAlerts(e.target.checked)}
+              onChange={(e) => handleTogglePush(e.target.checked)}
               style={{
                 width: "36px",
                 height: "20px",

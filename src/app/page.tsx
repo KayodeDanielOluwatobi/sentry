@@ -709,6 +709,7 @@ function HomeInner() {
     });
   }, [lastFirebaseUpdate, voltage, current, power, temperatures, cellVoltages]);
 
+
   // Write handlers - structured and commented out per user request for future implementation
   const handleLoadsChange = (updatedLoads: ManagedLoad[]) => {
     // Find what changed to append to Activity Feed
@@ -789,6 +790,28 @@ function HomeInner() {
     (hasBmsError ? 1 : 0) +
     ((soc !== undefined && soc < 10) ? 1 : 0);
 
+  // Speech alerts manager for active alarms (triggered based on persisted user preference)
+  useEffect(() => {
+    if (activeAlarmsCount > 0 && typeof window !== "undefined" && window.speechSynthesis) {
+      const isVoiceEnabled = localStorage.getItem("sentry_audio_warnings") === "true";
+      if (isVoiceEnabled) {
+        const list = [];
+        if (temperature !== undefined && temperature > 45) list.push("high temperature alarm");
+        if (cellDeltaVal > 15) list.push("cell voltage imbalance warning");
+        if (hasBmsError) list.push("active BMS register error");
+        if (soc !== undefined && soc < 10) list.push("low state of charge");
+
+        if (list.length > 0) {
+          const msg = `Attention. Sentry has detected active telemetry alerts: ${list.join(", and ")}`;
+          const synth = window.speechSynthesis;
+          synth.cancel(); // clear previous speech queue
+          const utterance = new SpeechSynthesisUtterance(msg);
+          synth.speak(utterance);
+        }
+      }
+    }
+  }, [activeAlarmsCount, temperature, cellDeltaVal, hasBmsError, soc]);
+
   return (
     <div
       style={{
@@ -844,26 +867,28 @@ function HomeInner() {
             gridAutoRows: "auto"
           }}
         >
-          {/* Row 1: System Insight (Persistent Header - Full Width across all tabs) */}
-          <div style={{ gridColumn: "span 3" }}>
-            <SystemInsight
-              theme={theme}
-              soc={soc}
-              isCharging={isCharging}
-              temperature={temperature}
-              currentLoad={currentLoad}
-              cellVoltages={cellVoltages}
-              withShadow={false}
-              managerMode={managerMode}
-              managerLoads={managerLoads}
-              activeAlarmsCount={activeAlarmsCount}
-              wifiRssi={wifiRssi}
-              bleRssi={bleRssi}
-              wifiConnected={wifiConnected}
-              bleConnected={bleConnected}
-              lastFirebaseUpdate={lastFirebaseUpdate}
-            />
-          </div>
+          {/* Row 1: System Insight (Persistent Header - Full Width across all tabs except Profile) */}
+          {activeTab !== "Profile" && (
+            <div style={{ gridColumn: "span 3" }}>
+              <SystemInsight
+                theme={theme}
+                soc={soc}
+                isCharging={isCharging}
+                temperature={temperature}
+                currentLoad={currentLoad}
+                cellVoltages={cellVoltages}
+                withShadow={false}
+                managerMode={managerMode}
+                managerLoads={managerLoads}
+                activeAlarmsCount={activeAlarmsCount}
+                wifiRssi={wifiRssi}
+                bleRssi={bleRssi}
+                wifiConnected={wifiConnected}
+                bleConnected={bleConnected}
+                lastFirebaseUpdate={lastFirebaseUpdate}
+              />
+            </div>
+          )}
 
           {activeTab === "Battery" && (
             <>
@@ -1003,6 +1028,8 @@ function HomeInner() {
                 theme={theme}
                 authUser={authUser}
                 supabase={supabase}
+                bleConnected={bleConnected}
+                wifiConnected={wifiConnected}
               />
             </div>
           )}
