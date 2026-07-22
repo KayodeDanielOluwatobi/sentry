@@ -1072,41 +1072,49 @@ function HomeInner() {
                   theme={theme}
                   withShadow={false}
                   style={{
-                    backgroundColor: "#b91c1c", // Saturated solid warning red
-                    borderColor: "#991b1b",
-                    padding: "0.85rem 1rem",
+                    background: "linear-gradient(135deg, #b91c1c 0%, #450a0a 100%)", // Rich dark red gradient
+                    borderColor: isDark ? "#7f1d1d" : "#991b1b",
+                    padding: "1.1rem 1rem",
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 >
                   <div style={{
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: "0.75rem",
+                    justifyContent: "center",
+                    gap: "0.85rem",
                     width: "100%",
+                    textAlign: "center",
                   }}>
                     {/* Header Info */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <span style={{ fontSize: "1.1rem" }}>🚨</span>
+                    <div style={{ 
+                      display: "flex", 
+                      flexDirection: "column", 
+                      alignItems: "center", 
+                      gap: "0.45rem" 
+                    }}>
+                      <span style={{ fontSize: "1.6rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))" }}>🚨</span>
                       <h3 style={{
                         margin: 0,
-                        fontSize: "0.88rem",
-                        fontWeight: 800,
+                        fontSize: "clamp(1.05rem, 4.5vw, 1.25rem)", // Increased mobile font size
+                        fontWeight: 900,
                         color: "#ffffff",
-                        letterSpacing: "-0.01em",
+                        letterSpacing: "-0.02em",
+                        lineHeight: 1.2,
                       }}>
                         Inverter Isolation Relay
                       </h3>
                       <span style={{
-                        fontSize: "0.52rem",
+                        fontSize: "0.58rem",
                         fontWeight: 800,
                         textTransform: "uppercase",
-                        padding: "0.15rem 0.45rem",
+                        padding: "0.18rem 0.55rem",
                         borderRadius: "99px",
-                        letterSpacing: "0.02em",
-                        background: isInverterOff ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.2)",
+                        letterSpacing: "0.04em",
+                        background: isInverterOff ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.22)",
                         color: "#ffffff",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                       }}>
                         {isInverterOff ? "OPEN (OFF)" : "CLOSED (ON)"}
                       </span>
@@ -1116,20 +1124,23 @@ function HomeInner() {
                     <button
                       onClick={() => handleInverterToggle(!isInverterOff)}
                       style={{
-                        padding: "0.45rem 0.9rem",
+                        padding: "0.55rem 1.2rem",
                         borderRadius: "8px",
                         border: "none",
-                        fontSize: "0.72rem",
+                        fontSize: "0.74rem",
                         fontWeight: 800,
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
+                        justifyContent: "center",
                         gap: "0.4rem",
-                        boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                        background: isInverterOff ? "#4ade80" : "#ffffff", // Vibrant green when off to restore power, white when on to turn off
-                        color: isInverterOff ? "#064e3b" : "#b91c1c", // High contrast colors
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
+                        background: isInverterOff ? "#fef08a" : "#ffffff", // Warm amber yellow when off, pure white when on
+                        color: isInverterOff ? "#713f12" : "#b91c1c", // High contrast readable colors
                         transition: "all 0.2s ease",
                         textTransform: "uppercase",
+                        width: "100%",
+                        maxWidth: "260px",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "scale(1.03)";
@@ -1138,7 +1149,7 @@ function HomeInner() {
                         e.currentTarget.style.transform = "scale(1)";
                       }}
                     >
-                      {isInverterOff ? "🔌 Turn On Inverter" : "⚠️ Turn Off Inverter"}
+                      {isInverterOff ? "Turn On Inverter" : "Turn Off Inverter"}
                     </button>
                   </div>
                 </BentoCard>
