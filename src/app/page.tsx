@@ -1030,6 +1030,7 @@ function HomeInner() {
                 supabase={supabase}
                 bleConnected={bleConnected}
                 wifiConnected={wifiConnected}
+                lastFirebaseUpdate={lastFirebaseUpdate}
               />
             </div>
           )}

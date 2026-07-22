@@ -19,15 +19,24 @@ interface ProfileTabProps {
   supabase: any;
   bleConnected?: boolean;
   wifiConnected?: boolean;
+  lastFirebaseUpdate?: number;
 }
 
-export default function ProfileTab({ theme, authUser, supabase, bleConnected = true, wifiConnected = true }: ProfileTabProps) {
+export default function ProfileTab({ 
+  theme, 
+  authUser, 
+  supabase, 
+  bleConnected = true, 
+  wifiConnected = true,
+  lastFirebaseUpdate
+}: ProfileTabProps) {
   const isDark = theme === "dark";
   const [selectedNode, setSelectedNode] = useState<"bms" | "esp32" | "nodemcu" | "cloud">("bms");
 
   const [highRateSync, setHighRateSync] = useState(true);
   const [audioWarnings, setAudioWarnings] = useState(false);
   const [pushAlerts, setPushAlerts] = useState(true);
+  const [secondsAgo, setSecondsAgo] = useState<number | string>("—");
 
   // Load settings from localStorage
   useEffect(() => {
@@ -43,6 +52,29 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
     }
   }, []);
 
+  // Sync elapsed seconds since last database update
+  useEffect(() => {
+    if (lastFirebaseUpdate === undefined) {
+      setSecondsAgo("—");
+      return;
+    }
+
+    const updateTimer = () => {
+      const elapsedMs = Date.now() - lastFirebaseUpdate;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      setSecondsAgo(elapsedSec >= 0 ? elapsedSec : 0);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [lastFirebaseUpdate]);
+
+  // Determine active system state using the identical SystemInsight 30-second heartbeat check logic
+  const isOffline = lastFirebaseUpdate === undefined || (typeof secondsAgo === "number" && secondsAgo > 30);
+  const effectiveBle = isOffline ? false : bleConnected;
+  const effectiveWifi = isOffline ? false : wifiConnected;
+
   const handleToggleSync = (val: boolean) => {
     setHighRateSync(val);
     localStorage.setItem("sentry_high_rate_sync", String(val));
@@ -51,7 +83,6 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
   const handleToggleAudio = (val: boolean) => {
     setAudioWarnings(val);
     localStorage.setItem("sentry_audio_warnings", String(val));
-    // Trigger preview utterance
     if (val && typeof window !== "undefined" && window.speechSynthesis) {
       const synth = window.speechSynthesis;
       const utterance = new SpeechSynthesisUtterance("Sentry speech warnings activated.");
@@ -175,9 +206,9 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
             width: "12px",
             height: "12px",
             borderRadius: "50%",
-            background: "#10b981",
+            background: isOffline ? "#ef4444" : "#10b981",
             border: `2px solid ${isDark ? "#0d0d0f" : "#ffffff"}`,
-            boxShadow: "0 0 8px #10b981",
+            boxShadow: isOffline ? "0 0 8px #ef4444" : "0 0 8px #10b981",
           }} />
         </div>
 
@@ -261,13 +292,26 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
           backdropFilter: "blur(8px)",
         }}
       >
-        <div>
-          <h3 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 800, color: textColor }}>
-            Hardware System Topology
-          </h3>
-          <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.68rem", color: mutedText }}>
-            Live hardware nodes and real-time serial payload path. Click any node to review hardware specs.
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 800, color: textColor }}>
+              Hardware System Topology
+            </h3>
+            <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.68rem", color: mutedText }}>
+              Live hardware nodes and real-time serial payload path. Click any node to review hardware specs.
+            </p>
+          </div>
+          <span style={{ 
+            fontSize: "0.55rem", 
+            background: isOffline ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)", 
+            color: isOffline ? "#ef4444" : "#10b981", 
+            padding: "0.15rem 0.5rem", 
+            borderRadius: "99px",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            {isOffline ? "System Offline" : "System Online"}
+          </span>
         </div>
 
         {/* Node Connection Canvas */}
@@ -337,12 +381,12 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
-                  stroke={bleConnected ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)")} 
+                  stroke={effectiveBle ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)")} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
                   style={{ opacity: 0.15 }}
                 />
-                {bleConnected ? (
+                {effectiveBle ? (
                   <>
                     <circle cx="0" cy="8" r="7" fill={accentColor}>
                       <animate attributeName="cx" values="0;100" dur="2.4s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
@@ -406,20 +450,20 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
-                  stroke={(bleConnected && wifiConnected) ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)")} 
+                  stroke={(effectiveBle && effectiveWifi) ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)")} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
                   style={{ opacity: 0.15 }}
                 />
-                {(bleConnected && wifiConnected) ? (
+                {(effectiveBle && effectiveWifi) ? (
                   <>
                     <circle cx="0" cy="8" r="7" fill={accentColor}>
                       <animate attributeName="cx" values="0;100" dur="2.0s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;2.0s" repeatCount="indefinite" />
                     </circle>
                     <circle cx="0" cy="8" r="4" fill={accentColor}>
                       <animate attributeName="cx" values="0;100" dur="2.0s" begin="0.66s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" begin="0.66s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;2.0s" begin="0.66s" repeatCount="indefinite" />
                     </circle>
                   </>
                 ) : (
@@ -474,12 +518,12 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
-                  stroke={wifiConnected ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)")} 
+                  stroke={effectiveWifi ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)") : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)")} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
                   style={{ opacity: 0.15 }}
                 />
-                {wifiConnected ? (
+                {effectiveWifi ? (
                   <>
                     <circle cx="0" cy="8" r="7" fill={accentColor}>
                       <animate attributeName="cx" values="0;100" dur="2.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
@@ -556,8 +600,8 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>🔋 BMS (JK-B1A8S10P) Specifications</span>
-                <span style={{ fontSize: "0.52rem", background: bleConnected ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: bleConnected ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
-                  {bleConnected ? "ACTIVE BLE" : "DISCONNECTED"}
+                <span style={{ fontSize: "0.52rem", background: effectiveBle ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: effectiveBle ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {effectiveBle ? "ACTIVE BLE" : "DISCONNECTED"}
                 </span>
               </div>
               
@@ -586,8 +630,8 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>🧠 Board 1: ESP32 DevKit Node</span>
-                <span style={{ fontSize: "0.52rem", background: bleConnected ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: bleConnected ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
-                  {bleConnected ? "CO-EXISTS BLE+WIFI" : "OFFLINE"}
+                <span style={{ fontSize: "0.52rem", background: effectiveBle ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: effectiveBle ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {effectiveBle ? "CO-EXISTS BLE+WIFI" : "OFFLINE"}
                 </span>
               </div>
               <div style={{ 
@@ -615,8 +659,8 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>⚡ Board 2: NodeMCU ESP8266 Node</span>
-                <span style={{ fontSize: "0.52rem", background: wifiConnected ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: wifiConnected ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
-                  {wifiConnected ? "CLOUD UPLOADER" : "WIFI OFFLINE"}
+                <span style={{ fontSize: "0.52rem", background: effectiveWifi ? "rgba(56, 189, 248, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: effectiveWifi ? accentColor : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {effectiveWifi ? "CLOUD UPLOADER" : "WIFI OFFLINE"}
                 </span>
               </div>
               <div style={{ 
@@ -644,8 +688,8 @@ export default function ProfileTab({ theme, authUser, supabase, bleConnected = t
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "clamp(0.76rem, 2cqi, 0.82rem)", fontWeight: 700, color: textColor }}>☁️ Cloud Services & Databases</span>
-                <span style={{ fontSize: "0.52rem", background: wifiConnected ? "rgba(16, 185, 129, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: wifiConnected ? "#10b981" : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
-                  {wifiConnected ? "REALTIME ONLINE" : "DISCONNECTED"}
+                <span style={{ fontSize: "0.52rem", background: effectiveWifi ? "rgba(16, 185, 129, 0.15)" : (isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb"), color: effectiveWifi ? "#10b981" : mutedText, padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 600 }}>
+                  {effectiveWifi ? "REALTIME ONLINE" : "DISCONNECTED"}
                 </span>
               </div>
               <div style={{ 
