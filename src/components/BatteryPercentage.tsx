@@ -232,8 +232,8 @@ export default function BatteryPercentage({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              flex: `0 0 ${gaugeSize}px`, // Column size matches the measured grid height exactly
-              width: `${gaugeSize}px`,
+              flex: `0 0 ${gaugeSize * 1.15}px`, // Scaled column size for larger battery arc
+              width: `${gaugeSize * 1.15}px`,
               padding: "0.25rem 0",
               minWidth: 0,
             }}
@@ -242,7 +242,7 @@ export default function BatteryPercentage({
               soc={soc}
               isCharging={isCharging}
               theme={theme}
-              size={gaugeSize - 26} // Battery arc size tracks grid height exactly
+              size={gaugeSize * 1.15} // Increased battery arc size
               label="SOC"
             />
             {/* Status Pill Badge */}
