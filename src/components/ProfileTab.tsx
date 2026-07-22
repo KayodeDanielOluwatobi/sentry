@@ -163,8 +163,8 @@ export default function ProfileTab({
             position: "absolute",
             inset: "-4px",
             borderRadius: "50%",
-            border: "1.5px dashed rgba(56, 189, 248, 0.5)",
-            animation: "pulseOrbit 8s linear infinite",
+            border: isOffline ? "1.5px dashed rgba(156, 163, 175, 0.4)" : "1.5px dashed rgba(56, 189, 248, 0.5)",
+            animation: isOffline ? "none" : "pulseOrbit 8s linear infinite",
           }} />
           {authUser?.user_metadata?.avatar_url ? (
             <img
@@ -311,8 +311,10 @@ export default function ProfileTab({
               {isOffline ? "Offline" : "Online"}
             </span>
           </div>
-          <p style={{ margin: 0, fontSize: "0.68rem", color: mutedText, lineHeight: 1.35 }}>
-            Live hardware nodes and real-time serial payload path. Click any node to review hardware specs.
+          <p style={{ margin: 0, fontSize: "0.68rem", color: mutedText, lineHeight: 1.45 }}>
+            Live hardware nodes and real-time serial payload path.
+            <br />
+            Click any node to review hardware specs.
           </p>
         </div>
 
