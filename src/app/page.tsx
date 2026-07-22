@@ -1074,7 +1074,7 @@ function HomeInner() {
                   style={{
                     background: "linear-gradient(135deg, #b91c1c 0%, #450a0a 100%)", // Rich dark red gradient
                     borderColor: isDark ? "#7f1d1d" : "#991b1b",
-                    padding: "1.1rem 1rem",
+                    padding: "0.65rem 1rem", // Reduced padding
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 >
@@ -1083,7 +1083,7 @@ function HomeInner() {
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "0.85rem",
+                    gap: "0.5rem", // Reduced gap
                     width: "100%",
                     textAlign: "center",
                   }}>
@@ -1127,7 +1127,7 @@ function HomeInner() {
                     <button
                       onClick={() => handleInverterToggle(!isInverterOff)}
                       style={{
-                        padding: "0.55rem 1.2rem",
+                        padding: "0.4rem 1rem", // Reduced padding
                         borderRadius: "8px",
                         border: "none",
                         fontSize: "0.74rem",
