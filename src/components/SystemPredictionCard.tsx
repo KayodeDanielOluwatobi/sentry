@@ -665,8 +665,8 @@ export default function SystemPredictionCard({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "0.6rem", // Reduced gap
-          padding: "clamp(0.75rem, 2.5cqi, 1rem)", // Reduced padding
+          gap: "1.2rem",
+          padding: "clamp(1.1rem, 3.5cqi, 1.5rem)",
           position: "relative",
           overflow: "visible",
           ...style,
@@ -674,9 +674,9 @@ export default function SystemPredictionCard({
         {...props}
       >
         {/* Top Header: AISphere + Title + Expand */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginBottom: "0px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginBottom: "0.35rem" }}>
           {/* Morphing sphere replaces the static purple icon */}
-          <AISphere size={28} /> {/* Slightly smaller sphere */}
+          <AISphere size={34} />
           
           <span
             style={{
@@ -720,7 +720,7 @@ export default function SystemPredictionCard({
         </div>
 
         {/* Main Body Prediction Statement */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", minHeight: "auto", paddingLeft: "clamp(0.35rem, 1.8cqi, 0.65rem)", marginBottom: "0px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", minHeight: "52px", paddingLeft: "clamp(0.35rem, 1.8cqi, 0.65rem)", marginBottom: "0.45rem" }}>
           <span style={{ fontSize: "clamp(0.68rem, 2.2cqi, 0.82rem)", fontWeight: 400, color: subtextColor, fontFamily: "var(--font-inter), sans-serif" }}>
             {conditionText}
           </span>
