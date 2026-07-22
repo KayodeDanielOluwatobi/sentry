@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ref, onValue, update } from "firebase/database";
-import { signOut } from "firebase/auth";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 import TopBar from "@/components/TopBar";
 import SystemInsight from "@/components/SystemInsight";
 import BatteryPercentage from "@/components/BatteryPercentage";
@@ -1010,10 +1010,10 @@ function HomeInner() {
                 }}
               >
                 {/* Google profile photo or fallback avatar */}
-                {authUser?.photoURL ? (
+                {authUser?.user_metadata?.avatar_url ? (
                   <img
-                    src={authUser.photoURL}
-                    alt={authUser.displayName ?? "User"}
+                    src={authUser.user_metadata.avatar_url}
+                    alt={authUser.user_metadata?.full_name ?? "User"}
                     style={{
                       width: "54px",
                       height: "54px",
@@ -1039,12 +1039,12 @@ function HomeInner() {
                       boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
                     }}
                   >
-                    {(authUser?.displayName ?? "U")[0].toUpperCase()}
+                    {((authUser?.user_metadata?.full_name ?? authUser?.email ?? "U") as string)[0].toUpperCase()}
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   <span style={{ fontSize: "0.95rem", fontWeight: 700, color: isDark ? "#fff" : "#111" }}>
-                    {authUser?.displayName ?? "User"}
+                    {authUser?.user_metadata?.full_name ?? authUser?.email ?? "User"}
                   </span>
                   <span style={{ fontSize: "0.75rem", color: isDark ? "#9ca3af" : "#6b7280" }}>
                     {authUser?.email ?? ""}
@@ -1155,9 +1155,7 @@ function HomeInner() {
 
                 <button
                   onClick={async () => {
-                    if (auth) {
-                      try { await signOut(auth); } catch (e) { console.error(e); }
-                    }
+                    await supabase.auth.signOut();
                   }}
                   style={{
                     display: "flex",

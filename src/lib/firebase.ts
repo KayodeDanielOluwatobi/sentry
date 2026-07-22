@@ -1,6 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase, Database } from "firebase/database";
-import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,27 +12,20 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+// Firebase is used only for Realtime Database (ESP32 telemetry).
+// Authentication is handled by Supabase — see lib/supabase.ts
 let db: Database | null = null;
-let auth: Auth | null = null;
-let googleProvider: GoogleAuthProvider | null = null;
 
-// Gate on apiKey — the minimum required field for any Firebase service
 if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   try {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    // Auth works without databaseURL — initialize it always
-    auth = getAuth(app);
-    googleProvider = new GoogleAuthProvider();
-    googleProvider.setCustomParameters({ prompt: "select_account" });
-    // Realtime DB only available if databaseURL is set
-    if (process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL) {
-      db = getDatabase(app);
-    }
+    db = getDatabase(app);
   } catch (error) {
-    console.error("Firebase initialization failed:", error);
+    console.error("Firebase DB initialization failed:", error);
   }
 } else {
-  console.warn("[Sentry] Firebase API key missing — Auth and DB are disabled. Add NEXT_PUBLIC_FIREBASE_API_KEY to your environment variables.");
+  console.warn("[Sentry] Firebase API key missing — Realtime DB disabled.");
 }
 
-export { db, auth, googleProvider };
+export { db };
+

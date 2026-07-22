@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { signInWithPopup, signInWithRedirect } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { supabase } from "@/lib/supabase";
 
 interface LoginScreenProps {
   theme?: "light" | "dark";
@@ -13,43 +12,32 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
-    if (!auth || !googleProvider) {
-      setError("Firebase is not configured. Check environment variables on Vercel.");
-      return;
-    }
     setLoading(true);
     setError(null);
-
     try {
-      await signInWithPopup(auth, googleProvider);
+      const redirectTo = typeof window !== "undefined"
+        ? `${window.location.origin}/`
+        : "https://sentry-nwkt.vercel.app/";
+
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+
+      if (oauthError) {
+        setError(`Sign-in failed: ${oauthError.message}`);
+        setLoading(false);
+      }
+      // On success, Supabase redirects the browser to Google — no further action needed here
     } catch (err: any) {
-      const code = err.code ?? "unknown";
-
-      // If popup is blocked or closed unexpectedly (common on mobile browsers), try redirect mode
-      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr: any) {
-          const rCode = redirectErr.code ?? "unknown";
-          if (rCode === "auth/unauthorized-domain") {
-            setError("Domain not authorised in Firebase. Add sentry-nwkt.vercel.app to Firebase Console → Authentication → Authorized Domains.");
-          } else {
-            setError(`Sign-in failed (${rCode}).`);
-          }
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (code === "auth/unauthorized-domain") {
-        setError("Domain not authorised in Firebase. Add sentry-nwkt.vercel.app to Firebase Console → Authentication → Authorized Domains.");
-      } else {
-        setError(`Sign-in failed (${code}).`);
-      }
+      setError(`Unexpected error: ${err?.message ?? "unknown"}`);
       setLoading(false);
     }
   };
+
 
   return (
     <div

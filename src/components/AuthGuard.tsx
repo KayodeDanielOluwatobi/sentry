@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import LoginScreen from "./LoginScreen";
 
 interface AuthContextValue {
@@ -20,26 +20,24 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, theme = "light" }: AuthGuardProps) {
-  const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = loading
+  // undefined = still loading, null = not signed in, User = signed in
+  const [user, setUser] = useState<User | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!auth) {
-      // Auth not configured — skip gating in development without env vars
-      setUser(null);
-      return;
-    }
-    const { getRedirectResult } = require("firebase/auth");
-    getRedirectResult(auth).catch((err: any) => {
-      console.warn("Redirect auth result warning:", err);
+    // Immediately restore any existing session (handles page refresh & redirect return)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
     });
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    // Keep in sync with auth state changes (sign in / sign out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
     });
-    return unsubscribe;
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Still resolving auth state
+  // Resolving session — show a branded spinner
   if (user === undefined) {
     return (
       <div
@@ -85,12 +83,12 @@ export default function AuthGuard({ children, theme = "light" }: AuthGuardProps)
     );
   }
 
-  // Not signed in → show login screen
+  // Not signed in
   if (!user) {
     return <LoginScreen theme={theme} />;
   }
 
-  // Signed in → render the full dashboard
+  // Signed in — render the dashboard
   return (
     <AuthContext.Provider value={{ user }}>
       {children}
