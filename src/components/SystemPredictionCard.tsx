@@ -2,7 +2,19 @@
 
 import React, { useMemo, useState } from "react";
 import BentoCard, { CardTheme } from "./BentoCard";
-import { TradeUpIcon, ExpandIcon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { 
+  ExpandIcon, 
+  Cancel01Icon,
+  FlashIcon,
+  Clock01Icon,
+  AutomotiveBattery02Icon,
+  ShieldCheck,
+  TemperatureIcon,
+  Analytics01Icon,
+  ChipIcon,
+  SparklesIcon,
+  BulbChargingIcon
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ManagedLoad } from "./SmartEnergyManager";
 
@@ -145,7 +157,7 @@ interface PredictionRow {
   label: string;
   value: string;
   confidence: "high" | "medium" | "low";
-  icon: string;
+  icon: any;
   detail?: string;
 }
 
@@ -326,7 +338,19 @@ function PredictionModal({
                   border: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"}`,
                 }}>
                   {/* Icon */}
-                  <div style={{ fontSize: "1.15rem", lineHeight: 1, marginTop: "0.1rem", flexShrink: 0 }}>{row.icon}</div>
+                  <div style={{ 
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: isDark ? "rgba(168, 85, 247, 0.15)" : "rgba(168, 85, 247, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    color: isDark ? "#c084fc" : "#7e22ce"
+                  }}>
+                    <HugeiconsIcon icon={row.icon} size={16} strokeWidth={2} />
+                  </div>
                   {/* Text */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: "0.82rem", color: isDark ? "#e5e7eb" : "#111", marginBottom: "0.15rem", fontFamily: "var(--font-inter), sans-serif" }}>
@@ -358,6 +382,43 @@ function PredictionModal({
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Future plans and integrations */}
+            <div style={{
+              marginTop: "1.2rem",
+              padding: "1rem",
+              borderRadius: "14px",
+              background: isDark ? "rgba(168, 85, 247, 0.06)" : "rgba(168, 85, 247, 0.03)",
+              border: `1px dashed ${isDark ? "rgba(168, 85, 247, 0.25)" : "rgba(168, 85, 247, 0.15)"}`,
+            }}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                color: isDark ? "#c084fc" : "#7e22ce",
+                marginBottom: "0.4rem",
+                fontFamily: "var(--font-inter), sans-serif",
+              }}>
+                <HugeiconsIcon icon={SparklesIcon} size={14} />
+                <span>Roadmap & Future Integrations</span>
+              </div>
+              <ul style={{
+                margin: 0,
+                paddingLeft: "1.1rem",
+                fontSize: "0.68rem",
+                color: isDark ? "rgba(255,255,255,0.6)" : "#4b5563",
+                lineHeight: 1.6,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.25rem",
+              }}>
+                <li><strong>Phase 2 (Cloud training)</strong>: Aggregate user usage cycles into Firebase to train custom regressions, boosting accuracy.</li>
+                <li><strong>Weather Correlation</strong>: Connect solar prediction to live local weather forecasts to plan discharge cycles.</li>
+                <li><strong>Proactive Load Control</strong>: Enable auto-shedding prior to thresholds during high-discharge events.</li>
+              </ul>
             </div>
 
             {/* Footer */}
@@ -497,34 +558,34 @@ export default function SystemPredictionCard({
     }
   }
 
-  // ─── Build AI Prediction Rows for modal ──────────────────────────────────
+  // ─── Build AI Prediction Rows for modal (Replacing emojis with actual hugeicons) ───
   const predictionRows: PredictionRow[] = useMemo(() => {
     const rows: PredictionRow[] = [];
 
     if (isCharging) {
       rows.push({
-        icon: "⚡",
+        icon: Clock01Icon,
         label: "Estimated time to full charge",
         value: formatHoursMinutes(hoursToFull),
         confidence: analytics.recentCount >= 3 ? "high" : "medium",
         detail: `Based on ${Math.round(effectivePower)}W average charge rate at ${Math.round(soc)}% SOC`,
       });
       rows.push({
-        icon: "🔋",
+        icon: AutomotiveBattery02Icon,
         label: "Usable energy when full",
         value: `${Math.round(totalWh)}Wh`,
         confidence: "high",
         detail: `${batteryCapacityAh}Ah × ${nominalVoltage.toFixed(1)}V nominal = ${Math.round(totalWh)}Wh total capacity`,
       });
       rows.push({
-        icon: "🛡️",
+        icon: ShieldCheck,
         label: "Load shedding status",
         value: "Standby",
         confidence: "high",
         detail: "Auto load management inactive during charging — all circuits powered",
       });
       rows.push({
-        icon: "🌡️",
+        icon: TemperatureIcon,
         label: "Charge efficiency estimate",
         value: "~92%",
         confidence: "medium",
@@ -532,7 +593,7 @@ export default function SystemPredictionCard({
       });
     } else {
       rows.push({
-        icon: "⏱️",
+        icon: Clock01Icon,
         label: "Estimated backup runtime",
         value: formatHoursMinutes(hoursBackup),
         confidence: analytics.dvdtPerHour !== null && analytics.recentCount >= 3 ? "high" : analytics.recentCount >= 3 ? "medium" : "low",
@@ -541,14 +602,14 @@ export default function SystemPredictionCard({
           : `Wh-based estimate from ${Math.round(effectivePower)}W average draw`,
       });
       rows.push({
-        icon: "📊",
+        icon: Analytics01Icon,
         label: "Rolling 15-min average load",
         value: analytics.rollingAvgPower !== null ? `${Math.round(analytics.rollingAvgPower)}W` : `${Math.round(power)}W (instant)`,
         confidence: analytics.recentCount >= 5 ? "high" : analytics.recentCount >= 2 ? "medium" : "low",
         detail: `${analytics.recentCount} reading(s) in last 15 min · baseline 2hr avg: ${analytics.baselineAvgPower !== null ? Math.round(analytics.baselineAvgPower) + "W" : "N/A"}`,
       });
       rows.push({
-        icon: "⚡",
+        icon: FlashIcon,
         label: "Surge detection",
         value: analytics.isSurging ? "ACTIVE" : "Normal",
         confidence: analytics.baselineAvgPower !== null && analytics.rollingAvgPower !== null ? "high" : "low",
@@ -557,21 +618,21 @@ export default function SystemPredictionCard({
           : "Current load is within normal operating range",
       });
       rows.push({
-        icon: "📉",
+        icon: ChipIcon,
         label: "Voltage drop rate (dV/dt)",
         value: analytics.dvdtPerHour !== null ? `${analytics.dvdtPerHour.toFixed(3)}V/hr` : "Insufficient data",
         confidence: analytics.dvdtPerHour !== null ? "high" : "low",
         detail: "Measured over last 30-min window · negative = discharging · used to refine runtime model",
       });
       rows.push({
-        icon: "🔋",
+        icon: AutomotiveBattery02Icon,
         label: "Usable energy remaining",
         value: `~${Math.round(((Math.max(0, soc - 5)) / 100) * totalWh)}Wh`,
         confidence: "high",
         detail: `${Math.max(0, soc - 5)}% usable SOC (5% reserve floor) × ${Math.round(totalWh)}Wh total capacity`,
       });
       rows.push({
-        icon: "🪛",
+        icon: BulbChargingIcon,
         label: "Next predicted load shed",
         value: soc > 50 ? "at 50% SOC" : soc > 30 ? "at 30% SOC" : soc > 10 ? "at 10% SOC" : "NOW",
         confidence: "high",
@@ -605,37 +666,11 @@ export default function SystemPredictionCard({
         }}
         {...props}
       >
-        {/* AI Sphere — top right corner */}
-        <div style={{
-          position: "absolute",
-          top: "clamp(0.7rem, 2cqi, 1rem)",
-          right: "clamp(0.7rem, 2cqi, 1rem)",
-          zIndex: 2,
-        }}>
-          <AISphere size={42} />
-        </div>
-
-        {/* Top Header: Purple Icon + Title + Expand */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginBottom: "0.35rem", paddingRight: "52px" }}>
-          <div
-            style={{
-              width: "clamp(32px, 7cqi, 38px)",
-              height: "clamp(32px, 7cqi, 38px)",
-              borderRadius: "50%",
-              background: isDark ? "rgba(168, 85, 247, 0.2)" : "rgba(168, 85, 247, 0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <HugeiconsIcon
-              icon={TradeUpIcon}
-              size={18}
-              color={isDark ? "#c084fc" : "#9333ea"}
-              strokeWidth={2.2}
-            />
-          </div>
+        {/* Top Header: AISphere + Title + Expand */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginBottom: "0.35rem" }}>
+          {/* Morphing sphere replaces the static purple icon */}
+          <AISphere size={34} />
+          
           <span
             style={{
               fontSize: "clamp(0.82rem, 2.8cqi, 0.95rem)",
