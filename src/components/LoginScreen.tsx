@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 
 interface LoginScreenProps {
@@ -19,20 +19,33 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
     }
     setLoading(true);
     setError(null);
+
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
-        // User dismissed — not an error
-        setLoading(false);
-        return;
-      }
-      // Show the real Firebase error code to help diagnose domain/config issues
       const code = err.code ?? "unknown";
+
+      // If popup is blocked or closed unexpectedly (common on mobile browsers), try redirect mode
+      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: any) {
+          const rCode = redirectErr.code ?? "unknown";
+          if (rCode === "auth/unauthorized-domain") {
+            setError("Domain not authorised in Firebase. Add sentry-nwkt.vercel.app to Firebase Console → Authentication → Authorized Domains.");
+          } else {
+            setError(`Sign-in failed (${rCode}).`);
+          }
+          setLoading(false);
+          return;
+        }
+      }
+
       if (code === "auth/unauthorized-domain") {
-        setError("This domain is not authorised in Firebase. Add it to Firebase Console → Authentication → Authorized Domains.");
+        setError("Domain not authorised in Firebase. Add sentry-nwkt.vercel.app to Firebase Console → Authentication → Authorized Domains.");
       } else {
-        setError(`Sign-in failed: ${code}`);
+        setError(`Sign-in failed (${code}).`);
       }
       setLoading(false);
     }

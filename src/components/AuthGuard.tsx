@@ -28,6 +28,11 @@ export default function AuthGuard({ children, theme = "light" }: AuthGuardProps)
       setUser(null);
       return;
     }
+    const { getRedirectResult } = require("firebase/auth");
+    getRedirectResult(auth).catch((err: any) => {
+      console.warn("Redirect auth result warning:", err);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
     });
