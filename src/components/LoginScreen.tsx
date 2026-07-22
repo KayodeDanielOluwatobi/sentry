@@ -22,8 +22,17 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      if (err.code !== "auth/popup-closed-by-user") {
-        setError("Sign-in failed. Please try again.");
+      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+        // User dismissed — not an error
+        setLoading(false);
+        return;
+      }
+      // Show the real Firebase error code to help diagnose domain/config issues
+      const code = err.code ?? "unknown";
+      if (code === "auth/unauthorized-domain") {
+        setError("This domain is not authorised in Firebase. Add it to Firebase Console → Authentication → Authorized Domains.");
+      } else {
+        setError(`Sign-in failed: ${code}`);
       }
       setLoading(false);
     }
