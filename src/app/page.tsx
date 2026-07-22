@@ -122,6 +122,22 @@ function HomeInner() {
   const prevSystemOnlineRef = useRef<boolean | undefined>(undefined);
   const hasSeededInitialConnectionRef = useRef(false);
 
+  // Refs for telemetry values — used by the record interval so it doesn't need them as dependencies
+  const voltageRef = useRef<number | undefined>(undefined);
+  const currentRef = useRef<number | undefined>(undefined);
+  const powerRef = useRef<number | undefined>(undefined);
+  const temperaturesRef = useRef<any[] | undefined>(undefined);
+  const cellVoltagesRef = useRef<number[] | undefined>(undefined);
+  const lastFirebaseUpdateRef = useRef<number | undefined>(undefined);
+
+  // Keep refs in sync with state
+  useEffect(() => { voltageRef.current = voltage; }, [voltage]);
+  useEffect(() => { currentRef.current = current; }, [current]);
+  useEffect(() => { powerRef.current = power; }, [power]);
+  useEffect(() => { temperaturesRef.current = temperatures; }, [temperatures]);
+  useEffect(() => { cellVoltagesRef.current = cellVoltages; }, [cellVoltages]);
+  useEffect(() => { lastFirebaseUpdateRef.current = lastFirebaseUpdate; }, [lastFirebaseUpdate]);
+
   // Unified Connection Event Manager: handles initial seed + live runtime transitions
   useEffect(() => {
     const initTimer = setTimeout(() => {
@@ -677,7 +693,7 @@ function HomeInner() {
           .from("telemetry_history")
           .select("timestamp, voltage, current, power, temperatures, cell_voltages, is_offline")
           .order("timestamp", { ascending: false })
-          .limit(350);
+          .limit(500);
 
         if (error) throw error;
 
@@ -703,21 +719,29 @@ function HomeInner() {
   }, []);
 
   // Periodic telemetry history recorder (runs every 10 seconds to log stable metrics to local state and Supabase DB)
+  // Uses refs to read the latest live values without resetting the interval on every Firebase update
   useEffect(() => {
     const recordInterval = setInterval(async () => {
-      // Seed initial base parameters if not received yet to keep chart populating
-      const rawVoltage = voltage !== undefined ? parseFloat(voltage.toFixed(2)) : 12.74;
-      const rawCurrent = current !== undefined ? parseFloat(current.toFixed(2)) : 0.0;
-      const rawPower = power !== undefined ? Math.round(power) : 0;
-      const rawTemps = temperatures && temperatures.length === 3
-        ? temperatures.map(t => parseFloat(t.value.toFixed(1)))
+      // Read latest values via refs (avoids stale closure and prevents interval from being reset on every data update)
+      const v = voltageRef.current;
+      const c = currentRef.current;
+      const p = powerRef.current;
+      const temps = temperaturesRef.current;
+      const cells = cellVoltagesRef.current;
+      const lastUpdate = lastFirebaseUpdateRef.current;
+
+      const rawVoltage = v !== undefined ? parseFloat(v.toFixed(2)) : 12.74;
+      const rawCurrent = c !== undefined ? parseFloat(c.toFixed(2)) : 0.0;
+      const rawPower = p !== undefined ? Math.round(p) : 0;
+      const rawTemps = temps && temps.length === 3
+        ? temps.map((t: any) => parseFloat(t.value.toFixed(1)))
         : [25.7, 25.7, 26.9];
-      const rawCells = cellVoltages && cellVoltages.length === 4
-        ? cellVoltages.map(v => parseFloat(v.toFixed(3)))
+      const rawCells = cells && cells.length === 4
+        ? cells.map((cv: number) => parseFloat(cv.toFixed(3)))
         : [3.186, 3.186, 3.185, 3.185];
 
       // Check if system is offline (no update for > 30s)
-      const isSystemOffline = lastFirebaseUpdate === undefined || (Date.now() - lastFirebaseUpdate > 30000);
+      const isSystemOffline = lastUpdate === undefined || (Date.now() - lastUpdate > 30000);
 
       const newRecord = {
         timestamp: Date.now(),
@@ -730,7 +754,7 @@ function HomeInner() {
       };
 
       // 1. Update local UI state immediately
-      setHistoryRecords(prev => [...prev, newRecord].slice(-350));
+      setHistoryRecords(prev => [...prev, newRecord].slice(-500));
 
       // 2. Persist directly to Supabase DB in the background
       try {
@@ -746,14 +770,16 @@ function HomeInner() {
             is_offline: newRecord.isOffline
           }]);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase insert error:", error.message, error.details, error.hint);
+        }
       } catch (err) {
         console.error("Error inserting telemetry log to database:", err);
       }
-    }, 10000); // 10-second recording resolution
+    }, 5000); // 5-second recording resolution — stable, never reset by telemetry changes
 
     return () => clearInterval(recordInterval);
-  }, [voltage, current, power, temperatures, cellVoltages, lastFirebaseUpdate]);
+  }, []); // Empty deps — intentional. Reads from refs, not closed-over state.
 
 
   // Write handlers - structured and commented out per user request for future implementation
