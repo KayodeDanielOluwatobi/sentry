@@ -29,7 +29,7 @@ export interface ManagedLoad {
   level: PriorityLevel;
   status: LoadStatus;
   isOn: boolean;
-  icons: Array<"router" | "wifi" | "laptop" | "fan" | "fridge" | "tv" | "bulb">;
+  icons: Array<"cctv" | "router" | "wifi" | "laptop" | "fan" | "fridge" | "tv" | "bulb">;
 }
 
 export interface SmartEnergyManagerProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -67,9 +67,22 @@ const PRIORITY_PALETTE: Record<PriorityLevel, {
   },
 };
 
+// Custom CCTV Icon component matching user SVG specification
+function CctvIcon({ size = 14, color = "currentColor", strokeWidth = 1.8 }: { size?: number; color?: string; strokeWidth?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.08665 13.5V15C8.08665 16.8856 8.08665 17.8284 7.49072 18.4142C6.89478 19 5.93563 19 4.01733 19H3" />
+      <path d="M3 17V21" />
+      <path fillRule="evenodd" clipRule="evenodd" d="M14.8166 13.1681C13.936 13.9644 13.4957 14.3625 12.9416 14.471C12.3876 14.5795 11.827 14.3773 10.7059 13.9729L6.17801 12.3397C4.39139 11.6952 3.49808 11.373 3.14495 10.6242C2.79182 9.87529 3.11655 8.99173 3.766 7.22462L4.16088 6.15021C4.81193 4.37875 5.13746 3.49301 5.89641 3.14325C6.65537 2.79348 7.55088 3.11649 9.34189 3.76251L17.564 6.72826C18.9624 7.23266 19.6616 7.48487 19.772 8.03615C19.8825 8.58744 19.3333 9.08404 18.2348 10.0772L14.8166 13.1681Z" />
+      <path d="M20.5674 12.2676C20.9706 12.7396 21.1187 13.4221 20.8971 14.0582L20.6156 14.8661C20.4349 15.3848 20.3445 15.6442 20.2222 15.8404C18.1256 16.7241 17.8774 16.6296 17.381 16.4404L16.5 16.1046" />
+    </svg>
+  );
+}
+
 // Helper to map string keywords to icon components
 function getIconComponent(iconKey: string) {
   switch (iconKey) {
+    case "cctv": return CctvIcon as any;
     case "router": return Router01Icon;
     case "wifi": return Wifi01Icon;
     case "laptop": return LaptopIcon;
@@ -84,7 +97,7 @@ function getIconComponent(iconKey: string) {
 // ─── Default Data ─────────────────────────────────────────────────────────────
 
 const DEFAULT_LOADS: ManagedLoad[] = [
-  { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: "active", isOn: true, icons: ["router", "wifi", "laptop"] },
+  { id: "1", name: "Router/CCTV/Laptops", level: "critical", status: "active", isOn: true, icons: ["router", "cctv", "laptop"] },
   { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: "active", isOn: true, icons: ["fan", "fridge"] },
   { id: "3", name: "TV/Lights", level: "non-essential", status: "shed", isOn: false, icons: ["tv", "bulb"] },
 ];
@@ -187,7 +200,8 @@ function LoadCard({ load, isDark, mode, cardBg, cardBorder, onToggle }: LoadCard
             }}
           >
             {load.icons.map((iconKey, idx) => {
-              const Icon = getIconComponent(iconKey);
+              const isCctv = iconKey === "cctv";
+              const Icon = !isCctv ? getIconComponent(iconKey) : null;
               return (
                 <div
                   key={idx}
@@ -206,7 +220,11 @@ function LoadCard({ load, isDark, mode, cardBg, cardBorder, onToggle }: LoadCard
                     transition: "margin 0.3s ease",
                   }}
                 >
-                  <HugeiconsIcon icon={Icon} size={14} color={accentText} strokeWidth={1.8} />
+                  {isCctv ? (
+                    <CctvIcon size={14} color={accentText} strokeWidth={1.8} />
+                  ) : (
+                    <HugeiconsIcon icon={Icon} size={14} color={accentText} strokeWidth={1.8} />
+                  )}
                 </div>
               );
             })}

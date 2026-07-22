@@ -3,7 +3,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BentoCard, { CardTheme } from "./BentoCard";
-import { ExpandIcon, Router01Icon, Fan01Icon, BulbChargingIcon } from "@hugeicons/core-free-icons";
+import {
+  ExpandIcon,
+  Router01Icon,
+  Fan01Icon,
+  BulbChargingIcon,
+  WifiDisconnected03Icon,
+  BluetoothIcon,
+  BluetoothNotConnectedIcon,
+  DatabaseIcon,
+  Wifi01Icon
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 export interface ActivityEvent {
@@ -136,8 +146,22 @@ function getBadgeColors(badge: string, isDark: boolean) {
 }
 
 // ─── Inline SVGs Helper ───────────────────────────────────────────────────────
-function EventIcon({ type, level, color }: { type: string; level?: string; color: string }) {
-  const p = { width: "16", height: "16", stroke: color, strokeWidth: "2.2", fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+function EventIcon({ type, level, color, title, badge }: { type: string; level?: string; color: string; title?: string; badge?: string }) {
+  if (title?.includes("Firebase") || badge === "Network" || title?.includes("Realtime Database")) {
+    return <HugeiconsIcon icon={DatabaseIcon} size={16} color={color} strokeWidth={1.8} />;
+  }
+  if (title?.includes("BMS BLE Link Lost") || title?.includes("Bluetooth connection to JK BMS failed")) {
+    return <HugeiconsIcon icon={BluetoothNotConnectedIcon} size={16} color={color} strokeWidth={1.8} />;
+  }
+  if (title?.includes("BMS BLE") || title?.includes("Bluetooth") || title?.includes("JK BMS")) {
+    return <HugeiconsIcon icon={BluetoothIcon} size={16} color={color} strokeWidth={1.8} />;
+  }
+  if (type === "wifi_lost" || title?.includes("Offline") || title?.includes("inactive") || title?.includes("Disconnected")) {
+    return <HugeiconsIcon icon={WifiDisconnected03Icon} size={16} color={color} strokeWidth={1.8} />;
+  }
+  if (type === "wifi_restored" || title?.includes("Online")) {
+    return <HugeiconsIcon icon={Wifi01Icon} size={16} color={color} strokeWidth={1.8} />;
+  }
   if (type === "load_shed" || type === "load_restore") {
     let iconToUse = BulbChargingIcon;
     if (level === "critical") iconToUse = Router01Icon;
@@ -153,6 +177,7 @@ function EventIcon({ type, level, color }: { type: string; level?: string; color
       />
     );
   }
+  const p = { width: "16", height: "16", stroke: color, strokeWidth: "2.2", fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (type) {
     case "charging_started":
       return (
@@ -185,13 +210,6 @@ function EventIcon({ type, level, color }: { type: string; level?: string; color
       return (
         <svg viewBox="0 0 24 24" {...p}>
           <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z" />
-        </svg>
-      );
-    case "wifi_lost":
-    case "wifi_restored":
-      return (
-        <svg viewBox="0 0 24 24" {...p}>
-          <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.1a6 6 0 0 1 6.95 0M12 20h.01" />
         </svg>
       );
     case "manual_override":
@@ -531,7 +549,7 @@ export default function ActivityFeed({
                         marginTop: "0.08rem"
                       }}
                     >
-                      <EventIcon type={evt.type} level={evt.level} color={colors.iconColor} />
+                      <EventIcon type={evt.type} level={evt.level} color={colors.iconColor} title={evt.title} badge={evt.badge} />
                     </div>
 
                     {/* Middle text blocks */}

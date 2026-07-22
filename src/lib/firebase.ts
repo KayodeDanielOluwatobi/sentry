@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase, Database } from "firebase/database";
+import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,14 +15,18 @@ const firebaseConfig = {
 
 // Initialize Firebase safely (avoiding build-time crashes if environment variables are not set)
 let db: Database | null = null;
+let auth: Auth | null = null;
+const googleProvider = new GoogleAuthProvider();
 
 if (process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL) {
   try {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     db = getDatabase(app);
+    auth = getAuth(app);
   } catch (error) {
     console.error("Firebase initialization failed:", error);
   }
 }
 
-export { db };
+export { db, auth, googleProvider };
+

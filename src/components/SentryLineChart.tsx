@@ -168,6 +168,18 @@ export default function SentryLineChart({
     return values;
   }, [minVal, maxVal, yTicks]);
 
+  // Dynamically determine how many decimal places to show on Y-axis labels
+  // so that adjacent ticks are always distinct regardless of how tight the data range is
+  const yTickDecimals = useMemo(() => {
+    const tickInterval = yTicks > 0 ? (maxVal - minVal) / yTicks : 1;
+    if (tickInterval === 0) return 2;
+    if (tickInterval >= 10) return 0;
+    if (tickInterval >= 1) return 1;
+    if (tickInterval >= 0.1) return 2;
+    if (tickInterval >= 0.01) return 3;
+    return 4;
+  }, [minVal, maxVal, yTicks]);
+
   return (
     <div style={{ width: "100%", position: "relative" }}>
       <svg
@@ -213,7 +225,7 @@ export default function SentryLineChart({
                 fontSize={10}
                 fontWeight={500}
               >
-                {val.toFixed(val > 10 ? (val > 100 ? 0 : 1) : 3)}
+                {val.toFixed(yTickDecimals)}
               </text>
             </g>
           );
@@ -246,7 +258,6 @@ export default function SentryLineChart({
             d={p.areaD}
             fill={`url(#chartAreaGrad-${idx})`}
             stroke="none"
-            style={{ transition: "d 0.3s ease-in-out" }}
           />
         ))}
 
@@ -259,7 +270,6 @@ export default function SentryLineChart({
             stroke={lineColors[idx]}
             strokeWidth={2.5}
             strokeLinecap="round"
-            style={{ transition: "d 0.3s ease-in-out" }}
           />
         ))}
 
