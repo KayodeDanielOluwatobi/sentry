@@ -135,7 +135,7 @@ export default function ProfileTab({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "1.2rem",
+        gap: "0.85rem",
         width: "100%",
         fontFamily: "var(--font-inter), sans-serif",
       }}
@@ -745,12 +745,11 @@ export default function ProfileTab({
         </div>
       </div>
 
-      {/* ─── Preferences and Toggles ─── */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "1rem",
+          gap: "0.8rem",
         }}
       >
         {/* Toggle Panel with iOS Toggle Switches */}

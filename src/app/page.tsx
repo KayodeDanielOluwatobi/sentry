@@ -941,7 +941,7 @@ function HomeInner() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "0.75rem",
+            gap: "0.55rem",
             gridAutoRows: "auto"
           }}
         >
@@ -1004,7 +1004,7 @@ function HomeInner() {
                 gridColumn: "span 3",
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: "0.75rem",
+                gap: "0.55rem",
                 width: "100%",
               }}>
                 <div style={{ display: "flex", width: "100%" }}>
