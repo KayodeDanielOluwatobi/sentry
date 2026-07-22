@@ -669,9 +669,44 @@ function HomeInner() {
     };
   }, []);
 
-  // Periodic telemetry history recorder (runs every 10 seconds to log stable metrics and offline states)
+  // Fetch telemetry history from Supabase on mount/authentication
   useEffect(() => {
-    const recordInterval = setInterval(() => {
+    async function fetchTelemetryHistory() {
+      try {
+        const { data, error } = await supabase
+          .from("telemetry_history")
+          .select("timestamp, voltage, current, power, temperatures, cell_voltages, is_offline")
+          .order("timestamp", { ascending: false })
+          .limit(350);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Reverse array to maintain chronological order in chart rendering
+          const formatted = data.reverse().map((r: any) => ({
+            timestamp: r.timestamp,
+            voltage: r.voltage,
+            current: r.current,
+            power: r.power,
+            temperatures: r.temperatures,
+            cellVoltages: r.cell_voltages,
+            isOffline: r.is_offline
+          }));
+          setHistoryRecords(formatted);
+        }
+      } catch (err) {
+        console.error("Error loading telemetry history from database:", err);
+      }
+    }
+
+    if (authUser) {
+      fetchTelemetryHistory();
+    }
+  }, [authUser]);
+
+  // Periodic telemetry history recorder (runs every 10 seconds to log stable metrics to local state and Supabase DB)
+  useEffect(() => {
+    const recordInterval = setInterval(async () => {
       // Seed initial base parameters if not received yet to keep chart populating
       const rawVoltage = voltage !== undefined ? parseFloat(voltage.toFixed(2)) : 12.74;
       const rawCurrent = current !== undefined ? parseFloat(current.toFixed(2)) : 0.0;
@@ -696,13 +731,27 @@ function HomeInner() {
         isOffline: isSystemOffline
       };
 
-      setHistoryRecords(prev => {
-        const next = [...prev, newRecord].slice(-350); // retain last 350 entries (approx. 1 hour of history)
-        if (typeof window !== "undefined") {
-          localStorage.setItem("sentry_telemetry_history", JSON.stringify(next));
-        }
-        return next;
-      });
+      // 1. Update local UI state immediately
+      setHistoryRecords(prev => [...prev, newRecord].slice(-350));
+
+      // 2. Persist directly to Supabase DB in the background
+      try {
+        const { error } = await supabase
+          .from("telemetry_history")
+          .insert([{
+            timestamp: newRecord.timestamp,
+            voltage: newRecord.voltage,
+            current: newRecord.current,
+            power: newRecord.power,
+            temperatures: newRecord.temperatures,
+            cell_voltages: newRecord.cellVoltages,
+            is_offline: newRecord.isOffline
+          }]);
+
+        if (error) throw error;
+      } catch (err) {
+        console.error("Error inserting telemetry log to database:", err);
+      }
     }, 10000); // 10-second recording resolution
 
     return () => clearInterval(recordInterval);
