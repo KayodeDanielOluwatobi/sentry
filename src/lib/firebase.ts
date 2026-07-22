@@ -13,20 +13,27 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase safely (avoiding build-time crashes if environment variables are not set)
 let db: Database | null = null;
 let auth: Auth | null = null;
-const googleProvider = new GoogleAuthProvider();
+let googleProvider: GoogleAuthProvider | null = null;
 
-if (process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL) {
+// Gate on apiKey — the minimum required field for any Firebase service
+if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   try {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    db = getDatabase(app);
+    // Auth works without databaseURL — initialize it always
     auth = getAuth(app);
+    googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: "select_account" });
+    // Realtime DB only available if databaseURL is set
+    if (process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL) {
+      db = getDatabase(app);
+    }
   } catch (error) {
     console.error("Firebase initialization failed:", error);
   }
+} else {
+  console.warn("[Sentry] Firebase API key missing — Auth and DB are disabled. Add NEXT_PUBLIC_FIREBASE_API_KEY to your environment variables.");
 }
 
 export { db, auth, googleProvider };
-

@@ -14,7 +14,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
 
   const handleGoogleSignIn = async () => {
     if (!auth || !googleProvider) {
-      setError("Authentication is not configured.");
+      setError("Firebase is not configured. Check environment variables on Vercel.");
       return;
     }
     setLoading(true);
