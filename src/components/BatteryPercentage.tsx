@@ -103,15 +103,15 @@ export default function BatteryPercentage({
   // NOTE: The calculation formulas below are realistic client-side fallbacks.
   // In the future, these values will be supplied directly from the BMS via Firebase
   // using the props `dischargeRuntime` and `chargeTimeToFull`.
-  
+
   // Compute discharge runtime estimation (only active when discharging)
   const getDischargeRuntime = () => {
     if (dischargeRuntime) return dischargeRuntime; // Use Firebase telemetry override if available
     if (soc === undefined) return "—";
     if (soc <= 0) return "Empty";
-    
+
     const activeCurrent = propCurrent !== undefined ? Math.abs(propCurrent) : undefined;
-    
+
     // If no real current from props, fall back to mock calculation
     if (activeCurrent === undefined) {
       const hours = Math.floor((soc * 15) / 60);
@@ -123,8 +123,8 @@ export default function BatteryPercentage({
       return "Idle / No Load";
     }
 
-    const activeCapacity = remainingCapacity !== undefined 
-      ? remainingCapacity 
+    const activeCapacity = remainingCapacity !== undefined
+      ? remainingCapacity
       : (soc / 100) * 100.38;
 
     const totalHours = activeCapacity / activeCurrent;
@@ -142,7 +142,7 @@ export default function BatteryPercentage({
     if (soc >= 100) return "Full";
 
     const activeCurrent = propCurrent !== undefined ? Math.abs(propCurrent) : undefined;
-    
+
     // If no real current from props, fall back to mock calculation
     if (activeCurrent === undefined) {
       const remainingSoc = 100 - soc;
@@ -155,8 +155,8 @@ export default function BatteryPercentage({
       return "Idle / Low Current";
     }
 
-    const activeCapacity = remainingCapacity !== undefined 
-      ? remainingCapacity 
+    const activeCapacity = remainingCapacity !== undefined
+      ? remainingCapacity
       : (soc / 100) * 100.38;
 
     const activeFullCapacity = fullCapacity !== undefined ? fullCapacity : 100.0;
@@ -300,6 +300,7 @@ export default function BatteryPercentage({
               width: "100%",
               minWidth: 0,
               alignSelf: "flex-start", // Let the grid shrink to fit its content height naturally
+              marginTop: "0.5rem",
             }}
           >
             <div
