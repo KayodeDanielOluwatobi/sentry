@@ -13,11 +13,11 @@ interface BentoCardProps extends React.HTMLAttributes<HTMLDivElement> {
 export default function BentoCard({ theme = "light", withShadow = true, children, style, ...props }: BentoCardProps) {
   const isDark = theme === "dark";
 
-  // Light/Dark borders
-  const borderValue = isDark ? "1.5px solid #21211d" : "1.5px solid #dee0e2";
+  // Light/Dark borders matching ProfileTab card styling
+  const borderValue = isDark ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(0, 0, 0, 0.06)";
   
-  // Use solid background colors instead of gradients for perfectly smooth CSS transitions
-  const backgroundColor = isDark ? "#121212" : "#ffffff";
+  // Glassmorphic backgrounds
+  const backgroundColor = isDark ? "rgba(255, 255, 255, 0.02)" : "rgba(255, 255, 255, 0.5)";
 
   return (
     <div
@@ -25,12 +25,14 @@ export default function BentoCard({ theme = "light", withShadow = true, children
         position: "relative",
         border: borderValue,
         backgroundColor: backgroundColor,
-        borderRadius: "32px",
+        borderRadius: "20px",
         padding: "1.25rem",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
         containerType: "inline-size",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
         boxShadow: withShadow
           ? (isDark
             ? "0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)"
