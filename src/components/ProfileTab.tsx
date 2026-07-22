@@ -120,6 +120,8 @@ export default function ProfileTab({
   const textColor = isDark ? "#ffffff" : "#111111";
   const mutedText = isDark ? "#9ca3af" : "#6b7280";
   const accentColor = "#38bdf8"; // Premium Sky Blue
+  const navGreen = isDark ? "#4ade80" : "#0d9b0d";
+  const toggleShadow = isDark ? "0 0 8px rgba(74, 222, 128, 0.25)" : "0 0 8px rgba(13, 155, 13, 0.2)";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -786,12 +788,12 @@ export default function ProfileTab({
                 width: "40px",
                 height: "22px",
                 borderRadius: "99px",
-                background: highRateSync ? "#10b981" : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
+                background: highRateSync ? navGreen : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
                 position: "relative",
                 cursor: "pointer",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 flexShrink: 0,
-                boxShadow: highRateSync ? "0 0 8px rgba(16, 185, 201, 0.15)" : "none",
+                boxShadow: highRateSync ? toggleShadow : "none",
               }}
             >
               <div 
@@ -823,12 +825,12 @@ export default function ProfileTab({
                 width: "40px",
                 height: "22px",
                 borderRadius: "99px",
-                background: audioWarnings ? "#10b981" : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
+                background: audioWarnings ? navGreen : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
                 position: "relative",
                 cursor: "pointer",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 flexShrink: 0,
-                boxShadow: audioWarnings ? "0 0 8px rgba(16, 185, 201, 0.15)" : "none",
+                boxShadow: audioWarnings ? toggleShadow : "none",
               }}
             >
               <div 
@@ -860,12 +862,12 @@ export default function ProfileTab({
                 width: "40px",
                 height: "22px",
                 borderRadius: "99px",
-                background: pushAlerts ? "#10b981" : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
+                background: pushAlerts ? navGreen : (isDark ? "rgba(255,255,255,0.16)" : "#e4e4e7"),
                 position: "relative",
                 cursor: "pointer",
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
                 flexShrink: 0,
-                boxShadow: pushAlerts ? "0 0 8px rgba(16, 185, 201, 0.15)" : "none",
+                boxShadow: pushAlerts ? toggleShadow : "none",
               }}
             >
               <div 
