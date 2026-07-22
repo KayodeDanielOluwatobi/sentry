@@ -896,8 +896,11 @@ export default function ProfileTab({
           justifyContent: "space-between",
           gap: "1rem",
           backdropFilter: "blur(8px)",
+          position: "relative",
+          overflow: "hidden",
         }}>
-          <div>
+          <DotGrid isDark={isDark} />
+          <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.2rem" }}>
               <HugeiconsIcon icon={LicenseIcon} size={18} color={accentColor} />
               <h4 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 800, color: textColor }}>
