@@ -669,45 +669,44 @@ function HomeInner() {
     };
   }, []);
 
-  // Synchronize database updates to local storage records history
+  // Periodic telemetry history recorder (runs every 10 seconds to log stable metrics and offline states)
   useEffect(() => {
-    if (lastFirebaseUpdate === undefined) return;
+    const recordInterval = setInterval(() => {
+      // Seed initial base parameters if not received yet to keep chart populating
+      const rawVoltage = voltage !== undefined ? parseFloat(voltage.toFixed(2)) : 12.74;
+      const rawCurrent = current !== undefined ? parseFloat(current.toFixed(2)) : 0.0;
+      const rawPower = power !== undefined ? Math.round(power) : 0;
+      const rawTemps = temperatures && temperatures.length === 3
+        ? temperatures.map(t => parseFloat(t.value.toFixed(1)))
+        : [25.7, 25.7, 26.9];
+      const rawCells = cellVoltages && cellVoltages.length === 4
+        ? cellVoltages.map(v => parseFloat(v.toFixed(3)))
+        : [3.186, 3.186, 3.185, 3.185];
 
-    const rawVoltage = voltage !== undefined ? parseFloat(voltage.toFixed(2)) : 12.74;
-    const rawCurrent = current !== undefined ? parseFloat(current.toFixed(2)) : 0.0;
-    const rawPower = power !== undefined ? Math.round(power) : 0;
-    const rawTemps = temperatures && temperatures.length === 3
-      ? temperatures.map(t => parseFloat(t.value.toFixed(1)))
-      : [25.7, 25.7, 26.9];
-    const rawCells = cellVoltages && cellVoltages.length === 4
-      ? cellVoltages.map(v => parseFloat(v.toFixed(3)))
-      : [3.186, 3.186, 3.185, 3.185];
+      // Check if system is offline (no update for > 30s)
+      const isSystemOffline = lastFirebaseUpdate === undefined || (Date.now() - lastFirebaseUpdate > 30000);
 
-    // Determine offline status
-    const isSystemOffline = Date.now() - lastFirebaseUpdate > 30000;
+      const newRecord = {
+        timestamp: Date.now(),
+        voltage: rawVoltage,
+        current: rawCurrent,
+        power: rawPower,
+        temperatures: rawTemps,
+        cellVoltages: rawCells,
+        isOffline: isSystemOffline
+      };
 
-    const newRecord = {
-      timestamp: Date.now(),
-      voltage: rawVoltage,
-      current: rawCurrent,
-      power: rawPower,
-      temperatures: rawTemps,
-      cellVoltages: rawCells,
-      isOffline: isSystemOffline
-    };
+      setHistoryRecords(prev => {
+        const next = [...prev, newRecord].slice(-350); // retain last 350 entries (approx. 1 hour of history)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sentry_telemetry_history", JSON.stringify(next));
+        }
+        return next;
+      });
+    }, 10000); // 10-second recording resolution
 
-    setHistoryRecords(prev => {
-      // Avoid writing too quickly (under 3 seconds interval) to save localStorage space
-      if (prev.length > 0 && Date.now() - prev[prev.length - 1].timestamp < 3000) {
-        return prev;
-      }
-      const next = [...prev, newRecord].slice(-350); // retain last 350 entries
-      if (typeof window !== "undefined") {
-        localStorage.setItem("sentry_telemetry_history", JSON.stringify(next));
-      }
-      return next;
-    });
-  }, [lastFirebaseUpdate, voltage, current, power, temperatures, cellVoltages]);
+    return () => clearInterval(recordInterval);
+  }, [voltage, current, power, temperatures, cellVoltages, lastFirebaseUpdate]);
 
 
   // Write handlers - structured and commented out per user request for future implementation
