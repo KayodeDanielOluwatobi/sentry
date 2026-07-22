@@ -54,7 +54,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
           100% { transform: rotate(360deg); }
         }
         @keyframes packetFlow {
-          0% { stroke-dashoffset: 28; }
+          0% { stroke-dashoffset: 24; }
           100% { stroke-dashoffset: 0; }
         }
       `}</style>
@@ -235,16 +235,17 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "65px",
+                width: "80px",
                 flexShrink: 0,
                 transform: selectedNode === "bms" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
+              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "12px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "14px",
                 background: selectedNode === "bms" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -255,7 +256,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "bms" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "bms" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={BluetoothIcon} size={20} />
+                <HugeiconsIcon icon={BluetoothIcon} size={22} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "bms" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 JK-BMS
@@ -265,8 +266,8 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
               </span>
             </div>
 
-            {/* Cable A: BMS to ESP32 (Dashed flow path) */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.15rem" }}>
+            {/* Cable A: BMS to ESP32 (Dashed line with packetFlow keyframe animation) */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "16px", padding: "0 0.1rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
@@ -278,8 +279,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                   x1="0" y1="8" x2="100" y2="8" 
                   stroke={accentColor} 
                   strokeWidth="2.5" 
-                  strokeDasharray="7, 7"
-                  strokeLinecap="round"
+                  strokeDasharray="6, 6"
                   style={{ animation: "packetFlow 0.8s linear infinite" }}
                 />
               </svg>
@@ -293,16 +293,17 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "75px",
+                width: "80px",
                 flexShrink: 0,
                 transform: selectedNode === "esp32" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
+              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "12px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "14px",
                 background: selectedNode === "esp32" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -313,18 +314,18 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "esp32" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "esp32" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={CpuIcon} size={20} />
+                <HugeiconsIcon icon={CpuIcon} size={22} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "esp32" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 ESP32 DevKit
               </span>
               <span style={{ fontSize: "0.46rem", color: mutedText, opacity: 0.65, whiteSpace: "nowrap" }}>
-                Data Parser
+                BMS Data Parser
               </span>
             </div>
 
-            {/* Cable B: ESP32 to NodeMCU (Dashed flow path) */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.15rem" }}>
+            {/* Cable B: ESP32 to NodeMCU */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "16px", padding: "0 0.1rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
@@ -336,9 +337,8 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                   x1="0" y1="8" x2="100" y2="8" 
                   stroke={accentColor} 
                   strokeWidth="2.5" 
-                  strokeDasharray="7, 7"
-                  strokeLinecap="round"
-                  style={{ animation: "packetFlow 0.6s linear infinite" }}
+                  strokeDasharray="6, 6"
+                  style={{ animation: "packetFlow 0.5s linear infinite" }}
                 />
               </svg>
             </div>
@@ -351,16 +351,17 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "65px",
+                width: "80px",
                 flexShrink: 0,
                 transform: selectedNode === "nodemcu" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
+              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "12px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "14px",
                 background: selectedNode === "nodemcu" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -371,7 +372,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "nodemcu" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "nodemcu" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={WifiIcon} size={20} />
+                <HugeiconsIcon icon={WifiIcon} size={22} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "nodemcu" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 NodeMCU
@@ -381,8 +382,8 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
               </span>
             </div>
 
-            {/* Cable C: NodeMCU to Cloud (Dashed flow path) */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.15rem" }}>
+            {/* Cable C: NodeMCU to Cloud */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "16px", padding: "0 0.1rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
@@ -394,9 +395,8 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                   x1="0" y1="8" x2="100" y2="8" 
                   stroke={accentColor} 
                   strokeWidth="2.5" 
-                  strokeDasharray="7, 7"
-                  strokeLinecap="round"
-                  style={{ animation: "packetFlow 1.0s linear infinite" }}
+                  strokeDasharray="6, 6"
+                  style={{ animation: "packetFlow 1.2s linear infinite" }}
                 />
               </svg>
             </div>
@@ -409,16 +409,17 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                width: "70px",
+                width: "80px",
                 flexShrink: 0,
                 transform: selectedNode === "cloud" ? "scale(1.05)" : "scale(1)",
                 transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
+              {/* Bigger Icon circle (48px) */}
               <div style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "12px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "14px",
                 background: selectedNode === "cloud" 
                   ? (isDark ? "rgba(56, 189, 248, 0.25)" : "#e0f2fe")
                   : (isDark ? "rgba(255,255,255,0.04)" : "#f3f4f6"),
@@ -429,7 +430,7 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
                 color: selectedNode === "cloud" ? accentColor : (isDark ? "#9ca3af" : "#4b5563"),
                 boxShadow: selectedNode === "cloud" ? "0 0 14px rgba(56, 189, 248, 0.2)" : "none",
               }}>
-                <HugeiconsIcon icon={DatabaseIcon} size={20} />
+                <HugeiconsIcon icon={DatabaseIcon} size={22} />
               </div>
               <span style={{ fontSize: "0.58rem", fontWeight: 700, color: selectedNode === "cloud" ? textColor : mutedText, marginTop: "0.45rem", whiteSpace: "nowrap" }}>
                 Firebase
