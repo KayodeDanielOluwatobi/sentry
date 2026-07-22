@@ -53,6 +53,10 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes packetFlow {
+          0% { stroke-dashoffset: 28; }
+          100% { stroke-dashoffset: 0; }
+        }
       `}</style>
 
       {/* ─── Hero Card: Administrator Profile ─── */}
@@ -261,25 +265,23 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
               </span>
             </div>
 
-            {/* Cable A: BMS to ESP32 (Graduated flow matching EnergyFlowCard) */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.1rem" }}>
+            {/* Cable A: BMS to ESP32 (Dashed flow path) */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.15rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
                   stroke={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
-                  style={{ opacity: 0.15 }}
                 />
-                {/* Moving flowing dots in Sky Blue */}
-                <circle cx="0" cy="8" r="3" fill={accentColor}>
-                  <animate attributeName="cx" values="0;100" dur="2.4s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                  <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.4s" repeatCount="indefinite" />
-                </circle>
-                <circle cx="0" cy="8" r="2.2" fill={accentColor}>
-                  <animate attributeName="cx" values="0;100" dur="2.4s" begin="0.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                  <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.4s" begin="0.8s" repeatCount="indefinite" />
-                </circle>
+                <line 
+                  x1="0" y1="8" x2="100" y2="8" 
+                  stroke={accentColor} 
+                  strokeWidth="2.5" 
+                  strokeDasharray="7, 7"
+                  strokeLinecap="round"
+                  style={{ animation: "packetFlow 0.8s linear infinite" }}
+                />
               </svg>
             </div>
 
@@ -321,24 +323,23 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
               </span>
             </div>
 
-            {/* Cable B: ESP32 to NodeMCU */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.1rem" }}>
+            {/* Cable B: ESP32 to NodeMCU (Dashed flow path) */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.15rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
                   stroke={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
-                  style={{ opacity: 0.15 }}
                 />
-                <circle cx="0" cy="8" r="3" fill={accentColor}>
-                  <animate attributeName="cx" values="0;100" dur="2.0s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                  <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" repeatCount="indefinite" />
-                </circle>
-                <circle cx="0" cy="8" r="2.2" fill={accentColor}>
-                  <animate attributeName="cx" values="0;100" dur="2.0s" begin="0.66s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                  <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" begin="0.66s" repeatCount="indefinite" />
-                </circle>
+                <line 
+                  x1="0" y1="8" x2="100" y2="8" 
+                  stroke={accentColor} 
+                  strokeWidth="2.5" 
+                  strokeDasharray="7, 7"
+                  strokeLinecap="round"
+                  style={{ animation: "packetFlow 0.6s linear infinite" }}
+                />
               </svg>
             </div>
 
@@ -380,24 +381,23 @@ export default function ProfileTab({ theme, authUser, supabase }: ProfileTabProp
               </span>
             </div>
 
-            {/* Cable C: NodeMCU to Cloud */}
-            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.1rem" }}>
+            {/* Cable C: NodeMCU to Cloud (Dashed flow path) */}
+            <div style={{ flex: 1, height: "16px", display: "flex", alignItems: "center", marginTop: "14px", padding: "0 0.15rem" }}>
               <svg viewBox="0 0 100 16" style={{ width: "100%", height: "16px", overflow: "visible" }}>
                 <line 
                   x1="0" y1="8" x2="100" y2="8" 
                   stroke={isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} 
                   strokeWidth="2.5" 
                   strokeLinecap="round"
-                  style={{ opacity: 0.15 }}
                 />
-                <circle cx="0" cy="8" r="3" fill={accentColor}>
-                  <animate attributeName="cx" values="0;100" dur="2.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                  <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.8s" repeatCount="indefinite" />
-                </circle>
-                <circle cx="0" cy="8" r="2.2" fill={accentColor}>
-                  <animate attributeName="cx" values="0;100" dur="2.8s" begin="0.9s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                  <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.8s" begin="0.9s" repeatCount="indefinite" />
-                </circle>
+                <line 
+                  x1="0" y1="8" x2="100" y2="8" 
+                  stroke={accentColor} 
+                  strokeWidth="2.5" 
+                  strokeDasharray="7, 7"
+                  strokeLinecap="round"
+                  style={{ animation: "packetFlow 1.0s linear infinite" }}
+                />
               </svg>
             </div>
 
