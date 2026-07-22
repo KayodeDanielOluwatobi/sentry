@@ -292,26 +292,28 @@ export default function ProfileTab({
           backdropFilter: "blur(8px)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "0.5rem" }}>
             <h3 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 800, color: textColor }}>
               Hardware System Topology
             </h3>
-            <p style={{ margin: "0.15rem 0 0 0", fontSize: "0.68rem", color: mutedText }}>
-              Live hardware nodes and real-time serial payload path. Click any node to review hardware specs.
-            </p>
+            <span style={{ 
+              fontSize: "0.55rem", 
+              background: isOffline ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)", 
+              color: isOffline ? "#ef4444" : "#10b981", 
+              padding: "0.15rem 0.5rem", 
+              borderRadius: "99px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              flexShrink: 0
+            }}>
+              {isOffline ? "Offline" : "Online"}
+            </span>
           </div>
-          <span style={{ 
-            fontSize: "0.55rem", 
-            background: isOffline ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)", 
-            color: isOffline ? "#ef4444" : "#10b981", 
-            padding: "0.15rem 0.5rem", 
-            borderRadius: "99px",
-            fontWeight: 700,
-            textTransform: "uppercase"
-          }}>
-            {isOffline ? "System Offline" : "System Online"}
-          </span>
+          <p style={{ margin: 0, fontSize: "0.68rem", color: mutedText, lineHeight: 1.35 }}>
+            Live hardware nodes and real-time serial payload path. Click any node to review hardware specs.
+          </p>
         </div>
 
         {/* Node Connection Canvas */}
