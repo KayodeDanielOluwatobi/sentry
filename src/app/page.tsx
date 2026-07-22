@@ -1090,11 +1090,13 @@ function HomeInner() {
                     {/* Header Info */}
                     <div style={{ 
                       display: "flex", 
-                      flexDirection: "column", 
+                      flexDirection: "row", 
                       alignItems: "center", 
-                      gap: "0.45rem" 
+                      justifyContent: "center", 
+                      flexWrap: "wrap",
+                      gap: "0.5rem" 
                     }}>
-                      <span style={{ fontSize: "1.6rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))" }}>🚨</span>
+                      <span style={{ fontSize: "1.2rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>🚨</span>
                       <h3 style={{
                         margin: 0,
                         fontSize: "clamp(1.05rem, 4.5vw, 1.25rem)", // Increased mobile font size
@@ -1115,6 +1117,7 @@ function HomeInner() {
                         background: isInverterOff ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.22)",
                         color: "#ffffff",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        marginLeft: "0.2rem",
                       }}>
                         {isInverterOff ? "OPEN (OFF)" : "CLOSED (ON)"}
                       </span>
