@@ -27,6 +27,18 @@ import { motion, AnimatePresence } from "framer-motion";
 
 function HomeInner() {
   const authUser = useAuthUser();
+
+  // Extract first name from Google account metadata — falls back gracefully
+  const firstName = (() => {
+    const meta = authUser?.user_metadata;
+    const fullName: string = meta?.full_name ?? meta?.name ?? "";
+    if (fullName.trim()) return fullName.trim().split(" ")[0];
+    // Last resort: use the part before @ in the email
+    const email: string = authUser?.email ?? "";
+    if (email) return email.split("@")[0];
+    return "User";
+  })();
+
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isCharging, setIsCharging] = useState<boolean | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<NavItem>("Battery");
@@ -866,6 +878,7 @@ function HomeInner() {
             events={notifications}
             activeTab={activeTab}
             onClearNotifications={() => setNotifications([])}
+            userName={firstName}
           />
         </div>
 
