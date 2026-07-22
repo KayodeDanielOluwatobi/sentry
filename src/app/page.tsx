@@ -669,7 +669,7 @@ function HomeInner() {
     };
   }, []);
 
-  // Fetch telemetry history from Supabase on mount/authentication
+  // Fetch telemetry history from Supabase on mount
   useEffect(() => {
     async function fetchTelemetryHistory() {
       try {
@@ -699,10 +699,8 @@ function HomeInner() {
       }
     }
 
-    if (authUser) {
-      fetchTelemetryHistory();
-    }
-  }, [authUser]);
+    fetchTelemetryHistory();
+  }, []);
 
   // Periodic telemetry history recorder (runs every 10 seconds to log stable metrics to local state and Supabase DB)
   useEffect(() => {
