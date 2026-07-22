@@ -214,8 +214,9 @@ function PredictionModal({
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,0.65)",
-          backdropFilter: "blur(6px)",
+          background: isDark ? "rgba(10, 10, 10, 0.35)" : "rgba(255, 255, 255, 0.35)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           zIndex: 1000000,
           animation: "overlayFadeIn 0.2s ease",
         }}

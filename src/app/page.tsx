@@ -19,6 +19,7 @@ import SystemPredictionCard from "@/components/SystemPredictionCard";
 import TemperaturesList from "@/components/TemperaturesList";
 import ActiveAlarms from "@/components/ActiveAlarms";
 import CycleCount from "@/components/CycleCount";
+import ProfileTab from "@/components/ProfileTab";
 import SentryLineChart from "@/components/SentryLineChart";
 import { ThirdBracketSquareIcon, Csv01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -66,6 +67,7 @@ function HomeInner() {
   const [wifiConnected, setWifiConnected] = useState<boolean | undefined>(undefined);
   const [bleConnected, setBleConnected] = useState<boolean | undefined>(undefined);
   const [hasBmsError, setHasBmsError] = useState(false);
+  const [bmsErrorsBitmask, setBmsErrorsBitmask] = useState<number>(0);
   const [lastFirebaseUpdate, setLastFirebaseUpdate] = useState<number | undefined>(undefined);
 
   const [wireResistances, setWireResistances] = useState<number[]>([1.2, 1.5, 1.1, 1.4]);
@@ -638,6 +640,7 @@ function HomeInner() {
 
         if (errors) {
           setHasBmsError(!!errors.hasError);
+          setBmsErrorsBitmask(errors.raw ?? 0);
         }
       }
 
@@ -794,7 +797,7 @@ function HomeInner() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "1rem 1rem 8rem 1rem",
+        padding: "1rem 1rem clamp(4.5rem, 10vh, 6.2rem) 1rem",
         fontFamily: "var(--font-inter), sans-serif",
         transition: "background 0.2s ease, color 0.2s ease",
         color: isDark ? "#ffffff" : "#111111",
@@ -893,7 +896,7 @@ function HomeInner() {
                 />
               </div>
 
-              {/* Row 4: Temperatures (Left half) + Alarms & Cycle Count stacked (Right half) */}
+              {/* Row 4: Temperatures (Left half) + Cycle Count (Right half) */}
               <div style={{
                 gridColumn: "span 3",
                 display: "grid",
@@ -908,12 +911,7 @@ function HomeInner() {
                     onExpandClick={() => setActiveHistoryModal("temperature")}
                   />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", justifyContent: "space-between", height: "100%" }}>
-                  <ActiveAlarms
-                    theme={theme}
-                    activeCount={activeAlarmsCount}
-                    style={{ flex: 1, height: "100%" }}
-                  />
+                <div style={{ display: "flex", width: "100%" }}>
                   <CycleCount
                     theme={theme}
                     cycleCount={cycleCount}
@@ -968,7 +966,20 @@ function HomeInner() {
 
           {activeTab === "Diagnostics" && (
             <>
-              {/* Activity Feed — moved to Diagnostics tab! */}
+              {/* Active Alarms - Key Diagnostic Card at top */}
+              <div style={{ gridColumn: "span 3" }}>
+                <ActiveAlarms
+                  theme={theme}
+                  activeCount={activeAlarmsCount}
+                  errorsBitmask={bmsErrorsBitmask}
+                  soc={soc}
+                  temperature={temperature}
+                  cellDelta={cellVoltages !== undefined && cellVoltages.length > 0 ? cellDeltaVal : undefined}
+                  style={{ width: "100%" }}
+                />
+              </div>
+
+              {/* Activity Feed */}
               <div style={{ gridColumn: "span 3" }}>
                 <ActivityFeed
                   theme={theme}
@@ -987,196 +998,12 @@ function HomeInner() {
           )}
 
           {activeTab === "Profile" && (
-            <div
-              style={{
-                gridColumn: "span 3",
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
-                gap: "0.75rem",
-                width: "100%",
-              }}
-            >
-              {/* Operator details */}
-              <div
-                style={{
-                  background: isDark ? "rgba(255, 255, 255, 0.02)" : "#fbfcfd",
-                  border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.06)" : "#e5e7eb"}`,
-                  borderRadius: "16px",
-                  padding: "1.25rem",
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "1rem",
-                }}
-              >
-                {/* Google profile photo or fallback avatar */}
-                {authUser?.user_metadata?.avatar_url ? (
-                  <img
-                    src={authUser.user_metadata.avatar_url}
-                    alt={authUser.user_metadata?.full_name ?? "User"}
-                    style={{
-                      width: "54px",
-                      height: "54px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
-                      border: "2px solid #10b981",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: "54px",
-                      height: "54px",
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg, #0b8a5d 0%, #10b981 100%)",
-                      color: "#ffffff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "1.3rem",
-                      fontWeight: 700,
-                      boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)",
-                    }}
-                  >
-                    {((authUser?.user_metadata?.full_name ?? authUser?.email ?? "U") as string)[0].toUpperCase()}
-                  </div>
-                )}
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontSize: "0.95rem", fontWeight: 700, color: isDark ? "#fff" : "#111" }}>
-                    {authUser?.user_metadata?.full_name ?? authUser?.email ?? "User"}
-                  </span>
-                  <span style={{ fontSize: "0.75rem", color: isDark ? "#9ca3af" : "#6b7280" }}>
-                    {authUser?.email ?? ""}
-                  </span>
-                  <span style={{ fontSize: "0.58rem", textTransform: "uppercase", fontWeight: 600, color: "#10b981", marginTop: "0.2rem" }}>
-                    Sentry Operator
-                  </span>
-                </div>
-              </div>
-
-              {/* Hardware Integrations */}
-              <div
-                style={{
-                  background: isDark ? "rgba(255, 255, 255, 0.02)" : "#fbfcfd",
-                  border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.06)" : "#e5e7eb"}`,
-                  borderRadius: "16px",
-                  padding: "1.25rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                <h4 style={{ margin: "0 0 0.4rem 0", fontSize: "0.85rem", fontWeight: 700, color: isDark ? "#fff" : "#111" }}>
-                  Hardware Specs
-                </h4>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: isDark ? "#d1d5db" : "#4b5563" }}>
-                  <span>BMS Interface:</span>
-                  <span style={{ fontWeight: 600 }}>JK BMS (BLE)</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: isDark ? "#d1d5db" : "#4b5563" }}>
-                  <span>Gateway SoC:</span>
-                  <span style={{ fontWeight: 600 }}>ESP32 NodeMCU</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: isDark ? "#d1d5db" : "#4b5563" }}>
-                  <span>Firmware:</span>
-                  <span style={{ fontWeight: 600 }}>Sentry-ESP32 v2.4.1</span>
-                </div>
-              </div>
-
-              {/* Preferences */}
-              <div
-                style={{
-                  background: isDark ? "rgba(255, 255, 255, 0.02)" : "#fbfcfd",
-                  border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.06)" : "#e5e7eb"}`,
-                  borderRadius: "16px",
-                  padding: "1.25rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                <h4 style={{ margin: "0 0 0.4rem 0", fontSize: "0.85rem", fontWeight: 700, color: isDark ? "#fff" : "#111" }}>
-                  System Preferences
-                </h4>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: isDark ? "#d1d5db" : "#4b5563" }}>
-                  <span>High-Rate Sync (100ms):</span>
-                  <input type="checkbox" defaultChecked style={{ accentColor: "#10b981" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: isDark ? "#d1d5db" : "#4b5563" }}>
-                  <span>Audio Warnings:</span>
-                  <input type="checkbox" style={{ accentColor: "#10b981" }} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", color: isDark ? "#d1d5db" : "#4b5563" }}>
-                  <span>Push Alerts:</span>
-                  <input type="checkbox" defaultChecked style={{ accentColor: "#10b981" }} />
-                </div>
-              </div>
-
-              {/* Integrations & Controls (GitHub & Sign Out) */}
-              <div
-                style={{
-                  background: isDark ? "rgba(255, 255, 255, 0.02)" : "#fbfcfd",
-                  border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.06)" : "#e5e7eb"}`,
-                  borderRadius: "16px",
-                  padding: "1.25rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  gap: "0.65rem",
-                }}
-              >
-                <a
-                  href="https://github.com/KayodeDanielOluwatobi/sentry"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.5rem",
-                    padding: "0.6rem 1rem",
-                    borderRadius: "12px",
-                    background: isDark ? "rgba(255, 255, 255, 0.05)" : "#f3f4f6",
-                    border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "#e5e7eb"}`,
-                    color: isDark ? "#fff" : "#111",
-                    fontSize: "0.82rem",
-                    fontWeight: 600,
-                    textDecoration: "none",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                  </svg>
-                  <span>GitHub Repository</span>
-                </a>
-
-                <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.5rem",
-                    padding: "0.6rem 1rem",
-                    borderRadius: "12px",
-                    background: "transparent",
-                    border: `1px solid ${isDark ? "#ef4444" : "#dc2626"}`,
-                    color: isDark ? "#fca5a5" : "#dc2626",
-                    fontSize: "0.82rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <span>Sign Out</span>
-                </button>
-              </div>
+            <div style={{ gridColumn: "span 3", width: "100%" }}>
+              <ProfileTab
+                theme={theme}
+                authUser={authUser}
+                supabase={supabase}
+              />
             </div>
           )}
         </div>
@@ -1198,9 +1025,9 @@ function HomeInner() {
               style={{
                 position: "fixed",
                 inset: 0,
-                background: "rgba(5, 5, 5, 0.75)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
+                background: isDark ? "rgba(10, 10, 10, 0.35)" : "rgba(255, 255, 255, 0.35)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
                 zIndex: 100000,
                 display: "flex",
                 alignItems: "center",
