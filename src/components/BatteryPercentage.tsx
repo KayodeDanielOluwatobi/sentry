@@ -18,7 +18,8 @@ import {
   Clock01Icon,
   ShieldCheck,
   Exchange01Icon,
-  BatteryCharging01Icon
+  BatteryCharging01Icon,
+  ExpandIcon
 } from "@hugeicons/core-free-icons";
 
 interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -37,6 +38,7 @@ interface BatteryPercentageProps extends React.HTMLAttributes<HTMLDivElement> {
   fullCapacity?: number;
   theme?: CardTheme;
   withShadow?: boolean;
+  onExpandClick?: (metric: "voltage" | "current" | "power" | "temperature") => void;
 }
 
 export default function BatteryPercentage({
@@ -54,6 +56,7 @@ export default function BatteryPercentage({
   fullCapacity,
   theme = "light",
   withShadow = true,
+  onExpandClick,
   style,
   ...props
 }: BatteryPercentageProps) {
@@ -303,6 +306,7 @@ export default function BatteryPercentage({
             {/* Metric 1: Pack Voltage */}
             <div
               style={{
+                position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
@@ -315,6 +319,36 @@ export default function BatteryPercentage({
                 transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
+              <button
+                type="button"
+                onClick={() => onExpandClick?.("voltage")}
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  background: "none",
+                  border: "none",
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  opacity: 0.5,
+                  cursor: "pointer",
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "opacity 0.2s ease, color 0.2s ease",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = "1";
+                  e.currentTarget.style.color = isDark ? "#ffffff" : "#111111";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = "0.5";
+                  e.currentTarget.style.color = isDark ? "#9ca3af" : "#6b7280";
+                }}
+                aria-label="Expand Voltage History"
+              >
+                <HugeiconsIcon icon={ExpandIcon} size={11} strokeWidth={1.5} />
+              </button>
               <div
                 style={{
                   width: "24px",
@@ -341,6 +375,7 @@ export default function BatteryPercentage({
             {/* Metric 2: Current */}
             <div
               style={{
+                position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
@@ -353,6 +388,36 @@ export default function BatteryPercentage({
                 transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
+              <button
+                type="button"
+                onClick={() => onExpandClick?.("current")}
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  background: "none",
+                  border: "none",
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  opacity: 0.5,
+                  cursor: "pointer",
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "opacity 0.2s ease, color 0.2s ease",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = "1";
+                  e.currentTarget.style.color = isDark ? "#ffffff" : "#111111";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = "0.5";
+                  e.currentTarget.style.color = isDark ? "#9ca3af" : "#6b7280";
+                }}
+                aria-label="Expand Current History"
+              >
+                <HugeiconsIcon icon={ExpandIcon} size={11} strokeWidth={1.5} />
+              </button>
               <div
                 style={{
                   width: "24px",
@@ -379,6 +444,7 @@ export default function BatteryPercentage({
             {/* Metric 3: Power */}
             <div
               style={{
+                position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
@@ -391,6 +457,36 @@ export default function BatteryPercentage({
                 transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
+              <button
+                type="button"
+                onClick={() => onExpandClick?.("power")}
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  background: "none",
+                  border: "none",
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  opacity: 0.5,
+                  cursor: "pointer",
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "opacity 0.2s ease, color 0.2s ease",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = "1";
+                  e.currentTarget.style.color = isDark ? "#ffffff" : "#111111";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = "0.5";
+                  e.currentTarget.style.color = isDark ? "#9ca3af" : "#6b7280";
+                }}
+                aria-label="Expand Power History"
+              >
+                <HugeiconsIcon icon={ExpandIcon} size={11} strokeWidth={1.5} />
+              </button>
               <div
                 style={{
                   width: "24px",
@@ -417,6 +513,7 @@ export default function BatteryPercentage({
             {/* Metric 4: Battery Temp */}
             <div
               style={{
+                position: "relative",
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
                 borderRadius: "12px",
@@ -429,6 +526,36 @@ export default function BatteryPercentage({
                 transition: "background-color 0.2s ease, border-color 0.2s ease",
               }}
             >
+              <button
+                type="button"
+                onClick={() => onExpandClick?.("temperature")}
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  background: "none",
+                  border: "none",
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                  opacity: 0.5,
+                  cursor: "pointer",
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "opacity 0.2s ease, color 0.2s ease",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = "1";
+                  e.currentTarget.style.color = isDark ? "#ffffff" : "#111111";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = "0.5";
+                  e.currentTarget.style.color = isDark ? "#9ca3af" : "#6b7280";
+                }}
+                aria-label="Expand Temperature History"
+              >
+                <HugeiconsIcon icon={ExpandIcon} size={11} strokeWidth={1.5} />
+              </button>
               <div
                 style={{
                   width: "24px",

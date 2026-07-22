@@ -39,6 +39,7 @@ export interface TemperaturesListProps extends React.HTMLAttributes<HTMLDivEleme
   withShadow?: boolean;
   sensors?: TemperatureSensor[];
   onViewAll?: () => void;
+  onExpandClick?: () => void;
 }
 
 const DEFAULT_SENSORS: TemperatureSensor[] = [
@@ -52,6 +53,7 @@ export default function TemperaturesList({
   withShadow = true,
   sensors,
   onViewAll,
+  onExpandClick,
   style,
   ...props
 }: TemperaturesListProps) {
@@ -128,7 +130,7 @@ export default function TemperaturesList({
           </span>
 
           <button
-            onClick={onViewAll}
+            onClick={onExpandClick || onViewAll}
             style={{
               background: "none",
               border: "none",

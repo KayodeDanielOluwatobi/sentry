@@ -97,6 +97,44 @@ function getSeverityColors(severity: string, isDark: boolean) {
   }
 }
 
+function getBadgeColors(badge: string, isDark: boolean) {
+  const label = badge.toLowerCase();
+  if (label.includes("system")) {
+    return {
+      bg: isDark ? "rgba(99, 102, 241, 0.2)" : "rgba(99, 102, 241, 0.1)",
+      text: isDark ? "#c7d2fe" : "#4338ca"
+    };
+  }
+  if (label.includes("network")) {
+    return {
+      bg: isDark ? "rgba(6, 182, 212, 0.2)" : "rgba(6, 182, 212, 0.1)",
+      text: isDark ? "#c5f2f7" : "#0891b2"
+    };
+  }
+  if (label.includes("hardware")) {
+    return {
+      bg: isDark ? "rgba(245, 158, 11, 0.2)" : "rgba(245, 158, 11, 0.1)",
+      text: isDark ? "#fef3c7" : "#b45309"
+    };
+  }
+  if (label.includes("manual")) {
+    return {
+      bg: isDark ? "rgba(168, 85, 247, 0.2)" : "rgba(168, 85, 247, 0.1)",
+      text: isDark ? "#f3e8ff" : "#7e22ce"
+    };
+  }
+  if (label.includes("automatic") || label.includes("recovered")) {
+    return {
+      bg: isDark ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.1)",
+      text: isDark ? "#d1fae5" : "#047857"
+    };
+  }
+  return {
+    bg: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+    text: isDark ? "#e5e7eb" : "#374151"
+  };
+}
+
 // ─── Inline SVGs Helper ───────────────────────────────────────────────────────
 function EventIcon({ type, level, color }: { type: string; level?: string; color: string }) {
   const p = { width: "16", height: "16", stroke: color, strokeWidth: "2.2", fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -193,47 +231,7 @@ export default function ActivityFeed({
   const [now, setNow] = useState(new Date());
 
   // Setup Mockup Seed History Events with local fallback
-  const [localEvents, setLocalEvents] = useState<ActivityEvent[]>([
-    {
-      id: "evt_101",
-      type: "load_shed",
-      severity: "warning",
-      title: "Battery preservation activated",
-      message: "Non-essential load was disconnected after SOC fell below 60%.",
-      timestamp: new Date(Date.now() - 120 * 1000), // 2 min ago
-      badge: "Automatic",
-      runtimeGain: "+1h 18m",
-      level: "non-essential"
-    },
-    {
-      id: "evt_102",
-      type: "load_restore",
-      severity: "success",
-      title: "Non-essential load restored",
-      message: "Non-essential load was restored after SOC rose above 65%.",
-      timestamp: new Date(Date.now() - 1080 * 1000), // 18 min ago
-      badge: "Recovered",
-      level: "non-essential"
-    },
-    {
-      id: "evt_103",
-      type: "wifi_restored",
-      severity: "success",
-      title: "WiFi network reconnected",
-      message: "ESP32 wireless network connection established.",
-      timestamp: new Date(Date.now() - 3600 * 1000), // 1 hour ago
-      badge: "Recovered"
-    },
-    {
-      id: "evt_104",
-      type: "cell_imbalance",
-      severity: "warning",
-      title: "Cell imbalance detected",
-      message: "Voltage delta exceeded 15mV threshold.",
-      timestamp: new Date(Date.now() - 7200 * 1000), // 2 hours ago
-      badge: "Automatic"
-    }
-  ]);
+  const [localEvents, setLocalEvents] = useState<ActivityEvent[]>([]);
 
   const events = propEvents !== undefined ? propEvents : localEvents;
   const setEvents = (updateFn: any) => {
@@ -265,12 +263,29 @@ export default function ActivityFeed({
   const prevLoads = useRef(managerLoads);
   const prevIsCharging = useRef(isCharging);
   const prevSoc = useRef(soc);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
+    const settleTimer = setTimeout(() => {
+      hasInitializedRef.current = true;
+    }, 2000); // 2.0s settling window
+    return () => clearTimeout(settleTimer);
+  }, []);
+
+  useEffect(() => {
+    // Avoid appending mock/initial transition alerts during startup state settling phase
+    if (!hasInitializedRef.current) {
+      prevMode.current = managerMode;
+      prevLoads.current = managerLoads;
+      prevIsCharging.current = isCharging;
+      prevSoc.current = soc;
+      return;
+    }
+
     const newEvts: ActivityEvent[] = [];
 
     // A. Detect Mode changes
-    if (prevMode.current !== managerMode) {
+    if (prevMode.current !== undefined && prevMode.current !== managerMode) {
       if (managerMode === "manual") {
         newEvts.push({
           id: `evt_m_${Date.now()}`,
@@ -296,7 +311,7 @@ export default function ActivityFeed({
     }
 
     // B. Detect Manual Toggle Load events
-    if (JSON.stringify(prevLoads.current) !== JSON.stringify(managerLoads)) {
+    if (prevLoads.current !== undefined && JSON.stringify(prevLoads.current) !== JSON.stringify(managerLoads)) {
       if (prevLoads.current.length === managerLoads.length && managerMode === "manual") {
         managerLoads.forEach((load, idx) => {
           const prevLoad = prevLoads.current[idx];
@@ -308,7 +323,7 @@ export default function ActivityFeed({
                 type: "load_shed",
                 severity: "warning",
                 title: `${priorityLabel} disconnected`,
-                message: `${priorityLabel} was manually disconnected by user override.`,
+                message: `Relay control channel ${load.id} was switched OFF by user.`,
                 timestamp: new Date(),
                 badge: "Manual",
                 level: load.level
@@ -319,7 +334,7 @@ export default function ActivityFeed({
                 type: "load_restore",
                 severity: "success",
                 title: `${priorityLabel} reconnected`,
-                message: `${priorityLabel} was manually reconnected by user.`,
+                message: `Relay control channel ${load.id} was switched ON by user.`,
                 timestamp: new Date(),
                 badge: "Manual",
                 level: load.level
@@ -332,7 +347,7 @@ export default function ActivityFeed({
     }
 
     // C. Detect Charging state changes
-    if (prevIsCharging.current !== isCharging) {
+    if (prevIsCharging.current !== undefined && prevIsCharging.current !== isCharging) {
       if (isCharging) {
         newEvts.push({
           id: `evt_cs_${Date.now()}`,
@@ -358,7 +373,7 @@ export default function ActivityFeed({
     }
 
     // D. Detect preservation drop (SOC < 60)
-    if (prevSoc.current >= 60 && soc < 60 && !isCharging) {
+    if (prevSoc.current !== undefined && prevSoc.current >= 60 && soc !== undefined && soc < 60 && !isCharging) {
       newEvts.push({
         id: `evt_sp_${Date.now()}`,
         type: "load_shed",
@@ -372,7 +387,7 @@ export default function ActivityFeed({
       });
     }
     // Detect recovery (SOC > 65)
-    if (prevSoc.current <= 65 && soc > 65) {
+    if (prevSoc.current !== undefined && prevSoc.current <= 65 && soc !== undefined && soc > 65) {
       newEvts.push({
         id: `evt_spr_${Date.now()}`,
         type: "load_restore",
@@ -484,11 +499,10 @@ export default function ActivityFeed({
               return (
                 <motion.div
                   key={evt.id}
-                  layout
-                  initial={{ opacity: 0, y: -15, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: "auto" }}
-                  exit={{ opacity: 0, y: 15, height: 0 }}
-                  transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
                   style={{ overflow: "hidden" }}
                 >
                   <div
@@ -527,22 +541,25 @@ export default function ActivityFeed({
                         <span style={{ fontSize: isMobile ? "0.8rem" : "0.92rem", fontWeight: 600, color: textColor, lineHeight: 1.25 }}>
                           {evt.title}
                         </span>
-                        {evt.badge && (
-                          <span
-                            style={{
-                              background: colors.badgeBg,
-                              color: colors.badgeText,
-                              fontSize: "0.58rem",
-                              fontWeight: 600,
-                              padding: "0.05rem 0.35rem",
-                              borderRadius: "4px",
-                              textTransform: "capitalize",
-                              letterSpacing: "0.01em"
-                            }}
-                          >
-                            {evt.badge}
-                          </span>
-                        )}
+                        {evt.badge && (() => {
+                          const badgeClrs = getBadgeColors(evt.badge, isDark);
+                          return (
+                            <span
+                              style={{
+                                background: badgeClrs.bg,
+                                color: badgeClrs.text,
+                                fontSize: "0.58rem",
+                                fontWeight: 700,
+                                padding: "0.1rem 0.45rem",
+                                borderRadius: "6px",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.03em"
+                              }}
+                            >
+                              {evt.badge}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Description (Truncated with ellipsis, no wrapping) */}
@@ -614,6 +631,33 @@ export default function ActivityFeed({
               );
             })}
           </AnimatePresence>
+
+          {/* Fading masking gradient overlay */}
+          {!viewAll && events && events.length > 5 && (
+            <div
+              onClick={() => setViewAll(true)}
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: "130px",
+                background: `linear-gradient(to bottom, transparent, ${isDark ? "#121212" : "#ffffff"})`,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                paddingBottom: "0.5rem",
+                transition: "opacity 0.2s ease",
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.9"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+            >
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: isDark ? "#4ade80" : "#0d9b0d", opacity: 0.8 }}>
+                Click to expand feed
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </BentoCard>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu02Icon, NotificationIcon, Sun01Icon, Moon01Icon } from "@hugeicons/core-free-icons";
 import { CardTheme } from "./BentoCard";
@@ -22,6 +22,8 @@ interface TopBarProps {
   managerLoads?: Array<{ id: string; name: string; level: "critical" | "major" | "non-essential"; status: string; isOn: boolean }>;
   activeAlarmsCount?: number;
   events?: any[];
+  activeTab?: string;
+  onClearNotifications?: () => void;
 }
 
 export default function TopBar({
@@ -45,6 +47,8 @@ export default function TopBar({
   ],
   activeAlarmsCount = 0,
   events = [],
+  activeTab = "Battery",
+  onClearNotifications,
 }: TopBarProps) {
   const isDark = theme === "dark";
   const textColor = isDark ? "#ffffff" : "#111111";
@@ -55,6 +59,35 @@ export default function TopBar({
   const [themeHover, setThemeHover] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [lastOpenedTime, setLastOpenedTime] = useState<number>(0);
+
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  // Close notifications on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        showNotifications &&
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target as Node)
+      ) {
+        const bellButton = document.getElementById("notifications-bell-btn");
+        if (bellButton && bellButton.contains(event.target as Node)) {
+          return;
+        }
+        setShowNotifications(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  // Close notifications when switching tabs
+  useEffect(() => {
+    setShowNotifications(false);
+  }, [activeTab]);
 
   const toggleNotifications = () => {
     const nextState = !showNotifications;
@@ -131,10 +164,18 @@ export default function TopBar({
     if (currentLoad >= 1000) return "high_demand";
     if (soc >= 95) return "full";
     if (isCharging) return "charging";
-    if (shedCount > 0 && managerMode === "auto") return "load_saving";
-    if (cellDeltaVal <= 10 && soc > 30) return "recovery";
-    if (!isCharging) return "discharging";
-    if (soh >= 98 && temperature <= 35) return "healthy";
+    
+    // Select category based on activeTab
+    if (activeTab === "Battery") {
+      if (cellDeltaVal <= 10 && soc > 30) return "recovery";
+      return "discharging";
+    }
+    if (activeTab === "Energy") {
+      return "load_saving";
+    }
+    if (activeTab === "Diagnostics") {
+      return "healthy";
+    }
     return "welcome";
   };
 
@@ -213,15 +254,15 @@ export default function TopBar({
       "Prioritized load balance active. 🛡️"
     ],
     recovery: [
-      "Power cells are balanced and stable. ⚖️",
+      "Power cells are balanced and stable. ",
       "Battery recovery trend looks steady. 📈",
-      "Voltage delta is minimal. ⚖️",
+      "Voltage delta is minimal. ",
       "System recovery in progress. 📈",
-      "Cell voltage drift resolved. ⚖️",
+      "Cell voltage drift resolved. ",
       "Stability verified: minimal balance delta. 📈",
-      "Cell parameters are steady. ⚖️",
+      "Cell parameters are steady. ",
       "Ideal pack alignment detected. 📈",
-      "Battery voltages are recovering. ⚖️",
+      "Battery voltages are recovering. ",
       "Nominal cell balance achieved. 📈"
     ],
     discharging: [
@@ -300,6 +341,9 @@ export default function TopBar({
   // 6. Dynamic Name Attachment Helper for headlines <= 20 chars
   const attachNameToHeadline = (headline: string, name: string) => {
     if (!name) return headline;
+    if (headline.toLowerCase().includes(name.toLowerCase())) {
+      return headline;
+    }
 
     // Matches core text and ending emoji
     const match = headline.match(/^(.*?)\s*([^\s\w\d.,:;!?'"\(\)]+)$/);
@@ -312,15 +356,15 @@ export default function TopBar({
 
     if (textWithoutDot.length <= 20) {
       const lower = textWithoutDot.toLowerCase();
-      const isAction = lower.startsWith("ready") || 
-                       lower.startsWith("conserving") || 
-                       lower.startsWith("powering") || 
-                       lower.startsWith("drawing") || 
-                       lower.startsWith("discharging") || 
-                       lower.startsWith("charging") ||
-                       lower.startsWith("supporting") ||
-                       lower.startsWith("replenishing") ||
-                       lower.startsWith("accumulating");
+      const isAction = lower.startsWith("ready") ||
+        lower.startsWith("conserving") ||
+        lower.startsWith("powering") ||
+        lower.startsWith("drawing") ||
+        lower.startsWith("discharging") ||
+        lower.startsWith("charging") ||
+        lower.startsWith("supporting") ||
+        lower.startsWith("replenishing") ||
+        lower.startsWith("accumulating");
 
       if (isAction) {
         const formattedText = textWithoutDot.charAt(0).toLowerCase() + textWithoutDot.slice(1);
@@ -347,7 +391,7 @@ export default function TopBar({
       setActiveCategory(category);
 
       const candidates = category === "welcome" ? getWelcomeHeadlines() : (headlinesByCategory[category] || getWelcomeHeadlines());
-      
+
       // Select the first headline not in history
       const allowed = candidates.filter(h => !headlineHistory.includes(h));
       const selectionList = allowed.length > 0 ? allowed : candidates;
@@ -366,7 +410,7 @@ export default function TopBar({
         return next;
       });
     }
-  }, [category, soc, isCharging, temperature, currentLoad, cellVoltages, activeAlarmsCount, soh, userName]);
+  }, [category, activeCategory, activeTab, soc, isCharging, temperature, currentLoad, cellVoltages, activeAlarmsCount, soh, userName]);
 
   const iconButtonStyle: React.CSSProperties = {
     position: "relative",
@@ -418,22 +462,7 @@ export default function TopBar({
         }
       `}</style>
 
-      {/* ── Left: Menu Button ── */}
-      <button
-        type="button"
-        aria-label="Open menu"
-        onClick={onMenuClick}
-        onMouseEnter={() => setMenuHover(true)}
-        onMouseLeave={() => setMenuHover(false)}
-        style={{
-          ...iconButtonStyle,
-          transform: menuHover ? "scale(1.08)" : "scale(1)",
-          justifyContent: "flex-start",
-          width: "32px",
-        }}
-      >
-        <HugeiconsIcon icon={Menu02Icon} size={28} color="currentColor" strokeWidth={1.8} />
-      </button>
+      {/* Menu Button removed for clean far-left layout */}
 
       {/* ── Middle: Headline Engine + Dynamic Subtitle (flex-grow) ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.02rem", flex: 1, minWidth: 0 }}>
@@ -496,6 +525,7 @@ export default function TopBar({
         {/* Notifications */}
         <div style={{ position: "relative" }}>
           <button
+            id="notifications-bell-btn"
             type="button"
             aria-label="Notifications"
             onClick={toggleNotifications}
@@ -529,6 +559,7 @@ export default function TopBar({
           <AnimatePresence>
             {showNotifications && (
               <motion.div
+                ref={notificationsRef}
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -539,12 +570,13 @@ export default function TopBar({
                   right: "0px",
                   width: "320px",
                   maxHeight: "380px",
-                  background: isDark ? "rgba(18, 18, 18, 0.95)" : "rgba(255, 255, 255, 0.95)",
-                  backdropFilter: "blur(12px)",
+                  background: isDark ? "rgba(18, 18, 18, 0.65)" : "rgba(255, 255, 255, 0.65)",
+                  backdropFilter: "blur(24px)",
+                  WebkitBackdropFilter: "blur(24px)",
                   border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"}`,
                   borderRadius: "14px",
-                  boxShadow: isDark 
-                    ? "0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(255,255,255,0.05)" 
+                  boxShadow: isDark
+                    ? "0 10px 30px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(255,255,255,0.05)"
                     : "0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0,0,0,0.05)",
                   zIndex: 99999,
                   overflow: "hidden",
@@ -561,7 +593,29 @@ export default function TopBar({
                   justifyContent: "space-between",
                 }}>
                   <span style={{ fontSize: "0.8rem", fontWeight: 700, color: textColor }}>Notifications</span>
-                  <span style={{ fontSize: "0.68rem", color: grayText }}>{events.length} logs</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.68rem", color: grayText }}>{events.length} logs</span>
+                    {events.length > 0 && (
+                      <button
+                        onClick={onClearNotifications}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: isDark ? "#4ade80" : "#0d9b0d",
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          padding: "0.1rem 0.35rem",
+                          borderRadius: "4px",
+                          transition: "opacity 0.2s ease",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = "0.75"}
+                        onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Scrollable list */}

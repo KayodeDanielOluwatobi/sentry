@@ -64,7 +64,7 @@ export default function MobileNav({
       {isDark && (
         <div style={{
           position: "absolute",
-          inset: isMobile ? "-14px -20px -22px -20px" : "-16px -44px -20px -44px",
+          inset: isMobile ? "-6px -20px -10px -20px" : "-8px -44px -10px -44px",
           borderRadius: "0px",
           border: "1px solid rgba(255, 255, 255, 0.08)",
           pointerEvents: "none",
@@ -86,7 +86,7 @@ export default function MobileNav({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: "8px 12px",
+              padding: "4px 8px 10px 8px",
               border: "none",
               background: "transparent",
               color: isActive ? activeColor : inactiveColor,
@@ -103,11 +103,26 @@ export default function MobileNav({
               if (!isActive) e.currentTarget.style.color = inactiveColor;
             }}
           >
+            {/* Active Indicator Bar at the very bottom */}
+            {isActive && (
+              <motion.div
+                layoutId="navActiveIndicator"
+                style={{
+                  position: "absolute",
+                  bottom: "0px",
+                  width: "28px",
+                  height: "3.5px",
+                  borderRadius: "999px",
+                  background: activeColor,
+                }}
+              />
+            )}
+
             {/* Icon Container */}
             <motion.div
               animate={{ scale: isActive ? 1.08 : 1 }}
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              style={{ lineHeight: 0, display: "block", marginBottom: "6px" }}
+              style={{ lineHeight: 0, display: "block", marginBottom: "3px" }}
             >
               <HugeiconsIcon
                 icon={IconComponent}
@@ -149,7 +164,7 @@ export default function MobileNav({
           ? "0 -10px 30px rgba(0, 0, 0, 0.4)"
           : "0 -8px 24px rgba(0, 0, 0, 0.04)",
         zIndex: 9999,
-        padding: isMobile ? "12px 24px 20px 24px" : "14px 44px 18px 44px",
+        padding: isMobile ? "6px 20px 10px 20px" : "8px 44px 10px 44px",
         boxSizing: "border-box",
         display: "flex",
         justifyContent: "center",

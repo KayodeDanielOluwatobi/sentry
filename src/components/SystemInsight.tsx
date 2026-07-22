@@ -66,6 +66,31 @@ export default function SystemInsight({
   const wifiConnected = isOffline ? false : propWifiConnected;
   const bleConnected = isOffline ? false : propBleConnected;
 
+  const formatTimeAgo = (seconds: number | string, offline: boolean) => {
+    if (seconds === "—") return "—";
+    if (typeof seconds === "number") {
+      let timeText = "";
+      if (seconds < 5) {
+        timeText = "just now";
+      } else if (seconds < 60) {
+        timeText = `${seconds}s ago`;
+      } else if (seconds < 3600) {
+        timeText = `${Math.floor(seconds / 60)}m ago`;
+      } else if (seconds < 86400) {
+        const hours = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        timeText = mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
+      } else {
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        timeText = hours > 0 ? `${days}d ${hours}h ago` : `${days}d ago`;
+      }
+
+      return offline ? `Offline (${timeText})` : timeText;
+    }
+    return seconds;
+  };
+
   // Monitor viewport resize for mobile responsive scaling
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -412,7 +437,7 @@ export default function SystemInsight({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
               <span style={{ fontSize: isMobile ? "0.62rem" : "0.78rem", fontWeight: 500 }}>
-                {secondsAgo === "—" ? "—" : (isOffline ? (secondsAgo < 60 ? `Offline (${secondsAgo}s ago)` : `Offline (${Math.floor(secondsAgo / 60)}m ago)`) : (secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`))}
+                {formatTimeAgo(secondsAgo, isOffline)}
               </span>
             </div>
           </div>

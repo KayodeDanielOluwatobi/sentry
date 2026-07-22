@@ -55,6 +55,7 @@ interface CellVoltagesProps extends React.HTMLAttributes<HTMLDivElement> {
   delta?: number;      // BMS-provided delta reading (mV imbalance). If supplied, overrides local computation.
   theme?: CardTheme;
   withShadow?: boolean;
+  onExpandClick?: () => void;
 }
 
 // ── CellCard sub-component ──────────────────────────────────────────────────
@@ -189,6 +190,7 @@ export default function CellVoltages({
   delta: bmsProvidedDelta,
   theme = "light",
   withShadow = true,
+  onExpandClick,
   style,
   ...props
 }: CellVoltagesProps) {
@@ -322,7 +324,7 @@ export default function CellVoltages({
               e.currentTarget.style.opacity = "0.7";
               e.currentTarget.style.color = isDark ? "#9ca3af" : "#6b7280";
             }}
-            onClick={() => console.log("View All clicked")}
+            onClick={onExpandClick}
             aria-label="Expand Cell Voltages"
           >
             <HugeiconsIcon
