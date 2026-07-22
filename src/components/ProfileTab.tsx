@@ -13,6 +13,25 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+// Shared dot-grid overlay — identical to BentoCard's pattern
+function DotGrid({ isDark }: { isDark: boolean }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        backgroundImage: isDark
+          ? "radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0)"
+          : "radial-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 0)",
+        backgroundSize: "24px 24px",
+        pointerEvents: "none",
+        zIndex: 0,
+        borderRadius: "inherit",
+      }}
+    />
+  );
+}
+
 interface ProfileTabProps {
   theme: "light" | "dark";
   authUser: any;
@@ -144,6 +163,7 @@ export default function ProfileTab({
           backdropFilter: "blur(12px)",
         }}
       >
+        <DotGrid isDark={isDark} />
         {/* Glow behind profile */}
         <div style={{
           position: "absolute",
@@ -290,9 +310,12 @@ export default function ProfileTab({
           flexDirection: "column",
           gap: "1rem",
           backdropFilter: "blur(8px)",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+        <DotGrid isDark={isDark} />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: "0.3rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "0.5rem" }}>
             <h3 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 800, color: textColor }}>
               Hardware System Topology
@@ -599,7 +622,10 @@ export default function ProfileTab({
           flexDirection: "column",
           gap: "0.6rem",
           transition: "all 0.25s ease",
+          position: "relative",
+          overflow: "hidden",
         }}>
+          <DotGrid isDark={isDark} />
           {selectedNode === "bms" && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -735,8 +761,11 @@ export default function ProfileTab({
           flexDirection: "column",
           gap: "1.1rem",
           backdropFilter: "blur(8px)",
+          position: "relative",
+          overflow: "hidden",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.1rem" }}>
+          <DotGrid isDark={isDark} />
+          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.1rem" }}>
             <HugeiconsIcon icon={Settings01Icon} size={18} color={accentColor} />
             <h4 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 800, color: textColor }}>
               Sentry Panel Settings
