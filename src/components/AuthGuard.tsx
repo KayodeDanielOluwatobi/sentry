@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import LoginScreen from "./LoginScreen";
-import OnboardingScreen from "./OnboardingScreen";
 
 interface AuthContextValue {
   user: User | null;
@@ -23,15 +22,8 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, theme = "light" }: AuthGuardProps) {
   // undefined = still loading, null = not signed in, User = signed in
   const [user, setUser] = useState<User | null | undefined>(undefined);
-  const [isOnboarded, setIsOnboarded] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
-    // 1. Resolve onboarding preference
-    if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("sentry_onboarded") === "true";
-      setIsOnboarded(cached);
-    }
-
     const shouldBypass = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
 
     if (shouldBypass) {
@@ -62,8 +54,8 @@ export default function AuthGuard({ children, theme = "light" }: AuthGuardProps)
     return () => subscription.unsubscribe();
   }, []);
 
-  // Resolving session/onboarding cache — show a branded spinner
-  if (isOnboarded === undefined || (isOnboarded && user === undefined)) {
+  // Resolving session — show a branded spinner
+  if (user === undefined) {
     return (
       <div
         style={{
@@ -105,19 +97,6 @@ export default function AuthGuard({ children, theme = "light" }: AuthGuardProps)
           />
         </svg>
       </div>
-    );
-  }
-
-  // Not onboarded yet
-  if (!isOnboarded) {
-    return (
-      <OnboardingScreen
-        onComplete={() => {
-          localStorage.setItem("sentry_onboarded", "true");
-          setIsOnboarded(true);
-        }}
-        theme={theme}
-      />
     );
   }
 
