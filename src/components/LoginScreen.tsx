@@ -139,9 +139,9 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               justifyContent: "center",
             }}
           >
-            {/* Sparkle star icon */}
+            {/* Regular symmetric 4-pointed star icon (astroid curve) */}
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C12 2 12.5 8.5 19 12C12.5 15.5 12 22 12 22C12 22 11.5 15.5 5 12C11.5 8.5 12 2 12 2Z" fill="#111111" />
+              <path d="M12 3 Q12 12 21 12 Q12 12 12 21 Q12 12 3 12 Q12 12 12 3 Z" fill="#111111" />
             </svg>
           </div>
 
@@ -178,7 +178,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               fontWeight: 800,
               color: "#111111",
               letterSpacing: "-0.03em",
-              fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+              fontFamily: "var(--font-inter), system-ui, sans-serif",
             }}
           >
             Get Started
@@ -220,7 +220,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               cursor: loading ? "not-allowed" : "pointer",
               outline: "none",
               boxShadow: "0 6px 18px rgba(0, 0, 0, 0.15)",
-              fontFamily: "var(--font-google-sans), sans-serif",
+              fontFamily: "var(--font-inter), sans-serif",
             }}
           >
             {loading ? (

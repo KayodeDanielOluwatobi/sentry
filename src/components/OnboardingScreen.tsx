@@ -82,7 +82,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             fontWeight: 800,
             color: "#111111",
             letterSpacing: "-0.03em",
-            fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
             marginBottom: "0.8rem",
           }}
         >
@@ -98,7 +98,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             color: "#111111",
             letterSpacing: "-0.04em",
             lineHeight: 1.1,
-            fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
           }}
         >
           Smart Energy Grid
@@ -111,7 +111,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             fontWeight: 800,
             letterSpacing: "-0.04em",
             lineHeight: 1.1,
-            fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
             background: "linear-gradient(135deg, #2563eb 0%, #ef4444 65%, #f97316 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -146,7 +146,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             cursor: "pointer",
             outline: "none",
             boxShadow: "0 6px 20px rgba(0, 0, 0, 0.18)",
-            fontFamily: "var(--font-google-sans), sans-serif",
+            fontFamily: "var(--font-inter), sans-serif",
           }}
         >
           Get Started
