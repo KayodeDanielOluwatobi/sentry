@@ -20,9 +20,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         backgroundRepeat: "no-repeat",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
+        justifyContent: "flex-end", // Push all contents to the bottom like the screenshot
         alignItems: "center",
-        padding: "clamp(2rem, 10vh, 4rem) 1.5rem clamp(2rem, 8vh, 3.5rem) 1.5rem",
+        padding: "1.5rem 1.5rem clamp(2rem, 8vh, 3.5rem) 1.5rem",
         boxSizing: "border-box",
         overflow: "hidden",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
@@ -33,7 +33,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(to bottom, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.2) 60%, rgba(255,255,255,0.4) 100%)",
+          background: "linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.18) 60%, rgba(255,255,255,0.38) 100%)",
           zIndex: 0,
           pointerEvents: "none",
         }}
@@ -60,44 +60,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         }
       `}</style>
 
-      {/* ── Top Section: Sentry Logo (Capital S) ── */}
-      <div
-        className="animate-onboard-content"
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "0.35rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
-          {/* Small modern shield icon */}
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 2L4 5v6c0 5.25 3.42 10.16 8 11 4.58-.84 8-5.75 8-11V5l-8-3z"
-              fill="rgba(16, 185, 129, 0.1)"
-              stroke="#10b981"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span
-            style={{
-              fontSize: "1.35rem",
-              fontWeight: 800,
-              color: "#111111",
-              letterSpacing: "-0.03em",
-              fontFamily: "var(--font-campton), system-ui, sans-serif",
-            }}
-          >
-            Sentry
-          </span>
-        </div>
-      </div>
-
-      {/* ── Middle Section: Luma-styled Header ── */}
+      {/* ── Content Cluster (Sentry Logo directly above Heading Title) ── */}
       <div
         className="animate-onboard-content"
         style={{
@@ -106,10 +69,27 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           textAlign: "center",
           width: "100%",
           maxWidth: "360px",
-          marginTop: "auto",
-          marginBottom: "2.5rem",
+          marginBottom: "2.2rem",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
       >
+        {/* Sentry logo text directly above title - capitalized with S, no shield icon */}
+        <span
+          style={{
+            fontSize: "1.32rem",
+            fontWeight: 800,
+            color: "#111111",
+            letterSpacing: "-0.03em",
+            fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+            marginBottom: "0.8rem",
+          }}
+        >
+          Sentry
+        </span>
+
+        {/* Heading title */}
         <h1
           style={{
             margin: 0,
@@ -118,7 +98,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             color: "#111111",
             letterSpacing: "-0.04em",
             lineHeight: 1.1,
-            fontFamily: "var(--font-campton), system-ui, sans-serif",
+            fontFamily: "var(--font-google-sans), system-ui, sans-serif",
           }}
         >
           Smart Energy Grid
@@ -131,7 +111,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             fontWeight: 800,
             letterSpacing: "-0.04em",
             lineHeight: 1.1,
-            fontFamily: "var(--font-campton), system-ui, sans-serif",
+            fontFamily: "var(--font-google-sans), system-ui, sans-serif",
             background: "linear-gradient(135deg, #2563eb 0%, #ef4444 65%, #f97316 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
@@ -141,7 +121,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         </span>
       </div>
 
-      {/* ── Bottom Section: Floating Action Button ── */}
+      {/* ── Floating Action Button ── */}
       <div
         className="animate-onboard-content"
         style={{
@@ -158,7 +138,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             width: "100%",
             background: "#111111",
             border: "none",
-            borderRadius: "30px", // Rounded pill layout matching screenshot
+            borderRadius: "30px", // Rounded pill layout
             padding: "1.1rem",
             color: "#ffffff",
             fontSize: "1rem",
@@ -166,7 +146,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
             cursor: "pointer",
             outline: "none",
             boxShadow: "0 6px 20px rgba(0, 0, 0, 0.18)",
-            fontFamily: "var(--font-inter), sans-serif",
+            fontFamily: "var(--font-google-sans), sans-serif",
           }}
         >
           Get Started
