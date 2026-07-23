@@ -133,10 +133,10 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               fontWeight: 800,
               color: "#111111",
               letterSpacing: "-0.03em",
-              fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+              fontFamily: "var(--font-campton), system-ui, sans-serif",
             }}
           >
-            sentry
+            Sentry
           </span>
         </div>
 
@@ -150,7 +150,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               color: "#111111",
               letterSpacing: "-0.04em",
               lineHeight: 1.12,
-              fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+              fontFamily: "var(--font-campton), system-ui, sans-serif",
             }}
           >
             Smart Energy Grid
@@ -163,7 +163,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               fontWeight: 800,
               letterSpacing: "-0.04em",
               lineHeight: 1.12,
-              fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+              fontFamily: "var(--font-campton), system-ui, sans-serif",
               background: "linear-gradient(135deg, #3b82f6 0%, #ef4444 65%, #f97316 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
