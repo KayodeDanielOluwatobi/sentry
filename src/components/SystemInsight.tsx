@@ -353,6 +353,7 @@ export default function SystemInsight({
         minHeight: isMobile ? "54px" : "84px",
         background: backgroundValue,
         border: borderStyle,
+        boxShadow: "none",
         ...style
       }}
       {...props}

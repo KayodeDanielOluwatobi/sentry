@@ -1095,6 +1095,7 @@ function HomeInner() {
                     borderColor: isDark ? "#7f1d1d" : "#991b1b",
                     padding: "0.65rem 1rem", // Reduced padding
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    boxShadow: "none",
                   }}
                 >
                   <div style={{
