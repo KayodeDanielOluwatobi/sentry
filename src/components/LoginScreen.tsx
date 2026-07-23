@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -7,7 +8,6 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
-  const isDark = theme === "dark";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,13 +31,18 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
         setError(`Sign-in failed: ${oauthError.message}`);
         setLoading(false);
       }
-      // On success, Supabase redirects the browser to Google — no further action needed here
     } catch (err: any) {
       setError(`Unexpected error: ${err?.message ?? "unknown"}`);
       setLoading(false);
     }
   };
 
+  const handleClose = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("sentry_onboarded");
+      window.location.reload(); // Refresh to fall back to Onboarding slides
+    }
+  };
 
   return (
     <div
@@ -46,211 +51,178 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
         inset: 0,
         display: "flex",
         flexDirection: "column",
+        justifyContent: "flex-end", // Align sheet to bottom
         alignItems: "center",
-        justifyContent: "center",
-        background: isDark
-          ? "linear-gradient(135deg, #080f0a 0%, #0a1a10 40%, #061209 100%)"
-          : "linear-gradient(135deg, #f0faf4 0%, #e8f5ed 40%, #f8fafc 100%)",
+        backgroundImage: "url('/battery.jpg')",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+        backgroundRepeat: "no-repeat",
         overflow: "hidden",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
       }}
     >
+      {/* ── Dark Ambient Backdrop Overlay ── */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.65) 100%)",
+          zIndex: 0,
+          pointerEvents: "none",
+        }}
+      />
+
       <style>{`
-        @keyframes loginFadeUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes orbFloat1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50%       { transform: translate(30px, -20px) scale(1.08); }
-        }
-        @keyframes orbFloat2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50%       { transform: translate(-25px, 20px) scale(1.05); }
+        @keyframes sheetSlideUp {
+          from { transform: translate(-50%, 100%); }
+          to   { transform: translate(-50%, 0); }
         }
         @keyframes spinBtn {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
-        .login-card-anim {
-          animation: loginFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .bottom-sheet-anim {
+          animation: sheetSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .login-google-btn {
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
+        .primary-dark-btn {
+          transition: transform 0.15s ease, background-color 0.15s ease;
         }
-        .login-google-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.22);
+        .primary-dark-btn:hover:not(:disabled) {
+          background-color: #222222 !important;
+          transform: scale(1.015);
         }
-        .login-google-btn:active:not(:disabled) {
-          transform: translateY(0);
+        .primary-dark-btn:active:not(:disabled) {
+          transform: scale(0.99);
+        }
+        .close-circle-btn {
+          transition: background-color 0.15s ease, transform 0.15s ease;
+        }
+        .close-circle-btn:hover {
+          background-color: #e5e7eb !important;
+          transform: scale(1.05);
         }
       `}</style>
 
-      {/* Ambient orb 1 */}
+      {/* ── Bottom Sheet Card container (Centered mobile frame on desktop) ── */}
       <div
+        className="bottom-sheet-anim"
         style={{
           position: "absolute",
-          top: "10%",
-          left: "15%",
-          width: "380px",
-          height: "380px",
-          borderRadius: "50%",
-          background: isDark
-            ? "radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 70%)",
-          filter: "blur(40px)",
-          animation: "orbFloat1 8s ease-in-out infinite",
-          pointerEvents: "none",
-        }}
-      />
-      {/* Ambient orb 2 */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: "15%",
-          right: "12%",
-          width: "300px",
-          height: "300px",
-          borderRadius: "50%",
-          background: isDark
-            ? "radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)"
-            : "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)",
-          filter: "blur(40px)",
-          animation: "orbFloat2 10s ease-in-out infinite",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Login card */}
-      <div
-        className="login-card-anim"
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "min(92vw, 420px)",
-          background: isDark
-            ? "rgba(10, 18, 12, 0.72)"
-            : "rgba(255, 255, 255, 0.82)",
-          backdropFilter: "blur(32px)",
-          WebkitBackdropFilter: "blur(32px)",
-          border: `1px solid ${isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.08)"}`,
-          borderRadius: "24px",
-          padding: "2.5rem 2rem",
+          bottom: 0,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "100%",
+          maxWidth: "440px",
+          background: "#ffffff",
+          borderTopLeftRadius: "38px",
+          borderTopRightRadius: "38px",
+          borderBottomLeftRadius: "0px",
+          borderBottomRightRadius: "0px",
+          padding: "2.2rem 1.8rem 2.8rem 1.8rem",
+          boxShadow: "0 -15px 40px rgba(0, 0, 0, 0.25)",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          gap: "1.6rem",
-          boxShadow: isDark
-            ? "0 24px 64px rgba(0,0,0,0.55), 0 1px 2px rgba(255,255,255,0.04)"
-            : "0 24px 64px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+          gap: "1.2rem",
+          zIndex: 1,
+          boxSizing: "border-box",
         }}
       >
-        {/* Logo + title */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+        {/* Top Indicators Row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          {/* Logo Star Circle */}
           <div
             style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "18px",
-              background: "linear-gradient(135deg, #065f46 0%, #10b981 100%)",
+              width: "52px",
+              height: "52px",
+              borderRadius: "50%",
+              background: "#f3f4f6",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 8px 24px rgba(16,185,129,0.35)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
             }}
           >
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path
-                d="M16 4L6 9v8c0 5.5 4.3 10.6 10 12 5.7-1.4 10-6.5 10-12V9L16 4z"
-                fill="rgba(255,255,255,0.15)"
-                stroke="rgba(255,255,255,0.6)"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M13 16.5l2.5 2.5 5-5"
-                stroke="#ffffff"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            {/* Sparkle star icon */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C12 2 12.5 8.5 19 12C12.5 15.5 12 22 12 22C12 22 11.5 15.5 5 12C11.5 8.5 12 2 12 2Z" fill="#111111" />
             </svg>
           </div>
-          <div style={{ textAlign: "center" }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "1.6rem",
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                color: isDark ? "#ffffff" : "#111111",
-                lineHeight: 1.1,
-              }}
-            >
-              Sentry
-            </h1>
-            <p
-              style={{
-                margin: "0.3rem 0 0",
-                fontSize: "0.78rem",
-                color: isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)",
-                fontWeight: 400,
-                letterSpacing: "0.01em",
-              }}
-            >
-              Inverter Monitoring System
-            </p>
-          </div>
-        </div>
 
-        {/* Divider */}
-        <div
-          style={{
-            width: "100%",
-            height: "1px",
-            background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
-          }}
-        />
-
-        {/* CTA */}
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <p
+          {/* Close x Circle Button */}
+          <button
+            onClick={handleClose}
+            className="close-circle-btn"
+            aria-label="Back to onboarding"
             style={{
-              margin: 0,
-              fontSize: "0.82rem",
-              color: isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)",
-              textAlign: "center",
-              lineHeight: 1.5,
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              background: "#f3f4f6",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              outline: "none",
             }}
           >
-            Sign in to access your battery &amp; energy dashboard
-          </p>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
+        {/* Text Header Section */}
+        <div style={{ marginTop: "0.4rem" }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "1.75rem",
+              fontWeight: 800,
+              color: "#111111",
+              letterSpacing: "-0.03em",
+              fontFamily: "var(--font-google-sans), system-ui, sans-serif",
+            }}
+          >
+            Get Started
+          </h1>
+          <p
+            style={{
+              margin: "0.6rem 0 0.8rem 0",
+              fontSize: "0.92rem",
+              color: "#6b7280",
+              lineHeight: 1.5,
+              fontWeight: 400,
+            }}
+          >
+            Authenticate to access Sentry's live battery telemetry, configure smart load manager thresholds, and command isolation relays.
+          </p>
+        </div>
+
+        {/* Action Button Section */}
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
           <button
             id="google-signin-btn"
-            className="login-google-btn"
+            className="primary-dark-btn"
             onClick={handleGoogleSignIn}
             disabled={loading}
             style={{
               width: "100%",
+              background: "#111111",
+              border: "none",
+              borderRadius: "16px",
+              padding: "1rem 1.25rem",
+              color: "#ffffff",
+              fontSize: "0.95rem",
+              fontWeight: 600,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: "0.65rem",
-              padding: "0.8rem 1.25rem",
-              borderRadius: "14px",
-              background: loading
-                ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")
-                : (isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.95)"),
-              border: `1.5px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)"}`,
-              color: isDark ? "#ffffff" : "#111111",
-              fontSize: "0.88rem",
-              fontWeight: 600,
+              gap: "0.75rem",
               cursor: loading ? "not-allowed" : "pointer",
               outline: "none",
-              opacity: loading ? 0.7 : 1,
+              boxShadow: "0 6px 20px rgba(0, 0, 0, 0.15)",
               fontFamily: "inherit",
-              boxShadow: isDark ? "none" : "0 2px 8px rgba(0,0,0,0.06)",
             }}
           >
             {loading ? (
@@ -261,11 +233,12 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
                 fill="none"
                 style={{ animation: "spinBtn 0.75s linear infinite" }}
               >
-                <circle cx="10" cy="10" r="8" stroke={isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)"} strokeWidth="2.5" />
+                <circle cx="10" cy="10" r="8" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5" />
                 <path d="M10 2a8 8 0 0 1 8 8" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24">
+              // Clean White/Multi-color Google G Icon
+              <svg width="18" height="18" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -279,13 +252,13 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
             <p
               style={{
                 margin: 0,
-                fontSize: "0.75rem",
+                fontSize: "0.78rem",
                 color: "#ef4444",
                 textAlign: "center",
-                padding: "0.5rem 0.75rem",
-                background: "rgba(239,68,68,0.08)",
-                borderRadius: "8px",
-                border: "1px solid rgba(239,68,68,0.18)",
+                padding: "0.55rem 0.8rem",
+                background: "rgba(239,68,68,0.06)",
+                borderRadius: "10px",
+                border: "1px solid rgba(239,68,68,0.15)",
               }}
             >
               {error}
@@ -293,18 +266,18 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer Note */}
         <p
           style={{
-            margin: 0,
-            fontSize: "0.68rem",
-            color: isDark ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.28)",
+            margin: "0.5rem 0 0 0",
+            fontSize: "0.72rem",
+            color: "#9ca3af",
             textAlign: "center",
-            lineHeight: 1.5,
+            lineHeight: 1.4,
           }}
         >
-          Access is granted to authorised users only.
-          <br />Your session is secured by Firebase Authentication.
+          Access is granted to authorized observer accounts only.
+          <br />Secure authentication wrapper provided by Supabase.
         </p>
       </div>
     </div>
