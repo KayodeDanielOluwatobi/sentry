@@ -1688,11 +1688,17 @@ function HomeInner() {
 // AuthGuard wraps HomeInner so Google sign-in is required before the dashboard loads.
 // theme is passed so the login/loading screen respects the user's saved preference.
 export default function Home() {
-  const [theme] = useState<"light" | "dark">(
-    typeof window !== "undefined"
-      ? ((localStorage.getItem("sentry_theme") as "light" | "dark") || "light")
-      : "light"
-  );
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sentry_theme") as "light" | "dark";
+      if (cached === "dark" || cached === "light") {
+        setTheme(cached);
+      }
+    }
+  }, []);
+
   return (
     <AuthGuard theme={theme}>
       <HomeInner />
