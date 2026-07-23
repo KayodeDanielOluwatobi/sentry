@@ -43,6 +43,27 @@ function HomeInner() {
   const isOwner = authUser?.email?.toLowerCase() === "dkayode61@gmail.com";
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Persist and synchronize theme settings via HTML root attribute and localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("sentry_theme");
+      if (cached === "dark" || cached === "light") {
+        setTheme(cached);
+        document.documentElement.setAttribute("data-theme", cached);
+      } else {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("sentry_theme", theme);
+    }
+  }, [theme]);
+
   const [isCharging, setIsCharging] = useState<boolean | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<NavItem>("Battery");
 
@@ -893,14 +914,14 @@ function HomeInner() {
     <div
       style={{
         minHeight: "100vh",
-        background: isDark ? "#080808" : "#f8fafc",
+        background: "var(--bg-color)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "1rem 1rem clamp(4.5rem, 10vh, 6.2rem) 1rem",
         fontFamily: "var(--font-inter), sans-serif",
         transition: "background 0.2s ease, color 0.2s ease",
-        color: isDark ? "#ffffff" : "#111111",
+        color: "var(--text-color)",
       }}
     >
       <div style={{ width: "100%", maxWidth: "1310px" }}>
@@ -946,29 +967,27 @@ function HomeInner() {
           }}
         >
           {/* Row 1: System Insight (Persistent Header - Full Width across all tabs except Profile) */}
-          {activeTab !== "Profile" && (
-            <div style={{ gridColumn: "span 3" }}>
-              <SystemInsight
-                theme={theme}
-                soc={soc}
-                isCharging={isCharging}
-                temperature={temperature}
-                currentLoad={currentLoad}
-                cellVoltages={cellVoltages}
-                withShadow={false}
-                managerMode={managerMode}
-                managerLoads={managerLoads}
-                activeAlarmsCount={activeAlarmsCount}
-                wifiRssi={wifiRssi}
-                bleRssi={bleRssi}
-                wifiConnected={wifiConnected}
-                bleConnected={bleConnected}
-                lastFirebaseUpdate={lastFirebaseUpdate}
-              />
-            </div>
-          )}
+          <div style={{ gridColumn: "span 3", display: activeTab !== "Profile" ? "block" : "none" }}>
+            <SystemInsight
+              theme={theme}
+              soc={soc}
+              isCharging={isCharging}
+              temperature={temperature}
+              currentLoad={currentLoad}
+              cellVoltages={cellVoltages}
+              withShadow={false}
+              managerMode={managerMode}
+              managerLoads={managerLoads}
+              activeAlarmsCount={activeAlarmsCount}
+              wifiRssi={wifiRssi}
+              bleRssi={bleRssi}
+              wifiConnected={wifiConnected}
+              bleConnected={bleConnected}
+              lastFirebaseUpdate={lastFirebaseUpdate}
+            />
+          </div>
 
-          {activeTab === "Battery" && (
+          <div style={{ display: activeTab === "Battery" ? "contents" : "none" }}>
             <>
               {/* Row 2: Battery Percentage (Full Width) */}
               <div style={{ gridColumn: "span 3" }}>
@@ -1023,9 +1042,9 @@ function HomeInner() {
                 </div>
               </div>
             </>
-          )}
+          </div>
 
-          {activeTab === "Energy" && (
+          <div style={{ display: activeTab === "Energy" ? "contents" : "none" }}>
             <>
               {/* Energy Flow Animation Card — Placed before Smart Energy Manager */}
               <div style={{ gridColumn: "span 3" }}>
@@ -1158,9 +1177,9 @@ function HomeInner() {
                 </BentoCard>
               </div>
             </>
-          )}
+          </div>
 
-          {activeTab === "Diagnostics" && (
+          <div style={{ display: activeTab === "Diagnostics" ? "contents" : "none" }}>
             <>
               {/* Active Alarms - Key Diagnostic Card at top */}
               <div style={{ gridColumn: "span 3" }}>
@@ -1191,9 +1210,9 @@ function HomeInner() {
                 />
               </div>
             </>
-          )}
+          </div>
 
-          {activeTab === "Profile" && (
+          <div style={{ display: activeTab === "Profile" ? "contents" : "none" }}>
             <div style={{ gridColumn: "span 3", width: "100%" }}>
               <ProfileTab
                 theme={theme}
@@ -1204,7 +1223,7 @@ function HomeInner() {
                 lastFirebaseUpdate={lastFirebaseUpdate}
               />
             </div>
-          )}
+          </div>
         </div>
 
         {/* ── Mobile Nav Bar ── */}

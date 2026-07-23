@@ -488,11 +488,11 @@ export default function ProfileTab({
                   <>
                     <circle cx="0" cy="8" r="7" fill={accentColor}>
                       <animate attributeName="cx" values="0;100" dur="2.0s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;2.0s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" dur="2.0s" repeatCount="indefinite" />
                     </circle>
                     <circle cx="0" cy="8" r="4" fill={accentColor}>
                       <animate attributeName="cx" values="0;100" dur="2.0s" begin="0.66s" repeatCount="indefinite" calcMode="spline" keyTimes="0; 1" keySplines="0.4 0 0.6 1" />
-                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;2.0s" begin="0.66s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0;0.3;1;0.3;0" keyTimes="0;0.15;0.5;0.8;1" begin="0.66s" dur="2.0s" repeatCount="indefinite" />
                     </circle>
                   </>
                 ) : (

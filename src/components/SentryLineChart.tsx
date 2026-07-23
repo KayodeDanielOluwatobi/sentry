@@ -261,7 +261,9 @@ export default function SentryLineChart({
 
         {/* X labels */}
         {data.map((dPoint, idx) => {
-          const showLabel = idx === 0 || idx === Math.floor(pointsCount / 2) || idx === pointsCount - 1;
+          // Avoid duplicate key rendering if middle is equal to first or last
+          const middleIdx = Math.floor(pointsCount / 2);
+          const showLabel = idx === 0 || (idx === middleIdx && middleIdx !== 0 && middleIdx !== pointsCount - 1) || idx === pointsCount - 1;
           if (!showLabel) return null;
           
           let xPercent = idx / (pointsCount - 1);
@@ -269,6 +271,20 @@ export default function SentryLineChart({
             xPercent = (dPoint.timestamp - minTime) / (maxTime - minTime);
           }
           const x = paddingLeft + xPercent * chartWidth;
+
+          // Format timestamp dynamically: if the dataset time range is under 1 hour, include seconds
+          let displayLabel = dPoint.label;
+          if (dPoint.timestamp !== undefined && maxTime !== minTime) {
+            const timeSpanMs = maxTime - minTime;
+            if (timeSpanMs < 60 * 60 * 1000) { // Under 1 hour
+              const dateObj = new Date(dPoint.timestamp);
+              displayLabel = dateObj.toLocaleTimeString([], { 
+                hour: "2-digit", 
+                minute: "2-digit", 
+                second: "2-digit" 
+              });
+            }
+          }
 
           return (
             <text
@@ -280,7 +296,7 @@ export default function SentryLineChart({
               fontSize={10}
               fontWeight={500}
             >
-              {dPoint.label}
+              {displayLabel}
             </text>
           );
         })}

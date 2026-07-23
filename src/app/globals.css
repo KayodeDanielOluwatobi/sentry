@@ -37,29 +37,48 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-color: #f8fafc;
+  --text-color: #111111;
+  --text-muted: #6b7280;
+  
+  --card-bg: rgba(255, 255, 255, 0.5);
+  --card-border: rgba(0, 0, 0, 0.06);
+  --dot-color: rgba(0, 0, 0, 0.025);
+  --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  
   --font-inter: 'Inter', sans-serif;
   --font-campton: 'Campton', sans-serif;
   --font-google-sans: 'Google Sans', sans-serif;
 }
 
+[data-theme="dark"] {
+  --bg-color: #080808;
+  --text-color: #ffffff;
+  --text-muted: #9ca3af;
+  
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --dot-color: rgba(255, 255, 255, 0.04);
+  --card-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  
+  --glass-bg: rgba(10, 10, 10, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-color);
+  --color-foreground: var(--text-color);
   --font-sans: var(--font-inter);
   --font-mono: 'Space Mono', monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-color);
+  color: var(--text-color);
   font-family: var(--font-inter);
 }
