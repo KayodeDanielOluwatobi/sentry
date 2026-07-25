@@ -105,12 +105,13 @@ function HomeInner() {
   const [hasBmsError, setHasBmsError] = useState(false);
   const [bmsErrorsBitmask, setBmsErrorsBitmask] = useState<number>(0);
   const [lastFirebaseUpdate, setLastFirebaseUpdate] = useState<number | undefined>(undefined);
-  const [isInverterOff, setIsInverterOff] = useState<boolean>(() => {
+  const [isDischargeCommandedOn, setIsDischargeCommandedOn] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("sentry_inverter_off") === "true";
+      return localStorage.getItem("sentry_discharge_commanded") !== "false";
     }
-    return false;
+    return true;
   });
+  const [isBmsDischarging, setIsBmsDischarging] = useState<boolean>(true);
 
   const [wireResistances, setWireResistances] = useState<number[]>([1.2, 1.5, 1.1, 1.4]);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -605,7 +606,7 @@ function HomeInner() {
 
       // 1. Battery Telemetry parsing
       if (data.battery) {
-        const { live, cellVoltages: cv, connectivity, statistics, temperatures: temps, errors } = data.battery;
+        const { live, cellVoltages: cv, connectivity, statistics, temperatures: temps, errors, status } = data.battery;
 
         if (live) {
           if (live.soc !== undefined) setSoc(live.soc);
@@ -685,13 +686,25 @@ function HomeInner() {
           setHasBmsError(!!errors.hasError);
           setBmsErrorsBitmask(errors.raw ?? 0);
         }
+
+        if (status) {
+          if (status.dischargingMosfet !== undefined) {
+            setIsBmsDischarging(!!status.dischargingMosfet);
+          }
+        }
       }
 
-      // 2. Load Manager State parsing (Initialize from database only if user hasn't set local manual choices)
+      // 2. Load Manager State parsing
+      if (data.commands) {
+        if (data.commands.discharge !== undefined) {
+          setIsDischargeCommandedOn(!!data.commands.discharge);
+        }
+      }
+
       if (data.loadManager) {
         const lm = data.loadManager;
         if (lm.inverterOff !== undefined) {
-          setIsInverterOff(!!lm.inverterOff);
+          setIsDischargeCommandedOn(!lm.inverterOff);
         }
 
         if (!hasLoadedLoadManagerRef.current) {
@@ -845,30 +858,32 @@ function HomeInner() {
     }
   };
 
-  const handleInverterToggle = (val: boolean) => {
-    setIsInverterOff(val);
+  const handleDischargeToggle = (enable: boolean) => {
+    setIsDischargeCommandedOn(enable);
     if (typeof window !== "undefined") {
-      localStorage.setItem("sentry_inverter_off", String(val));
+      localStorage.setItem("sentry_discharge_commanded", String(enable));
     }
 
     // Append to Activity Logs
     const newEvent: ActivityEvent = {
-      id: `evt_inverter_${Date.now()}`,
-      type: val ? "load_shed" : "load_restore",
-      severity: val ? "critical" : "success",
-      title: val ? "Inverter Emergency Shutdown Triggered" : "Inverter AC Power Restored",
-      message: val 
-        ? "Master DC relay command sent. Disconnecting BMS pack from inverter bus."
-        : "Master DC relay command sent. Re-establishing pack connection to inverter bus.",
+      id: `evt_discharge_${Date.now()}`,
+      type: enable ? "load_restore" : "load_shed",
+      severity: enable ? "success" : "critical",
+      title: enable ? "BMS Discharge Enabled" : "BMS Discharge Disabled",
+      message: enable 
+        ? "BMS discharge command sent. Re-establishing pack power to inverter."
+        : "BMS discharge command sent. Disabling discharging MOSFET (isolating pack from inverter).",
       timestamp: new Date(),
-      badge: "Relay Control"
+      badge: "BMS Control"
     };
     setEvents(prev => [newEvent, ...prev]);
     setNotifications(prev => [newEvent, ...prev]);
 
     if (db) {
-      update(ref(db, "/loadManager"), { inverterOff: val })
-        .catch(err => console.error("Error writing inverter state to Firebase:", err));
+      update(ref(db, "/commands"), { discharge: enable })
+        .catch(err => console.error("Error writing discharge command to Firebase:", err));
+      update(ref(db, "/loadManager"), { inverterOff: !enable })
+        .catch(err => console.error("Error writing legacy loadManager state:", err));
     }
   };
 
@@ -1085,15 +1100,19 @@ function HomeInner() {
                 />
               </div>
 
-              {/* Inverter Isolation Relay Card (Emergency Shutoff Control) */}
+              {/* BMS Discharge Switch Control (Emergency disconnect) */}
               <div style={{ gridColumn: "span 3" }}>
                 <BentoCard
                   theme={theme}
                   withShadow={false}
                   style={{
-                    background: "linear-gradient(135deg, #b91c1c 0%, #450a0a 100%)", // Rich dark red gradient
-                    borderColor: isDark ? "#7f1d1d" : "#991b1b",
-                    padding: "0.65rem 1rem", // Reduced padding
+                    background: isBmsDischarging 
+                      ? "linear-gradient(135deg, #064e3b 0%, #022c22 100%)" // Emerald green when active
+                      : "linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%)", // Crimson red when off
+                    borderColor: isBmsDischarging
+                      ? (isDark ? "#065f46" : "#047857")
+                      : (isDark ? "#7f1d1d" : "#991b1b"),
+                    padding: "0.75rem 1rem",
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     boxShadow: "none",
                   }}
@@ -1103,29 +1122,29 @@ function HomeInner() {
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "0.5rem", // Reduced gap
+                    gap: "0.5rem",
                     width: "100%",
                     textAlign: "center",
                   }}>
                     {/* Header Info */}
                     <div style={{ 
-                      display: "flex", 
-                      flexDirection: "row", 
-                      alignItems: "center", 
-                      justifyContent: "center", 
-                      flexWrap: "wrap",
-                      gap: "0.5rem" 
-                    }}>
-                      <span style={{ fontSize: "1.2rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>🚨</span>
+                       display: "flex", 
+                       flexDirection: "row", 
+                       alignItems: "center", 
+                       justifyContent: "center", 
+                       flexWrap: "wrap",
+                       gap: "0.4rem" 
+                     }}>
+                      <span style={{ fontSize: "1.1rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>⚡</span>
                       <h3 style={{
                         margin: 0,
-                        fontSize: "clamp(1.05rem, 4.5vw, 1.25rem)", // Increased mobile font size
+                        fontSize: "clamp(1.05rem, 4.5vw, 1.2rem)",
                         fontWeight: 900,
                         color: "#ffffff",
                         letterSpacing: "-0.02em",
                         lineHeight: 1.2,
                       }}>
-                        Inverter Isolation Relay
+                        BMS Discharge Control
                       </h3>
                       <span style={{
                         fontSize: "0.58rem",
@@ -1134,20 +1153,48 @@ function HomeInner() {
                         padding: "0.18rem 0.55rem",
                         borderRadius: "99px",
                         letterSpacing: "0.04em",
-                        background: isInverterOff ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.22)",
-                        color: "#ffffff",
+                        background: isBmsDischarging ? "rgba(52, 211, 153, 0.25)" : "rgba(0,0,0,0.4)",
+                        color: isBmsDischarging ? "#34d399" : "#ef4444",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                         marginLeft: "0.2rem",
                       }}>
-                        {isInverterOff ? "OPEN (OFF)" : "CLOSED (ON)"}
+                        {isBmsDischarging ? "ACTIVE (ON)" : "DISABLED (OFF)"}
                       </span>
+                      {isDischargeCommandedOn !== isBmsDischarging && (
+                        <span style={{
+                          fontSize: "0.54rem",
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          padding: "0.18rem 0.55rem",
+                          borderRadius: "99px",
+                          letterSpacing: "0.04em",
+                          background: "rgba(251, 191, 36, 0.22)",
+                          color: "#fbbf24",
+                          marginLeft: "0.2rem",
+                        }}>
+                          Syncing...
+                        </span>
+                      )}
                     </div>
+
+                    {/* Semantics description */}
+                    <p style={{
+                      margin: "0.1rem 0 0.4rem 0",
+                      fontSize: "0.78rem",
+                      color: "rgba(255, 255, 255, 0.75)",
+                      lineHeight: 1.35,
+                      fontWeight: 400,
+                    }}>
+                      {isBmsDischarging 
+                        ? "Discharging MOSFET is closed. Power flows to the inverter load bus."
+                        : "Discharging MOSFET is open. Battery power output is isolated from the inverter."}
+                    </p>
 
                     {/* Action Button */}
                     <button
-                      onClick={() => handleInverterToggle(!isInverterOff)}
+                      onClick={() => handleDischargeToggle(!isDischargeCommandedOn)}
                       style={{
-                        padding: "0.4rem 1rem", // Reduced padding
+                        padding: "0.45rem 1rem",
                         borderRadius: "8px",
                         border: "none",
                         fontSize: "0.74rem",
@@ -1158,8 +1205,8 @@ function HomeInner() {
                         justifyContent: "center",
                         gap: "0.4rem",
                         boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
-                        background: isInverterOff ? "#fef08a" : "#ffffff", // Warm amber yellow when off, pure white when on
-                        color: isInverterOff ? "#713f12" : "#b91c1c", // High contrast readable colors
+                        background: isDischargeCommandedOn ? "#ffffff" : "#fde047",
+                        color: isDischargeCommandedOn ? "#b91c1c" : "#713f12",
                         transition: "all 0.2s ease",
                         textTransform: "uppercase",
                         width: "100%",
@@ -1172,7 +1219,7 @@ function HomeInner() {
                         e.currentTarget.style.transform = "scale(1)";
                       }}
                     >
-                      {isInverterOff ? "Turn On Inverter" : "Turn Off Inverter"}
+                      {isDischargeCommandedOn ? "Disable Discharge" : "Enable Discharge"}
                     </button>
                   </div>
                 </BentoCard>
