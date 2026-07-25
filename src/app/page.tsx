@@ -1106,10 +1106,10 @@ function HomeInner() {
                   theme={theme}
                   withShadow={false}
                   style={{
-                    background: isBmsDischarging 
+                    background: (isSystemOnline ? isBmsDischarging : isDischargeCommandedOn)
                       ? "linear-gradient(135deg, #064e3b 0%, #022c22 100%)" // Emerald green when active
                       : "linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%)", // Crimson red when off
-                    borderColor: isBmsDischarging
+                    borderColor: (isSystemOnline ? isBmsDischarging : isDischargeCommandedOn)
                       ? (isDark ? "#065f46" : "#047857")
                       : (isDark ? "#7f1d1d" : "#991b1b"),
                     padding: "0.5rem 0.8rem", // Reduced padding
@@ -1153,14 +1153,14 @@ function HomeInner() {
                         padding: "0.1rem 0.45rem", // Reduced padding
                         borderRadius: "99px",
                         letterSpacing: "0.04em",
-                        background: isBmsDischarging ? "rgba(52, 211, 153, 0.25)" : "rgba(0,0,0,0.4)",
-                        color: isBmsDischarging ? "#34d399" : "#ef4444",
+                        background: (isSystemOnline ? isBmsDischarging : isDischargeCommandedOn) ? "rgba(52, 211, 153, 0.25)" : "rgba(0,0,0,0.4)",
+                        color: (isSystemOnline ? isBmsDischarging : isDischargeCommandedOn) ? "#34d399" : "#ef4444",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                         marginLeft: "0.15rem",
                       }}>
-                        {isBmsDischarging ? "ACTIVE (ON)" : "DISABLED (OFF)"}
+                        {(isSystemOnline ? isBmsDischarging : isDischargeCommandedOn) ? "ACTIVE (ON)" : "DISABLED (OFF)"}
                       </span>
-                      {isDischargeCommandedOn !== isBmsDischarging && (
+                      {isSystemOnline && isDischargeCommandedOn !== isBmsDischarging && (
                         <span style={{
                           fontSize: "0.5rem", // Reduced text size
                           fontWeight: 800,
@@ -1185,9 +1185,9 @@ function HomeInner() {
                       lineHeight: 1.3,
                       fontWeight: 400,
                     }}>
-                      {isBmsDischarging 
-                        ? "Discharging MOSFET is closed. Power flows to the inverter load bus."
-                        : "Discharging MOSFET is open. Battery power output is isolated from the inverter."}
+                      {isDischargeCommandedOn 
+                        ? "Discharging enabled. Battery powers inverter."
+                        : "Discharging disabled. Battery is isolated."}
                     </p>
 
                     {/* Action Button */}
