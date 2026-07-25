@@ -1112,7 +1112,7 @@ function HomeInner() {
                     borderColor: isBmsDischarging
                       ? (isDark ? "#065f46" : "#047857")
                       : (isDark ? "#7f1d1d" : "#991b1b"),
-                    padding: "0.75rem 1rem",
+                    padding: "0.5rem 0.8rem", // Reduced padding
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     boxShadow: "none",
                   }}
@@ -1122,7 +1122,7 @@ function HomeInner() {
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "0.5rem",
+                    gap: "0.35rem", // Reduced gap
                     width: "100%",
                     textAlign: "center",
                   }}>
@@ -1133,12 +1133,12 @@ function HomeInner() {
                        alignItems: "center", 
                        justifyContent: "center", 
                        flexWrap: "wrap",
-                       gap: "0.4rem" 
+                       gap: "0.35rem" 
                      }}>
-                      <span style={{ fontSize: "1.1rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>⚡</span>
+                      <span style={{ fontSize: "0.95rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>⚡</span>
                       <h3 style={{
                         margin: 0,
-                        fontSize: "clamp(1.05rem, 4.5vw, 1.2rem)",
+                        fontSize: "clamp(0.95rem, 4vw, 1.12rem)", // Reduced text size
                         fontWeight: 900,
                         color: "#ffffff",
                         letterSpacing: "-0.02em",
@@ -1147,30 +1147,30 @@ function HomeInner() {
                         BMS Discharge Control
                       </h3>
                       <span style={{
-                        fontSize: "0.58rem",
+                        fontSize: "0.52rem", // Reduced text size
                         fontWeight: 800,
                         textTransform: "uppercase",
-                        padding: "0.18rem 0.55rem",
+                        padding: "0.1rem 0.45rem", // Reduced padding
                         borderRadius: "99px",
                         letterSpacing: "0.04em",
                         background: isBmsDischarging ? "rgba(52, 211, 153, 0.25)" : "rgba(0,0,0,0.4)",
                         color: isBmsDischarging ? "#34d399" : "#ef4444",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                        marginLeft: "0.2rem",
+                        marginLeft: "0.15rem",
                       }}>
                         {isBmsDischarging ? "ACTIVE (ON)" : "DISABLED (OFF)"}
                       </span>
                       {isDischargeCommandedOn !== isBmsDischarging && (
                         <span style={{
-                          fontSize: "0.54rem",
+                          fontSize: "0.5rem", // Reduced text size
                           fontWeight: 800,
                           textTransform: "uppercase",
-                          padding: "0.18rem 0.55rem",
+                          padding: "0.1rem 0.45rem",
                           borderRadius: "99px",
                           letterSpacing: "0.04em",
                           background: "rgba(251, 191, 36, 0.22)",
                           color: "#fbbf24",
-                          marginLeft: "0.2rem",
+                          marginLeft: "0.15rem",
                         }}>
                           Syncing...
                         </span>
@@ -1179,10 +1179,10 @@ function HomeInner() {
 
                     {/* Semantics description */}
                     <p style={{
-                      margin: "0.1rem 0 0.4rem 0",
-                      fontSize: "0.78rem",
+                      margin: "0.05rem 0 0.3rem 0",
+                      fontSize: "clamp(0.68rem, 3.2vw, 0.76rem)", // Reduced responsive text size
                       color: "rgba(255, 255, 255, 0.75)",
-                      lineHeight: 1.35,
+                      lineHeight: 1.3,
                       fontWeight: 400,
                     }}>
                       {isBmsDischarging 
@@ -1194,23 +1194,23 @@ function HomeInner() {
                     <button
                       onClick={() => handleDischargeToggle(!isDischargeCommandedOn)}
                       style={{
-                        padding: "0.45rem 1rem",
-                        borderRadius: "8px",
+                        padding: "0.35rem 0.8rem", // Reduced padding
+                        borderRadius: "6px",
                         border: "none",
-                        fontSize: "0.74rem",
+                        fontSize: "0.68rem", // Reduced font-size
                         fontWeight: 800,
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        gap: "0.4rem",
+                        gap: "0.35rem",
                         boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
                         background: isDischargeCommandedOn ? "#ffffff" : "#fde047",
                         color: isDischargeCommandedOn ? "#b91c1c" : "#713f12",
                         transition: "all 0.2s ease",
                         textTransform: "uppercase",
                         width: "100%",
-                        maxWidth: "260px",
+                        maxWidth: "240px",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = "scale(1.03)";
