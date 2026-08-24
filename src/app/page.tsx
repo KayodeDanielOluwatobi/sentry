@@ -117,7 +117,7 @@ function HomeInner() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [notifications, setNotifications] = useState<ActivityEvent[]>([]);
   const hasInitializedEventsRef = useRef(false);
-  const hasLoadedLoadManagerRef = useRef(false);
+  const lastManualToggleTimeRef = useRef(0);
   const [tempUnit, setTempUnit] = useState<"C" | "F">("C");
   const [activeHistoryModal, setActiveHistoryModal] = useState<"voltage" | "current" | "power" | "temperature" | "cell-voltages" | null>(null);
   const [tempChartMode, setTempChartMode] = useState<"avg" | "all">("avg");
@@ -694,32 +694,30 @@ function HomeInner() {
         }
       }
 
-      // 2. Load Manager State parsing
+      // 2. Load Manager State parsing from Hardware Status
       if (data.commands) {
         if (data.commands.discharge !== undefined) {
           setIsDischargeCommandedOn(!!data.commands.discharge);
         }
       }
 
-      if (data.loadManager) {
-        const lm = data.loadManager;
-        if (lm.inverterOff !== undefined) {
-          setIsDischargeCommandedOn(!lm.inverterOff);
-        }
-
-        if (!hasLoadedLoadManagerRef.current) {
-          hasLoadedLoadManagerRef.current = true;
-          const hasCached = typeof window !== "undefined" && localStorage.getItem("sentry_manual_loads");
-          if (!hasCached) {
-            const fetchedLoads: ManagedLoad[] = [
-              { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: lm.load1 ? "active" : "shed", isOn: !!lm.load1, icons: ["router", "wifi", "laptop"] },
-              { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: lm.load2 ? "active" : "shed", isOn: !!lm.load2, icons: ["fan", "fridge"] },
-              { id: "3", name: "TV/Lights", level: "non-essential", status: lm.load3 ? "active" : "shed", isOn: !!lm.load3, icons: ["tv", "bulb"] },
-            ];
-            setManagerLoads(fetchedLoads);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("sentry_manual_loads", JSON.stringify(fetchedLoads));
-            }
+      if (data.battery && data.battery.loadStatus) {
+        const ls = data.battery.loadStatus;
+        
+        // Continuously sync UI with true hardware state, unless the user 
+        // just clicked a manual toggle (debounce for 5 seconds to wait for roundtrip)
+        if (Date.now() - lastManualToggleTimeRef.current > 5000) {
+          const fetchedLoads: ManagedLoad[] = [
+            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: ls.load1 ? "active" : "shed", isOn: !!ls.load1, icons: ["router", "wifi", "laptop"] },
+            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: ls.load2 ? "active" : "shed", isOn: !!ls.load2, icons: ["fan", "fridge"] },
+            { id: "3", name: "TV/Lights", level: "non-essential", status: ls.load3 ? "active" : "shed", isOn: !!ls.load3, icons: ["tv", "bulb"] },
+          ];
+          setManagerLoads(fetchedLoads);
+          
+          if (ls.mode === "MANUAL") {
+            setManagerMode("manual");
+          } else {
+            setManagerMode("auto");
           }
         }
       }
@@ -815,6 +813,7 @@ function HomeInner() {
     });
 
     setManagerLoads(updatedLoads);
+    lastManualToggleTimeRef.current = Date.now(); // Pause telemetry sync to avoid jitter
 
     if (typeof window !== "undefined") {
       localStorage.setItem("sentry_manual_loads", JSON.stringify(updatedLoads));
@@ -847,6 +846,7 @@ function HomeInner() {
     }
 
     setManagerMode(newMode);
+    lastManualToggleTimeRef.current = Date.now(); // Pause telemetry sync to avoid jitter
     if (typeof window !== "undefined") {
       localStorage.setItem("sentry_manual_mode", newMode);
     }
