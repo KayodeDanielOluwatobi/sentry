@@ -852,7 +852,7 @@ function HomeInner() {
     }
 
     if (db) {
-      const firebaseMode = newMode === "auto" ? "AUTO" : "NORMAL";
+      const firebaseMode = newMode === "auto" ? "AUTO" : "MANUAL";
       update(ref(db, "/loadManager"), { mode: firebaseMode })
         .catch(err => console.error("Error writing mode state to Firebase:", err));
     }
