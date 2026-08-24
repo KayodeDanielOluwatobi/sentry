@@ -1,0 +1,716 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+#include <time.h>   // For NTP / real Unix timestamps
+
+// ===============================
+// UART to/from ESP32 #1
+// RX — GPIO16, TX — GPIO17
+// Now bidirectional: receive telemetry,
+// forward discharge/charge commands down.
+// ===============================
+#define UART_RX_PIN 16
+#define UART_TX_PIN 17
+
+// ===============================
+// WiFi + Firebase Configuration
+// ===============================
+const char* WIFI_SSID      = "Dan";
+const char* WIFI_PASSWORD  = "iveiveive";
+const char* FIREBASE_HOST  = "https://fyp-inverter-monitor-default-rtdb.firebaseio.com";
+const unsigned long WIFI_TIMEOUT = 20000;
+
+// ===============================
+// Supabase Configuration
+// Insert into telemetry_history every SUPABASE_INTERVAL_MS milliseconds
+// ===============================
+const char* SUPABASE_HOST    = "https://depcetmlhqtabuzhvtdf.supabase.co";
+const char* SUPABASE_TABLE   = "/rest/v1/telemetry_history";
+const char* SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlcGNldG1saHF0YWJ1emh2dGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2OTgzNzgsImV4cCI6MjEwMDI3NDM3OH0.pxIKVsqFbAgP1r2K14FnKP23ZQ2Auto-9hCjy6D4WpE";
+const unsigned long SUPABASE_INTERVAL_MS = 5000;  // Log to Supabase every 5 seconds
+
+unsigned long lastSupabaseUpload = 0;
+
+// ===============================
+// Command polling (discharge/charge control)
+// Poll Firebase /commands.json, forward any change to ESP32 #1 over UART
+// ===============================
+const unsigned long COMMAND_POLL_INTERVAL_MS = 2000;  // 2 s — fast enough for a manual on/off click
+unsigned long lastCommandPoll = 0;
+
+bool lastKnownDischarge = true;  // assume ON at boot (matches normal BMS default)
+bool lastKnownCharge    = true;
+bool commandsInitialized = false;
+
+// Load manager polling variables
+String lastKnownMode = "AUTO";
+bool lastKnownLoad1 = true;
+bool lastKnownLoad2 = true;
+bool lastKnownLoad3 = true;
+bool loadManagerInitialized = false;
+
+// Independent manual mode tracking — NOT derived from Board 1 telemetry.
+// This flag is set by pollLoadManager() when it reads the user's mode from Firebase,
+// and prevents sendToFirebase() from overwriting manual selections with stale telemetry.
+bool userRequestedManual = false;
+
+// ===============================
+// NTP Configuration
+// ===============================
+const char* NTP_SERVER1 = "pool.ntp.org";
+const char* NTP_SERVER2 = "time.google.com";
+const long  GMT_OFFSET  = 0;     // UTC - Supabase stores in UTC
+const int   DST_OFFSET  = 0;
+
+bool ntpSynced = false;
+
+// ===============================
+// Local copy of received BMS data
+// ===============================
+struct BMSData {
+    int    soc             = 0;
+    int    soh             = 0;
+    float  voltage         = 0;
+    float  current         = 0;
+    float  power           = 0;
+    float  capRemaining    = 0;
+    float  fullCap         = 0;
+    float  temp1           = 0;
+    float  temp2           = 0;
+    float  mosTemp         = 0;
+    float  balCurrent      = 0;
+    uint32_t cycleCount    = 0;
+    uint32_t runtime       = 0;
+    bool   charging        = false;
+    bool   discharging     = false;
+    bool   balancing       = false;
+    bool   heating         = false;
+    uint32_t errorBits     = 0;
+    uint8_t  chargeStatus  = 0;
+    int    rssi            = 0;
+    int    activeCells     = 0;
+    float  cellDelta       = 0;
+    float  avgVoltage      = 0;
+    float  cellVoltage[32] = {0};
+    float  cellResistance[32] = {0};
+    bool   load1           = true;
+    bool   load2           = true;
+    bool   load3           = true;
+    int    priorityLevel   = 0;
+    char   priorityMode[16]= "NORMAL";
+    bool   valid           = false;
+    unsigned long receivedAt = 0;
+} bms;
+
+String wifiIP   = "";
+int    wifiRSSI = 0;
+
+// ===============================
+// WiFi connect
+// ===============================
+void connectWiFi() {
+    Serial.println("Connecting to WiFi...");
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+        if (millis() - start >= WIFI_TIMEOUT) {
+            Serial.println("\nWiFi timeout, retrying...");
+            WiFi.disconnect(true);
+            delay(1000);
+            WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+            start = millis();
+        }
+    }
+
+    wifiIP   = WiFi.localIP().toString();
+    wifiRSSI = WiFi.RSSI();
+    Serial.println("\nWiFi connected!");
+    Serial.print("IP: "); Serial.println(wifiIP);
+}
+
+void maintainWiFi() {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi lost, reconnecting...");
+        WiFi.disconnect(true);
+        delay(1000);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        unsigned long start = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_TIMEOUT) {
+            delay(500);
+        }
+    }
+    wifiRSSI = WiFi.RSSI();
+    wifiIP   = WiFi.localIP().toString();
+}
+
+// ===============================
+// NTP sync — called once after WiFi
+// ===============================
+void syncNTP() {
+    Serial.println("[NTP] Syncing time...");
+    configTime(GMT_OFFSET, DST_OFFSET, NTP_SERVER1, NTP_SERVER2);
+
+    struct tm timeinfo;
+    unsigned long start = millis();
+    while (!getLocalTime(&timeinfo)) {
+        if (millis() - start > 10000) {
+            Serial.println("[NTP] Sync failed. Timestamps will be 0 until next boot.");
+            return;
+        }
+        delay(500);
+        Serial.print(".");
+    }
+
+    ntpSynced = true;
+    Serial.println("\n[NTP] Time synced OK.");
+    Serial.printf("[NTP] Current UTC: %04d-%02d-%02d %02d:%02d:%02d\n",
+        timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+}
+
+// ===============================
+// Get current Unix timestamp in milliseconds
+// Returns 0 if NTP not synced yet
+// ===============================
+unsigned long long getTimestampMs() {
+    if (!ntpSynced) return 0ULL;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (unsigned long long)tv.tv_sec * 1000ULL
+         + (unsigned long long)(tv.tv_usec / 1000);
+}
+
+// ===============================
+// Firebase single PUT (unchanged)
+// ===============================
+static bool firebasePUT(const String& path, const String& payload) {
+    if (WiFi.status() != WL_CONNECTED) return false;
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    http.begin(client, String(FIREBASE_HOST) + path);
+    http.addHeader("Content-Type", "application/json");
+
+    int code = http.PUT(payload);
+
+    Serial.print("[Firebase] "); Serial.print(path);
+    Serial.print(" -> HTTP "); Serial.println(code);
+
+    http.end();
+    return code > 0;
+}
+
+// ===============================
+// Firebase single GET
+// ===============================
+static bool firebaseGET(const String& path, String& outBody) {
+    if (WiFi.status() != WL_CONNECTED) return false;
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    http.begin(client, String(FIREBASE_HOST) + path);
+
+    int code = http.GET();
+    if (code == 200) {
+        outBody = http.getString();
+    }
+    http.end();
+    return code == 200;
+}
+
+// ===============================
+// Send a command down UART to ESP32 #1
+// Format: {"cmd":"discharge","val":0}
+// ===============================
+void sendCommandOverUART(const char* cmd, bool val) {
+    StaticJsonDocument<128> doc;
+    doc["cmd"] = cmd;
+    doc["val"] = val;
+    serializeJson(doc, Serial2);
+    Serial2.println();
+    Serial.print("[CMD->UART] "); Serial.print(cmd); Serial.print(" = "); Serial.println(val);
+}
+
+// ===============================
+// Poll /commands.json on Firebase for discharge/charge changes
+// Expected shape: {"discharge": true, "charge": true}
+// Only forwards a command when the value actually changes,
+// so ESP32 #1 isn't spammed every poll cycle.
+// ===============================
+void pollCommands() {
+    String body;
+    if (!firebaseGET("/commands.json", body)) {
+        Serial.println("[Commands] Poll failed (WiFi/Firebase unreachable)");
+        return;
+    }
+
+    if (body == "null" || body.length() < 2) {
+        // No /commands node yet — nothing to do
+        return;
+    }
+
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+        Serial.print("[Commands] JSON parse error: ");
+        Serial.println(err.c_str());
+        return;
+    }
+
+    bool dischargeVal = doc["discharge"] | lastKnownDischarge;
+    bool chargeVal    = doc["charge"]    | lastKnownCharge;
+
+    if (!commandsInitialized) {
+        // First poll after boot — just record state, don't fire commands
+        // (avoids re-sending on every reboot if nothing actually changed)
+        lastKnownDischarge = dischargeVal;
+        lastKnownCharge    = chargeVal;
+        commandsInitialized = true;
+        return;
+    }
+
+    if (dischargeVal != lastKnownDischarge) {
+        lastKnownDischarge = dischargeVal;
+        sendCommandOverUART("discharge", dischargeVal);
+    }
+
+    if (chargeVal != lastKnownCharge) {
+        lastKnownCharge = chargeVal;
+        sendCommandOverUART("charge", chargeVal);
+    }
+}
+
+// ===============================
+// Poll /loadManager.json on Firebase for manual mode and load overrides
+// Expected shape: {"mode": "AUTO"/"NORMAL", "load1": 1/0, "load2": 1/0, "load3": 1/0}
+// ===============================
+void pollLoadManager() {
+    String body;
+    if (!firebaseGET("/loadManager.json", body)) {
+        Serial.println("[LoadManager] Poll failed (WiFi/Firebase unreachable)");
+        return;
+    }
+
+    if (body == "null" || body.length() < 2) {
+        return;
+    }
+
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+        Serial.print("[LoadManager] JSON parse error: ");
+        Serial.println(err.c_str());
+        return;
+    }
+
+    // Sentry UI writes mode as "AUTO" or "NORMAL" (Manual mode is NORMAL)
+    String modeVal = doc["mode"] | "AUTO";
+
+    // In Sentry UI, load switches are integers 1/0
+    bool l1 = (doc["load1"].as<int>() != 0);
+    bool l2 = (doc["load2"].as<int>() != 0);
+    bool l3 = (doc["load3"].as<int>() != 0);
+
+    if (!loadManagerInitialized) {
+        lastKnownMode = modeVal;
+        lastKnownLoad1 = l1;
+        lastKnownLoad2 = l2;
+        lastKnownLoad3 = l3;
+        loadManagerInitialized = true;
+        // Also set the manual flag on first read so the very first telemetry
+        // upload doesn't overwrite Firebase if manual mode was already active
+        userRequestedManual = (modeVal == "MANUAL");
+        Serial.printf("[LoadManager] Initialized: mode=%s manual=%s\n", modeVal.c_str(), userRequestedManual ? "YES" : "NO");
+        return;
+    }
+
+    // Check if mode or any manual overrides changed
+    bool modeChanged = (modeVal != lastKnownMode);
+    bool load1Changed = (l1 != lastKnownLoad1);
+    bool load2Changed = (l2 != lastKnownLoad2);
+    bool load3Changed = (l3 != lastKnownLoad3);
+
+    // Update the independent manual mode flag BEFORE checking for changes
+    // so sendToFirebase() immediately knows to stop overwriting.
+    // The Sentry UI writes "MANUAL" when the user switches to manual mode.
+    // We do NOT match "NORMAL" because Board 1 also uses "NORMAL" in AUTO mode
+    // (when all loads are ON), which would cause a false positive.
+    userRequestedManual = (modeVal == "MANUAL");
+
+    if (modeChanged || load1Changed || load2Changed || load3Changed) {
+        lastKnownMode = modeVal;
+        lastKnownLoad1 = l1;
+        lastKnownLoad2 = l2;
+        lastKnownLoad3 = l3;
+
+        // Construct bulk JSON command to send to Board 1
+        StaticJsonDocument<256> cmdDoc;
+        cmdDoc["mode"] = modeVal;
+        cmdDoc["load1"] = l1 ? 1 : 0;
+        cmdDoc["load2"] = l2 ? 1 : 0;
+        cmdDoc["load3"] = l3 ? 1 : 0;
+
+        serializeJson(cmdDoc, Serial2);
+        Serial2.println();
+
+        Serial.print("[LoadManager->UART] Sent command: ");
+        serializeJson(cmdDoc, Serial);
+        Serial.println();
+    }
+}
+
+
+// ===============================
+// Supabase POST — one row insert
+// ===============================
+static bool supabasePOST(const String& payload) {
+    if (WiFi.status() != WL_CONNECTED) return false;
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    http.begin(client, String(SUPABASE_HOST) + String(SUPABASE_TABLE));
+    http.addHeader("Content-Type",  "application/json");
+    http.addHeader("apikey",        SUPABASE_API_KEY);
+    http.addHeader("Authorization", String("Bearer ") + SUPABASE_API_KEY);
+    http.addHeader("Prefer",        "return=minimal");  // Faster — don't return the row
+
+    int code = http.POST(payload);
+
+    Serial.print("[Supabase] POST -> HTTP "); Serial.println(code);
+    if (code != 201) {
+        // 201 = Created (success). Log body on any other code for debugging.
+        String body = http.getString();
+        Serial.print("[Supabase] Response: "); Serial.println(body);
+    }
+
+    http.end();
+    return code == 201;
+}
+
+// ===============================
+// Parse incoming UART JSON line (unchanged)
+// ===============================
+bool parseUARTLine(const String& line) {
+    StaticJsonDocument<2048> doc;
+    DeserializationError err = deserializeJson(doc, line);
+
+    if (err) {
+        Serial.print("[UART] JSON parse error: ");
+        Serial.println(err.c_str());
+        return false;
+    }
+
+    bms.soc          = doc["soc"]  | 0;
+    bms.soh          = doc["soh"]  | 0;
+    bms.voltage      = doc["v"]    | 0.0f;
+    bms.current      = doc["i"]    | 0.0f;
+    bms.power        = doc["p"]    | 0.0f;
+    bms.capRemaining = doc["cap"]  | 0.0f;
+    bms.fullCap      = doc["fcap"] | 0.0f;
+    bms.temp1        = doc["t1"]   | 0.0f;
+    bms.temp2        = doc["t2"]   | 0.0f;
+    bms.mosTemp      = doc["mos"]  | 0.0f;
+    bms.balCurrent   = doc["bal"]  | 0.0f;
+    bms.cycleCount   = doc["cyc"]  | 0;
+    bms.runtime      = doc["rt"]   | 0;
+    bms.charging     = doc["cm"]   | false;
+    bms.discharging  = doc["dm"]   | false;
+    bms.balancing    = doc["blk"]  | false;
+    bms.heating      = doc["htg"]  | false;
+    bms.errorBits    = doc["err"]  | 0;
+    bms.chargeStatus = doc["cs"]   | 0;
+    bms.rssi         = doc["rssi"] | 0;
+    bms.activeCells  = doc["cells"]| 0;
+    bms.cellDelta    = doc["dv"]   | 0.0f;
+    bms.avgVoltage   = doc["avg"]  | 0.0f;
+
+    bms.load1         = doc["load1"] | true;
+    bms.load2         = doc["load2"] | true;
+    bms.load3         = doc["load3"] | true;
+    bms.priorityLevel = doc["prio"]  | 0;
+    const char* modeStr = doc["mode"] | "NORMAL";
+    strncpy(bms.priorityMode, modeStr, sizeof(bms.priorityMode) - 1);
+    bms.priorityMode[sizeof(bms.priorityMode) - 1] = '\0';
+
+    JsonArray cv = doc["cv"];
+    for (int i = 0; i < 32; i++) bms.cellVoltage[i] = 0;
+    int idx = 0;
+    for (float v : cv) {
+        if (idx < 32) bms.cellVoltage[idx++] = v;
+    }
+
+    JsonArray cr = doc["cr"];
+    for (int i = 0; i < 32; i++) bms.cellResistance[i] = 0;
+    int crIdx = 0;
+    for (float r : cr) {
+        if (crIdx < 32) bms.cellResistance[crIdx++] = r;
+    }
+
+    bms.valid      = true;
+    bms.receivedAt = millis();
+
+    Serial.println("[UART] Frame received and parsed OK");
+    return true;
+}
+
+// ===============================
+// Helpers (unchanged)
+// ===============================
+String chargeState() {
+    if (bms.current > 0.05f)  return "Charging";
+    if (bms.current < -0.05f) return "Discharging";
+    return "Idle";
+}
+
+String chargeStage() {
+    switch (bms.chargeStatus) {
+        case 0: return "Bulk";
+        case 1: return "Absorption";
+        case 2: return "Float";
+        default: return "Unknown";
+    }
+}
+
+// ===============================
+// Upload everything to Firebase (unchanged)
+// ===============================
+void sendToFirebase() {
+    if (!bms.valid) {
+        Serial.println("[Firebase] No valid data yet, skipping.");
+        return;
+    }
+
+    String cvJson = "{";
+    bool first = true;
+    for (int i = 0; i < bms.activeCells; i++) {
+        if (bms.cellVoltage[i] > 0.5f) {
+            if (!first) cvJson += ",";
+            cvJson += "\"cell" + String(i+1) + "\":" + String(bms.cellVoltage[i], 3);
+            first = false;
+        }
+    }
+    cvJson += "}";
+
+    uint32_t rH = bms.runtime / 3600;
+    uint32_t rM = (bms.runtime % 3600) / 60;
+    uint32_t rS = bms.runtime % 60;
+    String rtHuman = String(rH) + "h " + String(rM) + "m " + String(rS) + "s";
+
+    String payload = "{";
+    payload += "\"live\":{";
+    payload += "\"voltage\":"           + String(bms.voltage, 3)              + ",";
+    payload += "\"current\":"           + String(bms.current, 3)              + ",";
+    payload += "\"power\":"             + String(bms.power, 2)                + ",";
+    payload += "\"chargingPower\":"     + String(max(0.0f, bms.power), 2)     + ",";
+    payload += "\"dischargingPower\":"  + String(abs(min(0.0f, bms.power)), 2)+ ",";
+    payload += "\"soc\":"               + String(bms.soc)                     + ",";
+    payload += "\"soh\":"               + String(bms.soh)                     + ",";
+    payload += "\"remainingCapacity\":" + String(bms.capRemaining, 2)         + ",";
+    payload += "\"fullCapacity\":"      + String(bms.fullCap, 2)              + ",";
+    payload += "\"chargeState\":\""     + chargeState()                       + "\"";
+    payload += "},";
+
+    payload += "\"temperatures\":{";
+    payload += "\"temp1\":"  + String(bms.temp1, 1)   + ",";
+    payload += "\"temp2\":"  + String(bms.temp2, 1)   + ",";
+    payload += "\"mos\":"    + String(bms.mosTemp, 1);
+    payload += "},";
+
+    payload += "\"cellSummary\":{";
+    payload += "\"count\":"   + String(bms.activeCells) + ",";
+    payload += "\"average\":" + String(bms.avgVoltage, 3) + ",";
+    payload += "\"delta\":"   + String(bms.cellDelta, 3);
+    payload += "},";
+
+    payload += "\"cellVoltages\":" + cvJson + ",";
+
+    String crJson = "{";
+    first = true;
+    for (int i = 0; i < bms.activeCells; i++) {
+        if (bms.cellResistance[i] > 0.0f) {
+            if (!first) crJson += ",";
+            crJson += "\"cell" + String(i+1) + "\":" + String(bms.cellResistance[i], 3);
+            first = false;
+        }
+    }
+    crJson += "}";
+    payload += "\"cellResistances\":" + crJson + ",";
+    payload += "\"wireResistances\":" + crJson + ",";
+
+    payload += "\"status\":{";
+    payload += "\"chargingMosfet\":"    + String(bms.charging    ? "true":"false") + ",";
+    payload += "\"dischargingMosfet\":" + String(bms.discharging ? "true":"false") + ",";
+    payload += "\"balancerActive\":"    + String(bms.balancing   ? "true":"false") + ",";
+    payload += "\"heating\":"           + String(bms.heating     ? "true":"false") + ",";
+    payload += "\"balancingCurrent\":"  + String(bms.balCurrent, 3);
+    payload += "},";
+
+    payload += "\"statistics\":{";
+    payload += "\"cycleCount\":"    + String(bms.cycleCount)   + ",";
+    payload += "\"runtimeSeconds\":" + String(bms.runtime)     + ",";
+    payload += "\"runtimeHuman\":\"" + rtHuman                 + "\",";
+    payload += "\"chargeStage\":\"" + chargeStage()            + "\"";
+    payload += "},";
+
+    payload += "\"errors\":{";
+    payload += "\"raw\":"      + String(bms.errorBits) + ",";
+    payload += "\"hasError\":" + String(bms.errorBits != 0 ? "true":"false");
+    payload += "},";
+
+    payload += "\"loadStatus\":{";
+    payload += "\"priorityLevel\":" + String(bms.priorityLevel) + ",";
+    payload += "\"mode\":\""        + String(bms.priorityMode) + "\",";
+    payload += "\"load1\":"         + String(bms.load1 ? 1 : 0) + ",";
+    payload += "\"load2\":"         + String(bms.load2 ? 1 : 0) + ",";
+    payload += "\"load3\":"         + String(bms.load3 ? 1 : 0);
+    payload += "},";
+
+    payload += "\"connectivity\":{";
+    payload += "\"bleRSSI\":"      + String(bms.rssi)         + ",";
+    payload += "\"wifiRSSI\":"     + String(wifiRSSI)         + ",";
+    payload += "\"ip\":\""         + wifiIP                   + "\",";
+    payload += "\"bleConnected\":true,";
+    payload += "\"wifiConnected\":true,";
+    payload += "\"lastUpdate\":"   + String(bms.receivedAt);
+    payload += "}";
+    payload += "}";
+
+    firebasePUT("/battery.json", payload);
+
+    Serial.println("=== Firebase upload complete ===");
+}
+
+// ===============================
+// NEW: Send snapshot to Supabase
+// Throttled to every SUPABASE_INTERVAL_MS in loop()
+// ===============================
+void sendToSupabase() {
+    if (!bms.valid) {
+        Serial.println("[Supabase] No valid BMS data yet, skipping.");
+        return;
+    }
+
+    // Real Unix timestamp in milliseconds (from NTP)
+    unsigned long long tsMs = getTimestampMs();
+
+    // ESP32 toolchain doesn't reliably support %llu in snprintf.
+    // Split into billions + remainder to format a 13-digit ms timestamp.
+    unsigned long tsHi = (unsigned long)(tsMs / 1000000000ULL);
+    unsigned long tsLo = (unsigned long)(tsMs % 1000000000ULL);
+    char tsBuf[24];
+    if (tsHi > 0) {
+        snprintf(tsBuf, sizeof(tsBuf), "%lu%09lu", tsHi, tsLo);
+    } else {
+        snprintf(tsBuf, sizeof(tsBuf), "%lu", tsLo);
+    }
+
+    // Temperature array — PostgreSQL float8[]
+    char tempsBuf[48];
+    snprintf(tempsBuf, sizeof(tempsBuf), "[%.1f,%.1f,%.1f]",
+             bms.temp1, bms.temp2, bms.mosTemp);
+
+    // Cell voltages array — send only active cells
+    int cellsToSend = (bms.activeCells > 0 && bms.activeCells <= 32)
+                      ? bms.activeCells : 4;
+    String cellsBuf = "[";
+    for (int i = 0; i < cellsToSend; i++) {
+        if (i > 0) cellsBuf += ",";
+        cellsBuf += String(bms.cellVoltage[i], 3);
+    }
+    cellsBuf += "]";
+
+    // Build payload
+    String payload = "{";
+    payload += "\"timestamp\":"     + String(tsBuf)              + ",";
+    payload += "\"voltage\":"       + String(bms.voltage, 3)     + ",";
+    payload += "\"current\":"       + String(bms.current, 3)     + ",";
+    payload += "\"power\":"         + String(bms.power, 2)       + ",";
+    payload += "\"temperatures\":"  + String(tempsBuf)           + ",";
+    payload += "\"cell_voltages\":" + cellsBuf                   + ",";
+    payload += "\"is_offline\":false";
+    payload += "}";
+
+    Serial.println("[Supabase] Sending snapshot...");
+    supabasePOST(payload);
+}
+
+// ===============================
+// Setup
+// ===============================
+void setup() {
+    Serial.begin(115200);
+    Serial2.setRxBufferSize(2048); // Increase RX buffer to prevent overflows during network updates
+    Serial2.begin(115200, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
+    delay(1000);
+
+    Serial.println("ESP32 #2 — WiFi + Firebase + Supabase");
+    Serial.println("UART RX : GPIO16");
+    Serial.println("================================");
+
+    connectWiFi();
+    syncNTP();  // NEW: sync real time after WiFi — needed for valid Supabase timestamps
+}
+
+// ===============================
+// Loop
+// ===============================
+void loop() {
+    maintainWiFi();
+
+    unsigned long now = millis();
+
+    // IMPORTANT: Poll commands and loadManager FIRST, BEFORE processing telemetry.
+    // This ensures the userRequestedManual flag is always up-to-date before
+    // sendToFirebase() decides whether to overwrite /loadManager.json.
+    // Without this ordering, a telemetry upload could overwrite the user's
+    // manual mode selection on Firebase before Board 2 even reads it.
+    if (now - lastCommandPoll >= COMMAND_POLL_INTERVAL_MS) {
+        lastCommandPoll = now;
+        pollCommands();
+        pollLoadManager();
+    }
+
+    // Firebase: upload on every BMS UART packet (live telemetry)
+    // Short lines (acks like {"ack":"discharge","val":0}) are handled separately
+    // by checkForAck(); telemetry frames are much longer, so length is a decent filter,
+    // but we still fall through to parseUARTLine which will just fail harmlessly on acks.
+    if (Serial2.available()) {
+        String line = Serial2.readStringUntil('\n');
+        line.trim();
+
+        if (line.length() > 10) {
+            // Try ack first (cheap check via "ack" key), else treat as telemetry
+            StaticJsonDocument<128> peek;
+            DeserializationError peekErr = deserializeJson(peek, line);
+            if (!peekErr && peek.containsKey("ack")) {
+                const char* which = peek["ack"];
+                bool val = peek["val"] | false;
+                String path = "/commandStatus/" + String(which) + ".json";
+                firebasePUT(path, val ? "true" : "false");
+                Serial.print("[ACK] "); Serial.print(which); Serial.print(" confirmed = "); Serial.println(val);
+            } else if (parseUARTLine(line)) {
+                sendToFirebase();
+            }
+        }
+    }
+
+    // Supabase: throttled to every SUPABASE_INTERVAL_MS (5 seconds)
+    if (now - lastSupabaseUpload >= SUPABASE_INTERVAL_MS) {
+        lastSupabaseUpload = now;
+        sendToSupabase();
+    }
+
+    delay(50);
+}
