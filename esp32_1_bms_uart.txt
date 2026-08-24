@@ -31,61 +31,7 @@ bool bmsConnected = false;
 
 const int OFF = 16;  // JK02_32S offset
 
-// ===============================
-// Load Prioritization Configuration
-// ===============================
-const int RELAY_CH1_PIN = 25;   // highest priority load
-const int RELAY_CH2_PIN = 26;   // mid priority load
-const int RELAY_CH3_PIN = 27;   // lowest priority load
-
-const bool RELAY_ACTIVE_LOW = true;  // most cheap relay modules are active-low
-
-struct LoadChannel {
-    const char* name;
-    int pin;
-    float offThreshold;   // SOC% at which channel turns OFF
-    float hysteresis;     // SOC% added back for re-enable
-    bool isOn;
-};
-
-LoadChannel channels[3] = {
-    {"CH1 (critical)", RELAY_CH1_PIN, 10.0, 5.0, true},
-    {"CH2 (mid)",       RELAY_CH2_PIN, 40.0, 5.0, true},
-    {"CH3 (non-crit)",  RELAY_CH3_PIN, 60.0, 5.0, true},
-};
-
-const int NUM_CHANNELS = 3;
-
-bool isAutoMode = true; // true = automatic prioritization thresholds, false = manual overrides
-
-
-// ---------- Relay control ----------
-void setRelay(LoadChannel &ch, bool on) {
-    ch.isOn = on;
-    bool pinState = RELAY_ACTIVE_LOW ? !on : on;
-    digitalWrite(ch.pin, pinState ? HIGH : LOW);
-}
-
-void evaluateChannel(LoadChannel &ch, float soc) {
-    if (ch.isOn && soc <= ch.offThreshold) {
-        setRelay(ch, false);
-        Serial.printf("[SHED] %s OFF at SOC=%.1f%% (threshold %.1f%%)\n",
-                      ch.name, soc, ch.offThreshold);
-    } else if (!ch.isOn && soc >= (ch.offThreshold + ch.hysteresis)) {
-        setRelay(ch, true);
-        Serial.printf("[RESTORE] %s ON at SOC=%.1f%% (threshold %.1f%%)\n",
-                      ch.name, soc, ch.offThreshold + ch.hysteresis);
-    }
-}
-
-int getPriorityLevel() {
-    if (!channels[0].isOn) return 3; // All shed, including critical
-    if (!channels[1].isOn) return 2; // Mid and non-crit shed
-    if (!channels[2].isOn) return 1; // Non-crit shed
-    return 0; // None shed
-}
-
-// removed getPriorityMode
+// Load Prioritization logic has been migrated to ESP32 #2
 // ===============================
 // Parsed BMS Data Structure
 // ===============================
@@ -284,16 +230,7 @@ void printBMSData() {
     Serial.print("  Capacity: "); Serial.print(bmsData.capacityRemaining, 1);
     Serial.print(" / "); Serial.print(bmsData.nominalCapacity, 1); Serial.println(" Ah");
 
-    Serial.println("\n--- LOAD PRIORITIZATION ---");
-    for (int i = 0; i < NUM_CHANNELS; i++) {
-        Serial.printf("  %s (Pin %d): %s (Threshold: <=%.1f%%, Restore: >=%.1f%%)\n",
-                      channels[i].name,
-                      channels[i].pin,
-                      channels[i].isOn ? "ON" : "OFF",
-                      channels[i].offThreshold,
-                      channels[i].offThreshold + channels[i].hysteresis);
-    }
-    Serial.printf("  Active Priority Level: %d | Mode: %s\n", getPriorityLevel(), isAutoMode ? "AUTO" : "MANUAL");
+    // Relay logic has been moved to ESP32 #2
     Serial.print("  Cycles:   "); Serial.println(bmsData.cycleCount);
     Serial.print("  SOH:      "); Serial.print(bmsData.soh); Serial.println("%");
     Serial.print("  Runtime:  ");
@@ -365,12 +302,7 @@ void sendOverUART() {
     doc["dv"]    = serialized(String(bmsData.deltaVoltage, 3));
     doc["avg"]   = serialized(String(bmsData.avgVoltage, 3));
 
-    // Load prioritization telemetry
-    doc["load1"] = channels[0].isOn;
-    doc["load2"] = channels[1].isOn;
-    doc["load3"] = channels[2].isOn;
-    doc["prio"]  = getPriorityLevel();
-    doc["mode"]  = isAutoMode ? "AUTO" : "MANUAL";
+    // Load telemetry moved to Board 2
 
     // Individual cell voltages
     JsonArray cv = doc.createNestedArray("cv");
@@ -618,48 +550,6 @@ void handleUARTCommand(const String& line) {
 
     bool handled = false;
 
-    // 1. Parse bulk/direct loadManager format keys
-    if (doc.containsKey("mode")) {
-        const char* modeVal = doc["mode"] | "";
-        if (strcmp(modeVal, "AUTO") == 0) {
-            isAutoMode = true;
-            handled = true;
-            Serial.println("[UART-CMD] Mode set to AUTO");
-        } else if (strcmp(modeVal, "MANUAL") == 0) {
-            isAutoMode = false;
-            handled = true;
-            Serial.println("[UART-CMD] Mode set to MANUAL");
-        }
-    }
-
-    if (doc.containsKey("load1")) {
-        bool val = (doc["load1"].as<int>() != 0);
-        if (!isAutoMode) {
-            setRelay(channels[0], val);
-        }
-        handled = true;
-        Serial.printf("[UART-CMD] Load 1 set to %s (Manual Mode Check: %s)\n", val ? "ON" : "OFF", !isAutoMode ? "PASS" : "BLOCKED");
-    }
-
-    if (doc.containsKey("load2")) {
-        bool val = (doc["load2"].as<int>() != 0);
-        if (!isAutoMode) {
-            setRelay(channels[1], val);
-        }
-        handled = true;
-        Serial.printf("[UART-CMD] Load 2 set to %s (Manual Mode Check: %s)\n", val ? "ON" : "OFF", !isAutoMode ? "PASS" : "BLOCKED");
-    }
-
-    if (doc.containsKey("load3")) {
-        bool val = (doc["load3"].as<int>() != 0);
-        if (!isAutoMode) {
-            setRelay(channels[2], val);
-        }
-        handled = true;
-        Serial.printf("[UART-CMD] Load 3 set to %s (Manual Mode Check: %s)\n", val ? "ON" : "OFF", !isAutoMode ? "PASS" : "BLOCKED");
-    }
-
-    // 2. Parse individual/legacy cmd format
     if (doc.containsKey("cmd")) {
         const char* cmd = doc["cmd"] | "";
 
@@ -671,38 +561,6 @@ void handleUARTCommand(const String& line) {
             bool val = doc["val"] | false;
             setCharge(val);
             handled = true;
-        } else if (strcmp(cmd, "mode") == 0) {
-            const char* valStr = doc["val"] | "";
-            if (strcmp(valStr, "AUTO") == 0) {
-                isAutoMode = true;
-                handled = true;
-                Serial.println("[UART-CMD] Mode set to AUTO");
-            } else if (strcmp(valStr, "MANUAL") == 0) {
-                isAutoMode = false;
-                handled = true;
-                Serial.println("[UART-CMD] Mode set to MANUAL");
-            }
-        } else if (strcmp(cmd, "load1") == 0) {
-            bool val = doc["val"] | false;
-            if (!isAutoMode) {
-                setRelay(channels[0], val);
-            }
-            handled = true;
-            Serial.printf("[UART-CMD] Load 1 set to %s (via cmd)\n", val ? "ON" : "OFF");
-        } else if (strcmp(cmd, "load2") == 0) {
-            bool val = doc["val"] | false;
-            if (!isAutoMode) {
-                setRelay(channels[1], val);
-            }
-            handled = true;
-            Serial.printf("[UART-CMD] Load 2 set to %s (via cmd)\n", val ? "ON" : "OFF");
-        } else if (strcmp(cmd, "load3") == 0) {
-            bool val = doc["val"] | false;
-            if (!isAutoMode) {
-                setRelay(channels[2], val);
-            }
-            handled = true;
-            Serial.printf("[UART-CMD] Load 3 set to %s (via cmd)\n", val ? "ON" : "OFF");
         }
     }
 
@@ -714,10 +572,7 @@ void handleUARTCommand(const String& line) {
     // Send unified status ACK back to ESP32 #2 so it can confirm the command was actioned
     StaticJsonDocument<256> ack;
     ack["ack"] = "loadManager";
-    ack["isAuto"] = isAutoMode;
-    ack["load1"] = channels[0].isOn;
-    ack["load2"] = channels[1].isOn;
-    ack["load3"] = channels[2].isOn;
+    // Relay logic has been migrated to Board 2, so we only ACK receipt
     serializeJson(ack, Serial2);
     Serial2.println();
 }
@@ -798,13 +653,7 @@ void setup() {
     Serial.println("UART TX  : GPIO17");
     Serial.println("================================");
 
-    // Initialize relay channels
-    Serial.println("[Relay] Initializing Load Prioritization Channels...");
-    for (int i = 0; i < NUM_CHANNELS; i++) {
-        pinMode(channels[i].pin, OUTPUT);
-        setRelay(channels[i], true);  // start all loads ON
-    }
-    Serial.println("[Relay] Initialization complete.");
+    // Relay initialization moved to Board 2
 
     connectBLE();
 }
@@ -823,13 +672,7 @@ void loop() {
 
     unsigned long now = millis();
 
-    // Evaluate load prioritization against actual battery SOC only in AUTO mode
-    if (isAutoMode && bmsData.valid) {
-        for (int i = 0; i < NUM_CHANNELS; i++) {
-            evaluateChannel(channels[i], bmsData.soc);
-        }
-    }
-
+    // SOC auto evaluation moved to Board 2
     // Print to Serial Monitor every 10s
     if (now - lastPrint >= PRINT_INTERVAL) {
         lastPrint = now;
@@ -867,54 +710,7 @@ void loop() {
         } else if (usbLine == "c1") {
             Serial.println("[TEST CLI] Forcing setCharge(true) [Charge ON]");
             setCharge(true);
-        } else if (usbLine == "m0") {
-            Serial.println("[TEST CLI] Setting mode to MANUAL");
-            isAutoMode = false;
-        } else if (usbLine == "m1") {
-            Serial.println("[TEST CLI] Setting mode to AUTO");
-            isAutoMode = true;
-        } else if (usbLine == "l1_0") {
-            if (!isAutoMode) {
-                Serial.println("[TEST CLI] Turning CH1 (critical) OFF");
-                setRelay(channels[0], false);
-            } else {
-                Serial.println("[TEST CLI] ERROR: Switch to MANUAL first ('m0')");
-            }
-        } else if (usbLine == "l1_1") {
-            if (!isAutoMode) {
-                Serial.println("[TEST CLI] Turning CH1 (critical) ON");
-                setRelay(channels[0], true);
-            } else {
-                Serial.println("[TEST CLI] ERROR: Switch to MANUAL first ('m0')");
-            }
-        } else if (usbLine == "l2_0") {
-            if (!isAutoMode) {
-                Serial.println("[TEST CLI] Turning CH2 (mid) OFF");
-                setRelay(channels[1], false);
-            } else {
-                Serial.println("[TEST CLI] ERROR: Switch to MANUAL first ('m0')");
-            }
-        } else if (usbLine == "l2_1") {
-            if (!isAutoMode) {
-                Serial.println("[TEST CLI] Turning CH2 (mid) ON");
-                setRelay(channels[1], true);
-            } else {
-                Serial.println("[TEST CLI] ERROR: Switch to MANUAL first ('m0')");
-            }
-        } else if (usbLine == "l3_0") {
-            if (!isAutoMode) {
-                Serial.println("[TEST CLI] Turning CH3 (non-crit) OFF");
-                setRelay(channels[2], false);
-            } else {
-                Serial.println("[TEST CLI] ERROR: Switch to MANUAL first ('m0')");
-            }
-        } else if (usbLine == "l3_1") {
-            if (!isAutoMode) {
-                Serial.println("[TEST CLI] Turning CH3 (non-crit) ON");
-                setRelay(channels[2], true);
-            } else {
-                Serial.println("[TEST CLI] ERROR: Switch to MANUAL first ('m0')");
-            }
+        // Relay/mode manual commands moved to Board 2
         } else if (usbLine.startsWith("p")) {
             String pwdStr = usbLine.substring(1);
             pwdStr.trim();
@@ -931,10 +727,6 @@ void loop() {
             Serial.println("[TEST CLI] Commands available:");
             Serial.println("  'd0' - Discharge OFF      'd1' - Discharge ON");
             Serial.println("  'c0' - Charge OFF         'c1' - Charge ON");
-            Serial.println("  'm0' - Set mode MANUAL    'm1' - Set mode AUTO");
-            Serial.println("  'l1_0' / 'l1_1' - CH1 OFF/ON (manual mode only)");
-            Serial.println("  'l2_0' / 'l2_1' - CH2 OFF/ON (manual mode only)");
-            Serial.println("  'l3_0' / 'l3_1' - CH3 OFF/ON (manual mode only)");
             Serial.println("  'p654321' - Send password as 4-byte integer");
             Serial.println("  's654321' - Send password as ASCII string");
         }

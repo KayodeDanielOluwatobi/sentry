@@ -56,6 +56,61 @@ bool loadManagerInitialized = false;
 bool userRequestedManual = false;
 
 // ===============================
+// Load Prioritization Configuration
+// ===============================
+const int RELAY_CH1_PIN = 25;   // highest priority load
+const int RELAY_CH2_PIN = 26;   // mid priority load
+const int RELAY_CH3_PIN = 27;   // lowest priority load
+
+const bool RELAY_ACTIVE_LOW = true;  // most cheap relay modules are active-low
+
+struct LoadChannel {
+    const char* name;
+    int pin;
+    float offThreshold;   // SOC% at which channel turns OFF
+    float hysteresis;     // SOC% added back for re-enable
+    bool isOn;
+};
+
+LoadChannel channels[3] = {
+    {"CH1 (critical)", RELAY_CH1_PIN, 10.0, 5.0, true},
+    {"CH2 (mid)",       RELAY_CH2_PIN, 40.0, 5.0, true},
+    {"CH3 (non-crit)",  RELAY_CH3_PIN, 60.0, 5.0, true},
+};
+
+const int NUM_CHANNELS = 3;
+
+// true = automatic prioritization thresholds, false = manual overrides
+bool isAutoMode = true;
+
+// ---------- Relay control ----------
+void setRelay(LoadChannel &ch, bool on) {
+    ch.isOn = on;
+    bool pinState = RELAY_ACTIVE_LOW ? !on : on;
+    digitalWrite(ch.pin, pinState ? HIGH : LOW);
+}
+
+void evaluateChannel(LoadChannel &ch, float soc) {
+    if (ch.isOn && soc <= ch.offThreshold) {
+        setRelay(ch, false);
+        Serial.printf("[SHED] %s OFF at SOC=%.1f%% (threshold %.1f%%)\n",
+                      ch.name, soc, ch.offThreshold);
+    } else if (!ch.isOn && soc >= (ch.offThreshold + ch.hysteresis)) {
+        setRelay(ch, true);
+        Serial.printf("[RESTORE] %s ON at SOC=%.1f%% (threshold %.1f%%)\n",
+                      ch.name, soc, ch.offThreshold + ch.hysteresis);
+    }
+}
+
+int getPriorityLevel() {
+    if (!channels[0].isOn) return 3; // All shed, including critical
+    if (!channels[1].isOn) return 2; // Mid and non-crit shed
+    if (!channels[2].isOn) return 1; // Non-crit shed
+    return 0; // None shed
+}
+
+
+// ===============================
 // NTP Configuration
 // ===============================
 const char* NTP_SERVER1 = "pool.ntp.org";
@@ -94,11 +149,6 @@ struct BMSData {
     float  avgVoltage      = 0;
     float  cellVoltage[32] = {0};
     float  cellResistance[32] = {0};
-    bool   load1           = true;
-    bool   load2           = true;
-    bool   load3           = true;
-    int    priorityLevel   = 0;
-    char   priorityMode[16]= "AUTO";
     bool   valid           = false;
     unsigned long receivedAt = 0;
 } bms;
@@ -327,23 +377,18 @@ void pollLoadManager() {
         lastKnownLoad2 = l2;
         lastKnownLoad3 = l3;
         loadManagerInitialized = true;
-        // Also set the manual flag on first read so the very first telemetry
-        // upload doesn't overwrite Firebase if manual mode was already active
-        userRequestedManual = (modeVal == "MANUAL");
-        Serial.printf("[LoadManager] Initialized: mode=%s manual=%s\n", modeVal.c_str(), userRequestedManual ? "YES" : "NO");
+        isAutoMode = (modeVal != "MANUAL");
+        Serial.printf("[LoadManager] Initialized: mode=%s\n", modeVal.c_str());
         return;
     }
 
-    // Check if mode or any manual overrides changed
     bool modeChanged = (modeVal != lastKnownMode);
     bool load1Changed = (l1 != lastKnownLoad1);
     bool load2Changed = (l2 != lastKnownLoad2);
     bool load3Changed = (l3 != lastKnownLoad3);
 
-    // Update the independent manual mode flag BEFORE checking for changes
-    // so sendToFirebase() immediately knows to stop overwriting.
     // The Sentry UI writes "MANUAL" when the user switches to manual mode.
-    userRequestedManual = (modeVal == "MANUAL");
+    isAutoMode = (modeVal != "MANUAL");
 
     if (modeChanged || load1Changed || load2Changed || load3Changed) {
         lastKnownMode = modeVal;
@@ -351,19 +396,13 @@ void pollLoadManager() {
         lastKnownLoad2 = l2;
         lastKnownLoad3 = l3;
 
-        // Construct bulk JSON command to send to Board 1
-        StaticJsonDocument<256> cmdDoc;
-        cmdDoc["mode"] = modeVal;
-        cmdDoc["load1"] = l1 ? 1 : 0;
-        cmdDoc["load2"] = l2 ? 1 : 0;
-        cmdDoc["load3"] = l3 ? 1 : 0;
+        Serial.printf("[LoadManager] State change: mode=%s L1=%d L2=%d L3=%d\n", modeVal.c_str(), l1, l2, l3);
 
-        serializeJson(cmdDoc, Serial2);
-        Serial2.println();
-
-        Serial.print("[LoadManager->UART] Sent command: ");
-        serializeJson(cmdDoc, Serial);
-        Serial.println();
+        if (!isAutoMode) {
+            setRelay(channels[0], l1);
+            setRelay(channels[1], l2);
+            setRelay(channels[2], l3);
+        }
     }
 }
 
@@ -434,14 +473,7 @@ bool parseUARTLine(const String& line) {
     bms.cellDelta    = doc["dv"]   | 0.0f;
     bms.avgVoltage   = doc["avg"]  | 0.0f;
 
-    bms.load1         = doc["load1"] | true;
-    bms.load2         = doc["load2"] | true;
-    bms.load3         = doc["load3"] | true;
-    bms.priorityLevel = doc["prio"]  | 0;
-    const char* modeStr = doc["mode"] | "NORMAL";
-    strncpy(bms.priorityMode, modeStr, sizeof(bms.priorityMode) - 1);
-    bms.priorityMode[sizeof(bms.priorityMode) - 1] = '\0';
-
+    // Load telemetry has been migrated to Board 2 local variables
     JsonArray cv = doc["cv"];
     for (int i = 0; i < 32; i++) bms.cellVoltage[i] = 0;
     int idx = 0;
@@ -568,11 +600,11 @@ void sendToFirebase() {
     payload += "},";
 
     payload += "\"loadStatus\":{";
-    payload += "\"priorityLevel\":" + String(bms.priorityLevel) + ",";
-    payload += "\"mode\":\""        + String(bms.priorityMode) + "\",";
-    payload += "\"load1\":"         + String(bms.load1 ? 1 : 0) + ",";
-    payload += "\"load2\":"         + String(bms.load2 ? 1 : 0) + ",";
-    payload += "\"load3\":"         + String(bms.load3 ? 1 : 0);
+    payload += "\"priorityLevel\":" + String(getPriorityLevel()) + ",";
+    payload += "\"mode\":\""        + String(isAutoMode ? "AUTO" : "MANUAL") + "\",";
+    payload += "\"load1\":"         + String(channels[0].isOn ? 1 : 0) + ",";
+    payload += "\"load2\":"         + String(channels[1].isOn ? 1 : 0) + ",";
+    payload += "\"load3\":"         + String(channels[2].isOn ? 1 : 0);
     payload += "},";
 
     payload += "\"connectivity\":{";
@@ -659,6 +691,13 @@ void setup() {
 
     connectWiFi();
     syncNTP();  // NEW: sync real time after WiFi — needed for valid Supabase timestamps
+
+    Serial.println("[Relay] Initializing Load Prioritization Channels...");
+    for (int i = 0; i < NUM_CHANNELS; i++) {
+        pinMode(channels[i].pin, OUTPUT);
+        setRelay(channels[i], true);  // start all loads ON
+    }
+    Serial.println("[Relay] Initialization complete.");
 }
 
 // ===============================
@@ -678,6 +717,13 @@ void loop() {
         lastCommandPoll = now;
         pollCommands();
         pollLoadManager();
+    }
+
+    // Evaluate load prioritization against actual battery SOC only in AUTO mode
+    if (isAutoMode && bms.valid) {
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            evaluateChannel(channels[i], bms.soc);
+        }
     }
 
     // Firebase: upload on every BMS UART packet (live telemetry)
