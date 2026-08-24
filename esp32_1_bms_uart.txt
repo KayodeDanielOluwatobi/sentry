@@ -293,7 +293,7 @@ void printBMSData() {
                       channels[i].offThreshold,
                       channels[i].offThreshold + channels[i].hysteresis);
     }
-    Serial.printf("  Active Priority Level: %d | Mode: %s\n", getPriorityLevel(), getPriorityMode());
+    Serial.printf("  Active Priority Level: %d | Mode: %s\n", getPriorityLevel(), isAutoMode ? "AUTO" : "MANUAL");
     Serial.print("  Cycles:   "); Serial.println(bmsData.cycleCount);
     Serial.print("  SOH:      "); Serial.print(bmsData.soh); Serial.println("%");
     Serial.print("  Runtime:  ");
