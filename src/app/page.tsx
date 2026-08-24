@@ -821,6 +821,7 @@ function HomeInner() {
 
     if (db) {
       const loadUpdates = {
+        "mode": "MANUAL",
         "load1": updatedLoads.find(l => l.id === "1")?.isOn ? 1 : 0,
         "load2": updatedLoads.find(l => l.id === "2")?.isOn ? 1 : 0,
         "load3": updatedLoads.find(l => l.id === "3")?.isOn ? 1 : 0,
