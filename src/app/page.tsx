@@ -716,7 +716,7 @@ function HomeInner() {
           
           if (ls.mode === "MANUAL") {
             setManagerMode("manual");
-          } else {
+          } else if (ls.mode === "AUTO") {
             setManagerMode("auto");
           }
         }

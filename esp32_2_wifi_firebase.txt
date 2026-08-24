@@ -98,7 +98,7 @@ struct BMSData {
     bool   load2           = true;
     bool   load3           = true;
     int    priorityLevel   = 0;
-    char   priorityMode[16]= "NORMAL";
+    char   priorityMode[16]= "AUTO";
     bool   valid           = false;
     unsigned long receivedAt = 0;
 } bms;
@@ -343,8 +343,6 @@ void pollLoadManager() {
     // Update the independent manual mode flag BEFORE checking for changes
     // so sendToFirebase() immediately knows to stop overwriting.
     // The Sentry UI writes "MANUAL" when the user switches to manual mode.
-    // We do NOT match "NORMAL" because Board 1 also uses "NORMAL" in AUTO mode
-    // (when all loads are ON), which would cause a false positive.
     userRequestedManual = (modeVal == "MANUAL");
 
     if (modeChanged || load1Changed || load2Changed || load3Changed) {
