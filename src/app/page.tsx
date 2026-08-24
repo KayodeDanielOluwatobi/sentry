@@ -705,8 +705,8 @@ function HomeInner() {
         const ls = data.battery.loadStatus;
         
         // Continuously sync UI with true hardware state, unless the user 
-        // just clicked a manual toggle (debounce for 5 seconds to wait for roundtrip)
-        if (Date.now() - lastManualToggleTimeRef.current > 5000) {
+        // just clicked a manual toggle (debounce for 12 seconds to wait for roundtrip)
+        if (Date.now() - lastManualToggleTimeRef.current > 12000) {
           const fetchedLoads: ManagedLoad[] = [
             { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: ls.load1 ? "active" : "shed", isOn: !!ls.load1, icons: ["router", "wifi", "laptop"] },
             { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: ls.load2 ? "active" : "shed", isOn: !!ls.load2, icons: ["fan", "fridge"] },
