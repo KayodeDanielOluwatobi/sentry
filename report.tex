@@ -1,0 +1,2781 @@
+
+%%  FINAL YEAR PROJECT REPORT
+%%  Design and Implementation of an IoT-Enabled Inverter System
+%%  with Battery-Aware Load Prioritization and Remote Monitoring
+%%
+%%  Kayode Daniel Oluwatobi | EEE/20/5675
+%%  Federal University of Technology, Akure (FUTA)
+%%  Department of Electrical and Electronics Engineering
+%%  AUGUST, 2026
+%% ============================================================
+
+\documentclass[12pt, a4paper]{report}
+
+%% ── Packages ─────────────────────────────────────────────────
+\usepackage[
+  a4paper,
+  left=1.1in,
+  right=1.0in,
+  top=1.0in,
+  bottom=1.0in,
+  footskip=0.6in
+]{geometry}
+
+\usepackage{times}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{tocloft}
+\usepackage{emptypage}
+\usepackage{longtable}
+\usepackage[authoryear, round]{natbib}
+
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+
+%% ── Hyphenation prevention ───────────────────────────────────
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\tolerance=1000
+\emergencystretch=3em
+
+%% ── Widow and orphan control ─────────────────────────────────
+\widowpenalty=10000
+\clubpenalty=10000
+\displaywidowpenalty=10000
+\raggedbottom
+
+%% ── Line spacing ─────────────────────────────────────────────
+\onehalfspacing
+
+%% ── Block paragraphing ───────────────────────────────────────
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{10pt}
+
+
+
+% Reduce vertical spacing between chapter-level TOC entries
+\setlength{\cftbeforechapskip}{0pt}
+%% Reduce space above TOC title
+\setlength{\cftaftertoctitleskip}{30pt}
+
+%% ── Chapter heading format ───────────────────────────────────
+\titleformat{\chapter}[display]
+  {\normalfont\fontsize{14}{16}\bfseries\centering}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter}
+  {-5pt}
+  {\fontsize{14}{16}\bfseries\MakeUppercase}
+
+\titleformat{\section}
+  {\normalfont\fontsize{13}{15}\bfseries\raggedright}
+  {\thesection}
+  {0.6em}
+  {\MakeUppercase}
+
+\titleformat{\subsection}
+  {\normalfont\fontsize{12}{14}\bfseries\raggedright}
+  {\thesubsection}
+  {0.6em}
+  {}
+
+\titleformat{\subsubsection}
+  {\normalfont\fontsize{12}{14}\bfseries\itshape\raggedright}
+  {\thesubsubsection}
+  {0.6em}
+  {}
+
+\titlespacing*{\chapter}{0pt}{-20pt}{10pt}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+\titlespacing*{\subsubsection}{0pt}{10pt}{5pt}
+
+%% ── Table of contents format ─────────────────────────────────
+\renewcommand{\contentsname}{TABLE OF CONTENTS}
+\setlength{\cftbeforetoctitleskip}{-20pt}
+\renewcommand{\cfttoctitlefont}{\hfill\fontsize{14}{16}\bfseries\MakeUppercase}
+\renewcommand{\cftaftertoctitle}{\hfill}
+\renewcommand{\cftloftitlefont}{\hfill\fontsize{14}{16}\bfseries\MakeUppercase}
+\renewcommand{\cftafterloftitle}{\hfill}
+\setlength{\cftbeforeloftitleskip}{-20pt}
+\renewcommand{\cftlottitlefont}{\hfill\fontsize{14}{16}\bfseries\MakeUppercase}
+\renewcommand{\cftafterlottitle}{\hfill}
+\setlength{\cftbeforelottitleskip}{-20pt}
+
+%% No bold in TOC
+\renewcommand{\cftchapfont}{\normalfont}
+\renewcommand{\cftchappagefont}{\normalfont}
+\renewcommand{\cftsecfont}{\normalfont}
+\renewcommand{\cftsecpagefont}{\normalfont}
+\renewcommand{\cftsubsecfont}{\normalfont}
+\renewcommand{\cftsubsecpagefont}{\normalfont}
+
+%% No dotted leaders in TOC
+\renewcommand{\cftchapleader}{\hfill}
+\renewcommand{\cftsecleader}{\hfill}
+\renewcommand{\cftsubsecleader}{\hfill}
+\renewcommand{\cftsubsubsecleader}{\hfill}
+
+%% No dotted leaders in List of Figures
+\renewcommand{\cftfigleader}{\hfill}
+
+%% No dotted leaders in List of Tables
+\renewcommand{\cfttableader}{\hfill}
+
+%% Chapter prefix in TOC: CHAPTER 1: TITLE
+\renewcommand{\cftchappresnum}{CHAPTER }
+\renewcommand{\cftchapaftersnum}{:}
+\setlength{\cftchapnumwidth}{6.5em}
+
+%% ── Page numbering ───────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \cfoot{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+%% ── Colours ──────────────────────────────────────────────────
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{210,210,210}
+\definecolor{codecomment}{RGB}{106,106,106}
+\definecolor{codekeyword}{RGB}{0,0,160}
+\definecolor{codestring}{RGB}{163,21,21}
+\definecolor{blockblue}{RGB}{220,232,255}
+\definecolor{blockgreen}{RGB}{210,240,210}
+\definecolor{blockorange}{RGB}{255,237,210}
+\definecolor{blockgrey}{RGB}{235,235,235}
+\definecolor{arrowgrey}{RGB}{90,90,90}
+
+%% ── Code style ───────────────────────────────────────────────
+\lstdefinestyle{mycode}{
+  backgroundcolor=\color{codebg},
+  commentstyle=\color{codecomment}\itshape,
+  keywordstyle=\color{codekeyword}\bfseries,
+  stringstyle=\color{codestring},
+  basicstyle=\ttfamily\small,
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=b,
+  keepspaces=true,
+  numbers=left,
+  numbersep=6pt,
+  numberstyle=\tiny\color{gray},
+  showstringspaces=false,
+  tabsize=2,
+  frame=single,
+  rulecolor=\color{codeframe},
+  xleftmargin=12pt,
+  xrightmargin=4pt,
+}
+
+
+\lstset{style=mycode}
+
+
+%% Remove dotted leaders from List of Listings
+\makeatletter
+\renewcommand*\l@lstlisting{\@dottedtocline{1}{1.5em}{3.2em}}
+\renewcommand{\@dotsep}{500}  % effectively removes dots
+\makeatother
+
+\lstdefinelanguage{JavaScript}{
+  keywords={const,let,var,function,return,if,else,for,while,async,
+             await,import,export,default,class,new,this,true,false,null},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  sensitive=true
+}
+
+\lstdefinelanguage{CppESP}{
+  language=C++,
+  morekeywords={Serial,WiFi,HTTPClient,String,float,int,bool,
+                uint32_t,uint8_t,void,setup,loop,digitalWrite,
+                analogRead,delay,millis},
+  sensitive=true
+}
+
+%% ── TikZ styles ──────────────────────────────────────────────
+\tikzset{
+  sysblock/.style={
+    rectangle, rounded corners=4pt,
+    minimum width=2.8cm, minimum height=0.8cm,
+    text centered, font=\small\bfseries,
+    draw=black!60, line width=0.6pt
+  },
+  arrow/.style={-Stealth, thick, color=arrowgrey},
+  dasharrow/.style={-Stealth, thick, dashed, color=arrowgrey}
+}
+
+%% ── Table style: no vertical lines, top+bottom+header rules ─
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+%% ── Hyperref ─────────────────────────────────────────────────
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+
+%% ─────────────────────────────────────────────────────────────
+\begin{document}
+
+%% ══ TITLE PAGE (page i, invisible) ══════════════════════════
+\pagenumbering{roman}
+\thispagestyle{empty}
+\begin{center}
+  \vspace*{0.1cm}
+  \includegraphics[width=4.5cm]{futalogo.jpeg}
+
+  \vspace{0.8cm}
+
+  {\fontsize{14}{20}\bfseries
+    DESIGN AND IMPLEMENTATION OF AN IoT-ENABLED INVERTER SYSTEM
+    WITH BATTERY-AWARE LOAD PRIORITIZATION
+    AND REMOTE MONITORING
+  }
+
+  \vspace{0.9cm}
+
+  {\normalsize BY}
+
+  \vspace{0.1cm}
+
+  {\fontsize{12}{16} DANIEL OLUWATOBI, KAYODE }\\[0.3em]
+  {\fontsize{12}{16} EEE/20/5675}
+
+  \vspace{0.8cm}
+
+  {\normalsize SUPERVISOR:}\\[0.2em]
+  {\normalsize DR. O. A. AGBOLADE}
+
+  \vspace{0.9cm}
+
+  {\normalsize SUBMITTED TO}\\[0.2em]
+  
+ \vspace{0.4cm}
+ 
+  {\normalsize
+    THE DEPARTMENT OF ELECTRICAL AND ELECTRONICS ENGINEERING,\\[0.2em]
+    SCHOOL OF ENGINEERING AND ENGINEERING TECHNOLOGY,\\[0.2em]
+    FEDERAL UNIVERSITY OF TECHNOLOGY, AKURE.
+  }
+
+  \vspace{0.6cm}
+
+  {\normalsize
+    IN PARTIAL FULFILLMENT OF THE REQUIREMENTS FOR THE AWARD OF\\[0.2em]
+    A BACHELOR OF ENGINEERING (B.ENG) DEGREE IN\\[0.2em]
+    ELECTRICAL AND ELECTRONICS ENGINEERING.
+  }
+
+ \vfill
+\begin{flushright}
+  {\normalsize AUGUST, 2026}
+\end{flushright}
+\end{center}
+
+%% ══ CERTIFICATION (page ii) ═════════════════════════════════
+\newpage
+\setcounter{page}{2}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{CERTIFICATION}
+
+\begin{center}
+  {\fontsize{14}{16}\bfseries CERTIFICATION}
+\end{center}
+
+\vspace{10pt}
+
+This document certifies that this report provides a comprehensive record
+on the final-year undergraduate project work done by KAYODE DANIEL
+OLUWATOBI, matriculation number EEE/20/5675, in the Department of
+Electrical and Electronics Engineering, the Federal University of
+Technology, Akure. The report has been prepared following the regulations
+governing the production of reports in the department and submitted in
+partial fulfillment of the requirement for the award of a Bachelor of
+Engineering (B.Eng.) degree in Electrical and Electronics Engineering.
+
+\vspace{60pt}
+
+\noindent
+\begin{minipage}[t]{0.45\textwidth}
+  Kayode Daniel Oluwatobi\\[2pt]
+  (Student)
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+  \dotfill\\[2pt]
+  \centering Signature and Date
+\end{minipage}
+
+\vspace{90pt}
+
+\noindent
+\begin{minipage}[t]{0.45\textwidth}
+  Dr. O. A. Agbolade\\[2pt]
+  (Supervisor)
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+  \dotfill\\[2pt]
+  \centering Signature and Date
+\end{minipage}
+
+\vspace{90pt}
+
+\noindent
+\begin{minipage}[t]{0.45\textwidth}
+  Dr. B. C. Ubochi\\[2pt]
+  (Head of Department)
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+  \dotfill\\[2pt]
+  \centering Signature and Date
+\end{minipage}
+
+%% ══ DEDICATION (page iii) ═══════════════════════════════════
+\newpage
+\setcounter{page}{3}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{DEDICATION}
+
+\begin{center}
+  {\fontsize{14}{16}\bfseries DEDICATION}
+\end{center}
+
+\vspace{10pt}
+
+This work is dedicated to  the Almighty God, to my beloved parents, Dr. and Mrs Kayode, and my supervisor, Dr. O. A. Agbolade
+
+%% ══ ACKNOWLEDGEMENT (page iv) ══════════════════════════════
+\newpage
+\setcounter{page}{4}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{ACKNOWLEDGEMENT}
+
+\begin{center}
+  {\fontsize{14}{16}\bfseries ACKNOWLEDGEMENT}
+\end{center}
+
+\vspace{10pt}
+
+All glory and honour belong to Almighty God, the source of all knowledge
+and wisdom, without whose grace this project and the entire undergraduate
+programme would not have been possible. I am deeply grateful for His
+provision, direction and strength throughout every phase of this work.
+
+I owe an immense debt of gratitude to my parents, who believed in me from
+the very beginning. Their phone calls to check in on my progress, their
+words of encouragement during difficult moments and the sacrifices they
+made to fund this education are the foundation upon which this
+achievement rests. Thank you for everything.
+
+I am sincerely grateful to my supervisor, Dr. O. A. Agbolade, for his
+guidance, patience and dedication at every step of this project. His
+technical advice, constructive feedback and willingness to be available
+whenever the team needed direction made a profound difference to the
+quality of this work. I could not have asked for a more committed
+supervisor.
+
+I also acknowledge the Head of Department, Dr. B. C. Ubochi, and the
+entire academic and non-academic staff of the Department of Electrical
+and Electronics Engineering at the Federal University of Technology,
+Akure. Their collective efforts throughout my five years of undergraduate
+study built the foundation of knowledge and practical skill that this
+project draws upon. I am grateful for every lecture, laboratory session
+and administrative support that contributed to my development as an
+engineer.
+
+%% ══ ABSTRACT (page v) ══════════════════════════════════════
+\newpage
+\setcounter{page}{5}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{ABSTRACT}
+
+\begin{center}
+  {\fontsize{14}{16}\bfseries ABSTRACT}
+\end{center}
+
+\vspace{10pt}
+
+Incessant power grid instability in developing countries has necessitated widespread adoption of solar-inverter backup systems. However, conventional installations frequently suffer from premature battery bank degradation due to unmonitored over-discharge, lack of cell-level observability, and indiscriminate supplying of non-critical loads during outages. This project presents the design, implementation, and empirical validation of an Internet of Things (IoT)-enabled smart inverter management system featuring real-time cell telemetry, automated battery-aware load prioritization, and cloud-synchronized remote monitoring and control.
+
+The hardware layer comprises a 4-series 100\,Ah Lithium Iron Phosphate ($\text{LiFePO}_4$) prismatic battery pack ($12.8\,\text{V}$, $1.28\,\text{kWh}$) mechanically constrained with custom steel compression plates and insulating polymer spacers, managed by a smart JK Battery Management System (BMS) with active inductive cell balancing. To circumvent Bluetooth and Wi-Fi radio co-existence conflicts on a single microcontroller, a dual-ESP32 architecture was designed: ESP32 Board~1 maintains a low-latency NimBLE connection to the BMS to reassemble 300-byte fragmented telemetry frames and drive a local 2.4-inch ILI9341 SPI TFT display, while ESP32 Board~2 handles Wi-Fi connectivity, multi-channel active-HIGH relay switching, and analog current measurement via multi-sampled ACS758 Hall-effect sensors on dedicated ADC1 channels with boot-time zero-point calibration. A 3-stage load prioritization engine autonomously sheds non-essential ($60\%$), major ($40\%$), and critical ($10\%$) load channels with a $5\%$ hysteresis buffer to protect pack longevity. The software ecosystem features bi-directional UART communication, cloud publishing to Firebase Realtime Database for live states and Supabase for historical analytics, and an installable Next.js 14 Progressive Web Application with Google OAuth and Web Speech voice alarms.
+
+Experimental validation demonstrated $100\%$ packet reassembly reliability over BLE, flawless zero-point sensor calibration ($<0.1\,\text{A}$ noise deadband), and precise automated load shedding across all State of Charge (SoC) thresholds under simulated load conditions. Cell voltage differentials remained within $3\,\text{mV}$ to $17\,\text{mV}$ under active balancing, confirming cell uniformity. Remote command dispatch and telemetry synchronization achieved end-to-end latencies under 3~seconds and 5~seconds, respectively. The system successfully demonstrates a robust, cost-effective architecture for extending energy storage lifespan and optimizing backup runtime in residential and commercial energy systems.
+
+%% ══ TABLE OF CONTENTS ══════════════════════════════════════
+\newpage
+\setcounter{page}{6}
+\addcontentsline{toc}{chapter}{TABLE OF CONTENTS}
+\tableofcontents
+
+%% ══ LIST OF FIGURES ═════════════════════════════════════════
+\newpage
+\listoffigures
+
+%% ══ LIST OF TABLES ══════════════════════════════════════════
+\newpage
+\listoftables
+%% ══ LIST OF LISTINGS ════════════════════════════════════════
+\newpage
+\renewcommand{\lstlistlistingname}{LIST OF LISTINGS}
+\lstlistoflistings
+
+
+%% ══════════════════════════════════════════════════════════════
+%%  CHAPTER 1: INTRODUCTION
+%% ══════════════════════════════════════════════════════════════
+\newpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\chapter{INTRODUCTION}
+
+\section{Background of the Study}
+
+Electricity is the backbone of economic activity and quality of life in
+the modern world. In Nigeria, however, the reliability of the national
+grid has long been a persistent and well-documented challenge. The country
+operates one of the largest but least reliable power grids in sub-Saharan
+Africa, with per-capita electricity consumption among the lowest in the
+region despite significant installed generation capacity \citep{aliyu2013}.
+Frequent outages, voltage instability and load shedding events impose
+enormous costs on households, small businesses and industrial operators
+alike.
+
+This energy deficit has catalysed widespread adoption of alternative power
+backup systems. Among these, battery-backed inverter systems have grown
+substantially in popularity over petrol-powered generators because they
+operate silently, produce no exhaust fumes and can be recharged from the
+grid or from solar photovoltaic panels whenever supply is available
+\citep{rashid2014}. The inverter converts stored Direct Current energy from
+a battery bank into Alternating Current suitable for household appliances
+and office equipment.
+
+Despite their utility, conventional inverter systems share a fundamental
+limitation: once installed, they operate as passive devices offering the
+user very little visibility or control. A user who steps out of the house
+has no way to determine how much battery capacity remains, which loads are
+drawing power or whether the battery is approaching a dangerous discharge
+level. When the battery is eventually depleted, the system shuts down
+without warning. Repeated deep discharge events of this nature permanently
+damage lithium battery cells, reducing capacity and shortening the
+lifespan of what is typically an expensive investment \citep{omar2014}.
+
+The Internet of Things represents a significant technological shift that
+directly addresses these limitations. IoT refers to the embedding of
+communication hardware in physical devices so that they can exchange data
+over wireless networks, enabling remote monitoring, automated decision
+making and real-time control from anywhere in the world \citep{ashton2009}.
+When applied to a home inverter system, IoT technology makes it possible
+to monitor battery State of Charge in real time, receive push alerts
+before a critical condition develops, automatically manage which loads
+remain powered as the battery depletes and issue control commands remotely
+from a smartphone.
+
+This project implements exactly that vision. It presents the design and
+implementation of a complete IoT-enabled inverter system that integrates a
+Lithium Iron Phosphate battery pack, a Battery Management System, a dual
+microcontroller embedded firmware architecture and a cloud-connected
+Progressive Web Application, all working in concert to deliver
+intelligent, remotely accessible power management to a Nigerian household.
+
+\section{Problem Statement}
+
+Conventional battery-backed inverter systems deployed in Nigerian homes
+operate without any real-time monitoring or remote control capability.
+Users have no visibility into battery State of Charge, instantaneous power
+consumption or individual load behaviour except by physically reading a
+display at the inverter unit. When power is required remotely or during
+extended absences, the user is entirely unable to assess the system's
+status or intervene to protect the battery from damage through over-discharge.
+
+Furthermore, most systems apply load shedding uniformly: when the battery
+depletes, the entire output is disconnected, cutting power to critical
+devices such as routers, medical equipment and lighting simultaneously
+with non-essential loads such as air conditioners and entertainment
+systems. This indiscriminate shutdown reduces the effective usefulness of
+the backup system and accelerates battery degradation.
+
+There is also no mechanism for historical analysis of energy consumption
+patterns, which prevents users from making informed decisions about load
+scheduling, battery capacity requirements or tariff optimisation.
+
+\section{Aim of the Project}
+
+This project aims to develop an Internet of Things (IoT)-enabled inverter system for real-time battery monitoring, automated load shedding, and remote cloud control, improving battery lifespan and user experience.
+
+
+\section{Objectives of the Project}
+
+The objectives of this project are to:
+
+\begin{enumerate}[noitemsep, leftmargin=0.7in, label=\roman*.]
+  \item design and assemble a 4-series Lithium Iron Phosphate battery
+        pack and integrate the JK Battery Management System for cell-level
+        monitoring and protection.
+  \item develop firmware for two ESP32 microcontrollers implementing
+        BLE communication with the JK BMS, real-time data parsing,
+        UART inter-board communication, Wi-Fi connectivity, relay-based
+        load switching and cloud telemetry publishing.
+  \item implement an intelligent load shedding engine that
+        automatically disconnects output channels in priority order as
+        battery State of Charge decreases below configurable thresholds.
+  \item develop a cloud-connected Progressive Web Application that
+        displays live and historical battery telemetry, provides remote
+        load channel control and supports MOSFET command dispatch through
+        Firebase Realtime Database.
+\end{enumerate}
+
+\section{Scope of the Project}
+
+This project covers the complete design and implementation of an
+IoT-enabled inverter monitoring system, from battery pack assembly through
+embedded firmware development to cloud infrastructure and web application
+deployment. The hardware components include a 4S LiFePO\textsubscript{4}
+battery bank, the JK BMS, two ESP32 development boards, a 2.4-inch TFT
+display, three ACS758 Hall-effect current sensors, three relay modules and
+the inverter output wiring.
+
+The firmware covers BLE communication and binary frame parsing for the
+JK BMS, TFT display rendering, UART inter-board communication, load
+prioritization control, ACS758 current measurement, Firebase and Supabase
+cloud publishing and NTP time synchronisation. The web application covers
+real-time dashboard display, historical analytics charts and remote relay
+and MOSFET control.
+
+The project does not cover the internal design of the inverter power stage,
+the design of a custom Battery Management System or the implementation of
+solar charge control. These elements exist in the system but use
+commercially available units whose internal design is outside the scope
+of this report.
+
+\section{Significance of the Project}
+
+This project makes several contributions to the field of intelligent
+embedded energy systems. It demonstrates that a complete IoT-enabled
+battery monitoring and load management system can be realised using
+accessible, low-cost hardware components within the resource constraints
+of an undergraduate final-year project in Nigeria.
+
+From a technical standpoint, the dual-ESP32 architecture resolves a
+real hardware limitation: the inability of a single ESP32 to run
+Bluetooth Low Energy and Wi-Fi simultaneously without severe packet loss.
+The firmware-level implementation of the JK BMS proprietary binary
+protocol provides a working reference for future researchers seeking to
+interface with JK BMS devices programmatically. The use of ADC1-only
+pins for current sensing while Wi-Fi is active addresses a commonly
+overlooked hardware conflict in ESP32-based IoT designs.
+
+From a practical standpoint, the system directly addresses a pressing
+need in the Nigerian context: giving households real-time visibility and
+remote control over their inverter systems, extending battery lifespan
+through protected load management and enabling data-driven energy
+consumption analysis.
+
+%% ══════════════════════════════════════════════════════════════
+%%  CHAPTER 2: LITERATURE REVIEW
+%% ══════════════════════════════════════════════════════════════
+\newpage
+\chapter{LITERATURE REVIEW}
+
+\section{Lithium Iron Phosphate Battery Technology}
+
+Lithium Iron Phosphate (LiFePO\textsubscript{4}) batteries belong to the
+broader family of lithium-ion electrochemical cells and have emerged as
+the preferred chemistry for stationary energy storage, backup power systems
+and electric vehicle applications where safety, longevity and thermal
+stability are priorities. The chemistry uses lithium iron phosphate as the
+cathode material, graphite as the anode and a lithium salt dissolved in an
+organic solvent as the electrolyte \citep{nitta2015}.
+
+Compared to other lithium-ion chemistries such as Lithium Cobalt Oxide and
+Nickel Manganese Cobalt, LiFePO\textsubscript{4} offers superior thermal
+and chemical stability. The iron-phosphate bond in the cathode structure is
+significantly stronger than the bonds in competing chemistries, which means
+the material does not decompose at elevated temperatures and is far less
+susceptible to thermal runaway \citep{dini2024}. This makes it
+substantially safer for unattended residential installations, which is
+the primary deployment context of this project.
+
+LiFePO\textsubscript{4} cells nominally operate at 3.2V per cell, reaching
+approximately 3.65V at full charge and dropping to a safe lower cutoff of
+about 2.5V per cell \citep{piller2001}. In a four-cell series configuration
+as used in this project, these limits translate to a nominal pack voltage
+of 12.8V, a full-charge voltage of 14.6V and a lower cutoff of 10V.
+The discharge curve of LiFePO\textsubscript{4} is notably flat across the
+bulk of the capacity range, remaining near 3.2V to 3.3V per cell between
+approximately 20\% and 80\% State of Charge. This flat profile
+complicates voltage-based State of Charge estimation and is one of the
+reasons that the JK BMS relies on coulomb counting as its primary
+estimation method, supplemented by voltage cross-checks.
+
+\citet{pillet2025} investigated the long-term cycling behaviour of
+LiFePO\textsubscript{4} cells under varying temperature and charge rate
+conditions and confirmed that the chemistry delivers excellent cycle life
+when operated within its recommended voltage window, with capacity
+retention above 80\% after 2000 cycles under nominal conditions.
+
+\subsection{Mechanical Compression of Prismatic LiFePO\texorpdfstring{\textsubscript{4}}{4} Cells}
+
+Prismatic LiFePO\textsubscript{4} cells are housed in thin aluminium
+enclosures. During charge and discharge cycles, the intercalation and
+de-intercalation of lithium ions cause the electrode materials to expand
+and contract, producing a reversible volumetric change in the cell.
+Without mechanical constraint, this repeated dimensional cycling causes
+progressive delamination of the electrode layers from each other and from
+their current collectors \citep{fraunhofer2022}. Delamination increases
+internal resistance, reduces usable capacity and, in severe cases, causes
+permanent structural collapse of the electrode assembly.
+
+Mechanical compression using rigid steel end plates and threaded steel
+rods restrains this volumetric change, keeping the electrode layers in
+intimate contact and preventing the irreversible delamination that would
+otherwise shorten the cell's useful life. The compression fixture applies
+a controlled and uniform pressure across the cell faces, distributing the
+internal stress evenly rather than allowing localised swelling to
+accumulate. Research by \citet{kit2024} demonstrated that appropriate
+compression levels extend cycle life significantly compared to uncompressed
+cells, while excessive compression introduces its own stress-related
+degradation pathway. In this project, steel compression plates and
+threaded rods are used to compress the four prismatic cells together,
+maintaining structural integrity throughout the charging and discharging
+cycles.
+
+\section{Battery Management Systems}
+
+A Battery Management System is an electronic circuit assembly that
+monitors and protects a lithium battery pack during operation. The
+functions of a BMS include cell voltage monitoring, pack current
+measurement, temperature monitoring, State of Charge estimation,
+overcharge protection, over-discharge protection, overcurrent protection,
+short-circuit protection and cell balancing \citep{dini2024}. Without a
+BMS, lithium cells are vulnerable to all of these failure modes, each of
+which can permanently damage the cells or create a fire hazard.
+
+\citet{hannan2017} provided a comprehensive review of BMS technologies and
+energy management strategies for lithium-ion battery packs, highlighting
+that accurate State of Charge estimation remains one of the most critical
+and technically challenging functions. Several estimation methods have
+been developed and deployed. Coulomb counting integrates the measured
+current over time to track the flow of charge in and out of the battery.
+It is simple and computationally inexpensive but accumulates errors over
+long periods due to current sensor inaccuracies and self-discharge effects.
+The Open-Circuit Voltage method estimates State of Charge from the
+battery's resting terminal voltage using a pre-characterised voltage versus
+State of Charge lookup table, but requires the battery to be at rest for
+an extended period for the measurement to be valid. Model-based methods
+such as Extended Kalman Filters combine current integration with voltage
+correction in a probabilistic framework that is more accurate but
+significantly more complex to implement \citep{piller2001}. The JK BMS
+used in this project employs coulomb counting as its primary State of
+Charge estimator, periodically recalibrated against the terminal voltage
+when the battery is at a known charge state.
+
+\subsection{Active Cell Balancing}
+
+Cell balancing addresses the practical reality that individual cells in a
+series-connected pack are never perfectly identical. Manufacturing
+tolerances produce small differences in capacity, internal resistance and
+self-discharge rate that cause the cells to drift apart in State of Charge
+over repeated cycles. Because the BMS must protect the weakest cell from
+exceeding its voltage limits, the entire pack's usable capacity is
+constrained by that weakest cell. Passive balancing dissipates excess
+charge from higher-voltage cells as heat through a resistor, equalising
+cell voltages at the cost of wasted energy. Active balancing, as
+implemented in the JK BMS, transfers charge from higher-voltage cells to
+lower-voltage cells using an inductor-based energy transfer circuit,
+achieving equalisation without wasting the energy. \citet{dini2024}
+demonstrated that active balancing substantially outperforms passive
+balancing in both energy efficiency and long-term capacity retention.
+
+\section{ESP32 Microcontroller in IoT Applications}
+
+The ESP32 is a dual-core 32-bit microcontroller developed by Espressif
+Systems, integrating both Wi-Fi (802.11 b/g/n) and Bluetooth (Classic and
+BLE 4.2) radios in a single chip \citep{espressif2024}. This integration
+makes it particularly attractive for IoT applications where wireless
+connectivity is essential but board space and cost constraints preclude
+separate radio modules.
+
+\citet{dzahir2023} evaluated the energy consumption of ESP32
+microcontrollers in real-time MQTT-based IoT monitoring systems under
+four operating conditions: always-on, light sleep, deep sleep with
+periodic wake and modem sleep. Their study found that deep sleep mode
+extends battery runtime from a few days to over 17 days, confirming the
+importance of power management strategy in deployed IoT nodes. While
+the present project does not prioritise power minimisation of the ESP32
+boards (they are powered from the inverter system itself), these findings
+inform the rationale for separating BLE and Wi-Fi radio operations across
+two boards, as the radio activity is itself a major contributor to power
+consumption and internal thermal noise.
+
+A critical hardware limitation of the ESP32 relevant to this project is
+the relationship between the Wi-Fi radio and the second ADC group (ADC2).
+When the Wi-Fi radio is active, ADC2 (which shares silicon with the RF
+front-end hardware) becomes unavailable for analog measurements, returning
+unreliable readings or causing crashes \citep{espressif2024}. This
+mandates the use of ADC1 pins exclusively for analog current sensing, a
+design constraint addressed in the hardware design of this project.
+
+\section{IoT Communication Protocols}
+
+\subsection{MQTT}
+
+Message Queuing Telemetry Transport (MQTT) is a lightweight
+publish-and-subscribe messaging protocol originally designed by IBM for
+low-bandwidth, high-latency satellite communication links and subsequently
+adopted by the OASIS standards body as an open protocol for IoT
+applications \citep{oasis2019}. MQTT uses a central broker to route
+messages between publishers and subscribers based on topic strings.
+Publishers send messages without needing to know which subscribers exist;
+subscribers receive all messages on topics they have registered interest
+in. The protocol supports three Quality of Service levels governing
+delivery guarantees, from fire-and-forget (QoS 0) through at-least-once
+(QoS 1) to exactly-once (QoS 2).
+
+MQTT's minimal header overhead (as little as two bytes for fixed header)
+makes it significantly more efficient than HTTP for high-frequency sensor
+telemetry. \citet{dzahir2023} confirmed that MQTT introduces substantially
+lower communication overhead than HTTP in ESP32-based monitoring
+applications, contributing to both lower energy consumption and reduced
+latency. In this project, however, the primary cloud communication uses
+Firebase HTTPS REST rather than a standalone MQTT broker, a design choice
+discussed in the methodology.
+
+\subsection{Bluetooth Low Energy}
+
+Bluetooth Low Energy (BLE) is a wireless communication standard designed
+for short-range, low-power data exchange. BLE uses the Generic Attribute
+Profile (GATT) to organise data into services and characteristics,
+allowing a client device to discover and subscribe to specific data streams
+from a peripheral. The JK BMS broadcasts its telemetry as BLE GATT
+notifications on a proprietary service UUID, transmitting 300-byte binary
+frames fragmented across multiple 20-byte BLE notification packets
+\citep{ijcrt2025}. The first ESP32 board acts as a BLE GATT client,
+connecting to the BMS and subscribing to the notification characteristic
+to receive these frames.
+
+\section{Load Management in Energy Systems}
+
+Intelligent load management involves the automated or semi-automated
+control of electrical loads to optimise energy usage based on available
+supply, demand priorities and system constraints. In the context of
+battery-backed inverter systems, load management typically involves
+disconnecting lower-priority loads before the battery reaches a critical
+discharge level, thereby extending the runtime available to higher-priority
+loads \citep{divya2009}.
+
+Priority-based load shedding assigns each connected load a criticality
+level. As the battery depletes, loads are shed in reverse order of
+priority. Non-essential loads are disconnected first, preserving energy
+for major loads. If depletion continues, major loads are shed next,
+leaving only critical loads powered until the battery reaches the absolute
+safe discharge limit. \citet{ijpeds2023} demonstrated that a
+State-of-Charge-triggered load shedding system implemented on an ESP32
+with relay switching achieved reliable and repeatable disconnection
+sequences across extended discharge cycles.
+
+\section{Firebase Realtime Database and Supabase in IoT Systems}
+
+Firebase Realtime Database is a cloud-hosted, JSON-structured database
+provided by Google that delivers data to connected clients over WebSocket
+in real time \citep{expodocs2024}. Any write to the database is instantly
+pushed to all clients that have registered listeners on the affected path,
+without polling. This characteristic makes Firebase Realtime Database
+particularly suitable for live telemetry dashboards where data changes
+frequently and display latency must be minimised.
+
+Supabase is an open-source Backend-as-a-Service platform built on
+PostgreSQL, providing a REST API (PostgREST) for structured data storage
+and querying \citep{firebasedocs2024}. Unlike Firebase's document model,
+Supabase's relational schema and SQL querying capabilities make it better
+suited for time-series analytics where complex aggregations, range queries
+and multi-parameter filtering are required. In this project the two
+platforms serve complementary roles: Firebase handles the live state
+displayed on the dashboard, while Supabase stores the historical telemetry
+used to generate analytics charts.
+
+\section{Overview of Reviewed Literature}
+
+Table \ref{tab:litoverview} presents a summary of the key literature reviewed in this chapter, highlighting the focus, methodology, and principal findings of each work and its relevance to the present project.
+
+\begin{longtable}{L{2.8cm} L{3.5cm} L{4.5cm} L{3.5cm}}
+\caption{Overview of Reviewed Literature} \label{tab:litoverview} \\
+\toprule
+\textbf{Author(s) \& Year} & \textbf{Topic / Focus} & \textbf{Key Findings} & \textbf{Relevance to This Project} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{c}{\tablename\ \thetable{} -- continued} \\
+\toprule
+\textbf{Author(s) \& Year} & \textbf{Topic / Focus} & \textbf{Key Findings} & \textbf{Relevance to This Project} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{} \\
+\endfoot
+\bottomrule
+\endlastfoot
+
+Aliyu, Ramli \& Saleh (2013) & Nigeria electricity crisis and generation capacity & Documented poor grid reliability and low per-capita consumption despite installed capacity & Justifies the need for backup power systems in Nigeria \\
+
+Ashton (2009) & Internet of Things concept & Introduced the foundational IoT paradigm of embedding connectivity in everyday objects & Provides the theoretical basis for connecting the inverter to the internet \\
+
+Dini \& Ria (2024) & Li-ion battery characteristics and BMS integration & LiFePO\textsubscript{4} offers superior thermal stability and safety compared to other chemistries & Informs the battery chemistry selection for this project \\
+
+Divya \& Ostergaard (2009) & Battery energy storage in power systems & Load management extends available runtime by disconnecting lower-priority loads first & Supports the priority-based load shedding approach \\
+
+Dzahir \& Chia (2023) & ESP32 energy consumption in MQTT IoT systems & Deep sleep extends battery runtime significantly; MQTT has lower overhead than HTTP & Informs the dual-ESP32 architecture and cloud protocol choices \\
+
+Espressif Systems (2024) & ESP32 technical reference manual & ADC2 is unavailable when Wi-Fi is active; ADC1 must be used for analog sensing during Wi-Fi operation & Directly informs the ADC1-only current sensor pin assignment \\
+
+Expo (2024) & Using Firebase with Expo & Firebase Realtime Database provides instant data push to all connected clients & Supports the choice of Firebase for live dashboard state \\
+
+Firebase (2024) & Cloud Firestore documentation & Document model suits real-time state synchronisation; relational backends suit analytics & Justifies the dual-backend architecture (Firebase + Supabase) \\
+
+Fraunhofer ISE (2022) & Mechanical behaviour of prismatic cells & Unconstrained cycling causes electrode delamination; compression extends cycle life & Validates the use of steel compression plates in the battery pack \\
+
+Hannan et al. (2017) & BMS technologies and energy management & Accurate SoC estimation is critical; coulomb counting is common but accumulates error & Informs the understanding of BMS SoC estimation methods \\
+
+IJCRT (2025) & IoT-based battery monitoring with BMS and ESP32 & JK BMS transmits 300-byte binary frames fragmented over 20-byte BLE packets & Directly supports the BLE frame reassembly firmware design \\
+
+IJPEDS (2023) & SoC-based intelligent load management for inverters & ESP32-based relay switching achieved reliable disconnection sequences across discharge cycles & Validates the feasibility of the proposed load shedding engine \\
+
+KIT (2024) & Compression effects on LiFePO\textsubscript{4} cycle life & Appropriate compression extends cycle life; excessive compression causes degradation & Informs the compression fixture design for the battery pack \\
+
+Nitta et al. (2015) & Li-ion battery materials present and future & LiFePO\textsubscript{4} uses iron-phosphate cathode and graphite anode; nominal voltage is 3.2V per cell & Provides the electrochemical foundation for the 4S pack design \\
+
+OASIS (2019) & MQTT Version 5.0 specification & Publish-subscribe model with three QoS levels; minimal header overhead & Informs the communication protocol literature review \\
+
+Omar et al. (2014) & LiFePO\textsubscript{4} aging and cycle life model & Repeated deep discharge permanently damages cells and reduces capacity & Justifies the need for protected load management to prevent deep discharge \\
+
+Pillet et al. (2025) & Long-term cycling of LiFePO\textsubscript{4} cells & Capacity retention above 80\% after 2000 cycles under nominal conditions & Validates the longevity expectations for the chosen battery chemistry \\
+
+Piller, Perrin \& Jossen (2001) & State-of-charge determination methods & Coulomb counting, OCV and model-based methods each have trade-offs in accuracy and complexity & Informs the understanding of SoC estimation limitations \\
+
+Rashid (2014) & Power electronics handbook & Inverters convert DC battery energy to AC for appliances; battery-backed systems are silent and clean & Provides the power electronics foundation for the inverter subsystem \\
+
+\end{longtable}
+
+\section{Gaps in Existing Literature}
+
+A review of the available literature reveals that while individual
+components of the proposed system have been studied extensively, very few
+works combine all of them into a single, hardware-verified implementation.
+Most BMS interface studies use either Bluetooth-only or Wi-Fi-only
+approaches, rarely addressing the fundamental incompatibility between
+simultaneous BLE and Wi-Fi operation on a single ESP32 and the resulting
+need for a distributed dual-microcontroller architecture. Works on load
+prioritization typically simulate rather than implement the relay switching
+hardware. IoT dashboard studies seldom implement the complete pipeline
+from physical sensor reading through firmware processing to cloud
+synchronisation and user-facing web application in a single project.
+
+Table \ref{tab:litgaps} summarises the specific gaps identified in the
+reviewed literature and indicates how this project addresses each of them.
+
+{\renewcommand{\arraystretch}{1.5}
+\begin{longtable}{L{4.0cm} L{5.5cm} L{5.3cm}}
+\caption{Identified Gaps in Reviewed Literature and How This Project Addresses Them} \label{tab:litgaps} \\
+\toprule
+\textbf{Gap Identified} & \textbf{Limitation in Existing Work} & \textbf{How This Project Addresses the Gap} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{c}{\tablename\ \thetable{} (continued)} \\
+\toprule
+\textbf{Gap Identified} & \textbf{Limitation in Existing Work} & \textbf{How This Project Addresses the Gap} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r}{} \\
+\endfoot
+\bottomrule
+\endlastfoot
+
+Simultaneous BLE and Wi-Fi operation & Most BMS interface studies use either Bluetooth-only or Wi-Fi-only approaches, rarely addressing the radio conflict on a single ESP32 & Implements a distributed dual-ESP32 architecture separating BLE and Wi-Fi responsibilities across two boards \\
+
+Hardware-verified load prioritization & Works on load prioritization typically simulate rather than physically implement relay switching hardware & Implements and physically tests a relay-based load shedding engine with SoC thresholds and hysteresis \\
+
+End-to-end IoT pipeline & IoT dashboard studies seldom implement the complete pipeline from sensor reading through firmware to cloud sync and web application & Delivers a fully working pipeline from BLE sensor acquisition to firmware processing, cloud publishing and a live Progressive Web Application \\
+
+JK BMS protocol documentation & Few accessible references document the JK BMS proprietary binary frame structure for firmware-level integration & Provides a working firmware-level parser for the JK02\_32S binary protocol as a practical reference \\
+
+ADC/Wi-Fi hardware conflict handling & ESP32-based IoT designs commonly overlook the ADC2/Wi-Fi radio conflict during analog sensing & Explicitly routes all current sensing to ADC1-only pins to avoid conflict during active Wi-Fi operation \\
+
+Dual-backend cloud architecture & Existing systems typically rely on a single cloud backend, limiting either live-state responsiveness or historical analytics capability & Combines Firebase Realtime Database for live state with Supabase for structured historical analytics \\
+
+\end{longtable}
+
+This project addresses all of these gaps simultaneously by implementing a
+complete, working system verified on physical hardware. The dual-ESP32
+architecture, the JK BMS binary protocol parser, the ADC1-only constraint
+for current sensing during Wi-Fi operation, the dual-backend cloud
+architecture combining Firebase and Supabase, and the Progressive Web
+Application interface together represent a contribution to the practical
+literature on IoT-enabled energy management systems.
+
+
+
+%%======================================================
+%%  CHAPTER 3: METHODOLOGY
+%%======================================================
+\newpage
+\chapter{METHODOLOGY}
+
+\section{System Overview}
+
+The complete system is an embedded firmware ecosystem for real-time
+monitoring, intelligent load management and cloud telemetry for a
+lithium-ion battery pack managed by a JK Battery Management System. The
+system architecture is illustrated in Figure~\ref{fig:sysarch}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  scale=1,
+  transform shape,
+  node distance=1.0cm
+]
+  \node[sysblock, fill=blockgreen] (batt)
+    {LiFePO$_4$ Battery Pack};
+
+  \node[sysblock, fill=blockgreen, below=of batt] (bms)
+    {JK-BMS};
+
+  \node[sysblock, fill=blockblue, below=of bms] (esp1)
+    {ESP32 Board 1 (BLE + TFT)};
+
+  \node[sysblock, fill=blockblue, below=of esp1] (esp2)
+    {ESP32 Board 2 (Wi-Fi + Relay)};
+
+  \node[sysblock, fill=blockgrey, below=of esp2] (router)
+    {Wi-Fi Router / 4G MiFi};
+
+  \node[sysblock, fill=blockorange, below=of router] (cloud)
+    {Firebase RTDB + Supabase};
+
+  \node[sysblock, fill=blockblue, below=of cloud] (app)
+    {Progressive Web App};
+
+  \draw[arrow] (batt) -- node[right,font=\tiny]{DC} (bms);
+  \draw[dasharrow] (bms) -- node[right,font=\tiny]{BLE} (esp1);
+  \draw[arrow] (esp1) -- node[right,font=\tiny]{UART} (esp2);
+  \draw[arrow] (esp2) -- node[right,font=\tiny]{Wi-Fi HTTPS} (router);
+  \draw[arrow] (router) -- node[right,font=\tiny]{Internet} (cloud);
+  \draw[arrow] (cloud) -- node[right,font=\tiny]{WebSocket / REST} (app);
+
+  \draw[dasharrow] (app.east) to[bend right=45]
+      node[right,font=\tiny]{Commands} (cloud.east);
+
+\end{tikzpicture}
+\caption{Overall System Architecture}
+\label{fig:sysarch}
+\end{figure}
+
+
+
+The reason for splitting responsibilities across two microcontrollers is
+a real hardware limitation: Bluetooth Low Energy and Wi-Fi cannot run
+reliably at the same time on a single ESP32. When both radios are active
+on one board, the result is severe packet loss on the BLE link, BMS
+connection timeouts and stuttering on the TFT display. Separating the
+roles solves this cleanly. ESP32 Board 1 owns the BLE connection to the
+BMS and the TFT display. ESP32 Board 2 owns everything network-related:
+Wi-Fi, relay switching, current sensing, Firebase and Supabase.
+
+\section{Hardware Design}
+
+The hardware design described in this section directly addresses
+Objective~(i), which calls for the design and assembly of a 4-series
+LiFePO\textsubscript{4} battery pack and the integration of the JK Battery
+Management System for cell-level monitoring and protection.
+
+\subsection{Battery Pack Design and Assembly}
+
+The battery pack consists of four 100\,Ah 3.2\,V nominal Lithium Iron
+Phosphate ($\text{LiFePO}_4$) prismatic cells connected in series, producing a 4S configuration
+with a nominal pack voltage of 12.8\,V and a full-charge voltage of 14.6\,V.
+The series connection increases the total voltage while maintaining the
+100\,Ah capacity of a single cell, giving the pack approximately 1.28\,kWh
+of usable energy storage. Figure~\ref{fig:cells_purchased} shows the four individual 100\,Ah prismatic cells procured for the system before physical integration.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[
+    width=0.55\textwidth,
+    angle=90
+  ]{image of the lifepo4 battery purchased_.jpg}
+  \caption{The four 100\,Ah LiFePO\textsubscript{4} prismatic cells purchased for the project}
+  \label{fig:cells_purchased}
+\end{figure}
+
+Before assembly, each cell was individually tested with a digital multimeter
+to verify voltage uniformity. Cells with significant voltage deviations,
+physical swelling or visible damage were excluded. The cells were then
+top-balanced by charging each one individually to 3.65\,V before connection,
+ensuring all four entered service at the same State of Charge. This gives
+the BMS coulomb counter an accurate starting reference.
+
+The four cells were arranged in alternating orientations so that adjacent
+positive and negative terminals faced each other, enabling a compact series
+connection using copper busbars. Steel end plates were positioned on both
+outer faces of the cell stack, and four threaded steel rods were passed
+through alignment holes at the plate corners. Bolts and nuts were tightened
+to apply controlled mechanical compression across the cell faces.
+
+This compression is essential for preventing electrode delamination. During
+each charge and discharge cycle, the intercalation and de-intercalation of
+lithium ions causes the electrode layers to expand and contract. Without
+constraint, this repeated volumetric change causes progressive separation of
+electrode layers from each other and from their current collectors, which
+raises internal resistance and reduces capacity over time. The steel plate
+fixture maintains intimate electrode contact throughout the lifetime of the
+pack \citep{fraunhofer2022}.
+
+\subsection{Physical Pack Construction: Enclosure, Insulation and Compression}
+
+\subsubsection{Inter-Cell Electrical Insulation}
+
+To prevent accidental electrical short circuits across adjacent metallic cell bodies, custom 3D-printed insulating spacers were engineered and placed between every adjacent cell pair and between the cell stack and the metallic enclosure walls. Because the prismatic cells possess conductive aluminium outer walls, direct physical contact across adjacent cell bodies or with the metallic chassis would establish inadvertent conductive paths. Figure~\ref{fig:spacers} illustrates the 3D-printed polymer spacers that eliminate this risk by providing a continuous mechanical and electrical barrier at every contact boundary.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.60\textwidth]{image of the 3d printed spacers that was but in between the battery cells to prevent short-circuit between battery cells.png}
+  \caption{3D-printed polymer spacers placed between the LiFePO\textsubscript{4} cells to prevent inter-cell short circuits}
+  \label{fig:spacers}
+\end{figure}
+
+\subsubsection{Compression Plates}
+
+Prismatic LiFePO\textsubscript{4} cells experience cyclic volumetric expansion (``breathing'') during intercalation and de-intercalation of lithium ions. Without rigid mechanical restraint, this cyclic swelling leads to internal delamination of the electrode and separator layers, casing distortion, and premature capacity loss. To counteract this degradation mechanism, steel compression end-plates and 8\,mm threaded steel rods were fabricated to clamp the four cells under continuous, uniform mechanical pressure. Figure~\ref{fig:compression_parts} shows the engineering drawing and hardware components of the compression fixture, while Figure~\ref{fig:assembly_sequence} illustrates the pack assembly sequence.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{engineering drawing of the battery compression plate.png}
+    \caption{Engineering drawing of the steel compression plate}
+    \label{fig:plate_drawing}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{image of the compression plates, the 8mm threaded rods and the 4 nuts used for the battery pack compression.png}
+    \caption{Steel compression plates, 8\,mm threaded rods and nuts}
+    \label{fig:compression_hardware}
+  \end{subfigure}
+  \caption{Battery pack compression fixture components}
+  \label{fig:compression_parts}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{image of the 4 lifepo4 cells, with the 3d printed spacers in between them and the compression plates at either end.jpg}
+    \caption{Cells arranged with spacers and compression plates before tightening}
+    \label{fig:cells_assembled}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{assembling and compression of the battery and BMS integration_.jpg}
+    \caption{Battery pack assembly and BMS integration in progress}
+    \label{fig:assembly_progress}
+  \end{subfigure}
+  \caption{Battery pack assembly sequence}
+  \label{fig:assembly_sequence}
+\end{figure}
+
+\subsection{Electrical Interconnection: Cabling, Lugs and Torque Practice}
+\label{sec:cablesizing}
+
+The main DC power connections between the battery pack terminals, the BMS switching path, and the inverter DC input were executed using high-flexibility $16\,\text{mm}^{2}$ multi-strand copper cable. The selection of $16\,\text{mm}^{2}$ conductor cross-section was determined through rigorous electrical engineering calculations satisfying continuous ampacity, thermal dissipation, and permissible voltage drop criteria.
+
+\paragraph{1. Maximum Design Current Calculation.}
+The inverter employed is rated at an apparent power $S = 1.5\,\text{kVA} = 1500\,\text{VA}$. Assuming a standard inductive power factor $\cos\phi = 0.8$, the maximum real output power is:
+\begin{equation}
+    P_{\text{ac}} = S \times \cos\phi = 1500\,\text{VA} \times 0.8 = 1200\,\text{W}
+    \label{eq:pac}
+\end{equation}
+Accounting for the inverter's DC-to-AC conversion efficiency ($\eta \approx 88\% = 0.88$), the continuous DC power demand drawn from the battery pack is:
+\begin{equation}
+    P_{\text{dc}} = \frac{P_{\text{ac}}}{\eta} = \frac{1200\,\text{W}}{0.88} \approx 1363.6\,\text{W}
+    \label{eq:pdc}
+\end{equation}
+The maximum continuous DC discharge current occurs at the minimum operating pack voltage before undervoltage cutoff. Setting a worst-case threshold of $V_{\text{min}} = 11.2\,\text{V}$ (equivalent to $2.80\,\text{V}$ per cell, below which the BMS cuts off at $3.00\,\text{V}$):
+\begin{equation}
+    I_{\text{dc,max}} = \frac{P_{\text{dc}}}{V_{\text{min}}} = \frac{1363.6\,\text{W}}{11.2\,\text{V}} \approx 121.75\,\text{A}
+    \label{eq:idc_max}
+\end{equation}
+Under nominal operating voltage ($V_{\text{nom}} = 12.8\,\text{V}$) and continuous practical test loads ($800\,\text{W}$ to $1000\,\text{W}$), the continuous discharge current is:
+\begin{equation}
+    I_{\text{dc,nom}} = \frac{1000\,\text{W} / 0.88}{12.8\,\text{V}} \approx 88.8\,\text{A}
+    \label{eq:idc_nom}
+\end{equation}
+During charging, the maximum configured inverter charge current is limited to $I_{\text{chg}} = 30.0\,\text{A}$.
+
+\paragraph{2. Current-Carrying Capacity (Ampacity) and Thermal Rating.}
+According to IEC 60364-5-52 and BS 7671 standards for multi-strand flexible copper conductors with high-temperature silicone insulation in free air and enclosed trunking, a $16\,\text{mm}^{2}$ copper cable has a baseline continuous ampacity of $I_z \approx 110\,\text{A}$ at an ambient temperature of $30\,^{\circ}\text{C}$. Applying a thermal derating correction factor $k_t = 0.94$ for tropical ambient conditions up to $40\,^{\circ}\text{C}$ in Akure:
+\begin{equation}
+    I_z' = I_z \times k_t = 110\,\text{A} \times 0.94 \approx 103.4\,\text{A}
+    \label{eq:ampacity}
+\end{equation}
+This rating comfortably exceeds the continuous operational current demands of the system under all sustained load and charging scenarios.
+
+\paragraph{3. Conductor Loop Resistance and Voltage Drop.}
+For low-voltage ($12\,\text{V}$) DC power systems, minimizing percentage voltage drop is critical to avoid premature undervoltage tripping and power loss. The total conductor loop length (positive and negative leads combined) between the battery pack, BMS, and inverter terminals is $L_{\text{loop}} = 1.0\,\text{m}$ ($0.5\,\text{m}$ per lead).
+
+The resistivity of annealed copper at its maximum conductor operating temperature ($75\,^{\circ}\text{C}$) is $\rho_{75} = 2.14 \times 10^{-8}\,\Omega\cdot\text{m}$. For a cross-sectional area $A = 16\,\text{mm}^{2} = 16 \times 10^{-6}\,\text{m}^{2}$, the total cable loop resistance is:
+\begin{equation}
+    R_{\text{cable}} = \frac{\rho_{75} \cdot L_{\text{loop}}}{A} = \frac{2.14 \times 10^{-8}\,\Omega\cdot\text{m} \times 1.0\,\text{m}}{16 \times 10^{-6}\,\text{m}^{2}} = 1.3375 \times 10^{-3}\,\Omega = 1.338\,\text{m}\Omega
+    \label{eq:rcable}
+\end{equation}
+At a high continuous operational discharge current of $I = 80\,\text{A}$, the total voltage drop across the DC cabling is:
+\begin{equation}
+    \Delta V = I \cdot R_{\text{cable}} = 80\,\text{A} \times 1.3375 \times 10^{-3}\,\Omega \approx 0.107\,\text{V}
+    \label{eq:vdrop}
+\end{equation}
+Expressed as a percentage of the nominal $12.8\,\text{V}$ battery bus:
+\begin{equation}
+    \%\Delta V = \left(\frac{\Delta V}{V_{\text{nom}}}\right) \times 100\% = \left(\frac{0.107\,\text{V}}{12.8\,\text{V}}\right) \times 100\% \approx 0.836\%
+    \label{eq:pvdrop}
+\end{equation}
+This voltage drop of $0.836\%$ is significantly below the standard $3.0\%$ maximum limit prescribed by IEEE and IEE Wiring Regulations for DC power circuits.
+
+\paragraph{4. Ohmic Power Loss.}
+The total thermal power dissipated along the cable length at $80\,\text{A}$ is:
+\begin{equation}
+    P_{\text{loss}} = I^{2} \cdot R_{\text{cable}} = (80\,\text{A})^{2} \times 1.3375 \times 10^{-3}\,\Omega \approx 8.56\,\text{W}
+    \label{eq:ploss}
+\end{equation}
+This modest dissipation ($<8.6\,\text{W}$ distributed over a 1\,m cable span) generates negligible temperature rise, verifying that $16\,\text{mm}^{2}$ copper cable delivers superior safety, high electrical efficiency, and minimal thermal stress.
+
+Cable lugs were hydraulically crimped onto every cable termination point: the cell terminal busbars, the BMS main power terminals, and the inverter DC input studs. Bare stripped conductors clamped under screw heads are unsuitable for high currents due to inconsistent contact area and vulnerability to creep. A crimped copper lug provides a large, uniform interfacial contact area. Connections were tightened with a calibrated torque wrench to ensure tight, low-resistance mechanical joints ($<0.05\,\text{m}\Omega$ contact resistance), eliminating hotspot formation.
+
+\subsection{JK Battery Management System}
+
+The protection, cell balancing, and telemetry acquisition for the 4S pack are overseen by the smart JK Battery Management System (BMS). The BMS unit is illustrated in Figure~\ref{fig:jkbms}, while Figure~\ref{fig:bms_integration} shows its physical wiring and final placement inside the metallic battery enclosure.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.70\textwidth, trim=0cm 6cm 2cm 1cm,
+       clip]{image of the jk bms.jpg}
+  \caption{The JK Battery Management System unit used in this project}
+  \label{fig:jkbms}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+
+  \begin{subfigure}[b]{0.4\textwidth}
+    \centering
+    \includegraphics[
+      width=\textwidth,
+      angle=90,
+      height=9cm
+    ]{image of the assembled battery with BMS wire connections on it.jpg}
+    \caption{BMS balance leads connected to the battery pack terminals}
+    \label{fig:bms_wired}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.4\textwidth}
+    \centering
+    \includegraphics[
+      width=\textwidth,
+       height=9cm,
+       trim=3cm 6cm 2cm 1cm,
+       clip
+    ]{image of the assembled battery in the metal casing container_.jpg}
+    \caption{Fully assembled battery pack housed in the metallic enclosure}
+    \label{fig:pack_cased}
+  \end{subfigure}
+
+  \caption{BMS integration and final battery pack assembly}
+  \label{fig:bms_integration}
+\end{figure}
+
+The BMS is connected to the battery pack in two ways. First, a set of thin
+cell-tap sense wires, one per inter-cell junction plus the pack positive and
+negative terminals, allows the BMS to measure each cell's voltage
+individually. Second, the main 16\,mm$^{2}$ power leads carry the full pack
+charge and discharge current through the BMS's internal MOSFET switching
+path. This series placement is what allows the BMS to physically disconnect
+the battery from the load or charger when a protection threshold is exceeded.
+
+The BMS protection and charge-control parameters were configured via the
+manufacturer's Bluetooth mobile application. Table~\ref{tab:bmsconfig} shows
+the configured values.
+
+\begin{table}[htbp]
+\centering
+\caption{JK BMS Protection Configuration Parameters}
+\label{tab:bmsconfig}
+\begin{tabular}{L{5.5cm} C{3.0cm} C{3.5cm}}
+\toprule
+\textbf{Parameter} & \textbf{Configured Value} & \textbf{Pack Equivalent (4S)} \\
+\midrule
+Cell over-voltage protection (COVP) & 3.55\,V & 14.20\,V \\
+Cell under-voltage protection (CUVP) & 3.00\,V & 12.00\,V \\
+Balance trigger voltage & 3.36\,V & 13.44\,V \\
+Float charge voltage & 3.375\,V avg & 13.50\,V \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The configured parameters, shown in the BMS application interface in Figure~\ref{fig:bms_settings}, maintain a deliberate safety margin within the chemistry's absolute electro-chemical boundaries of $2.50\,\text{V}$ to $3.65\,\text{V}$ per cell. This conservative strategy sacrifices a negligible fraction ($<2\%$) of extreme-end capacity in exchange for drastically reduced cell degradation and extended cyclic lifespan.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.45\textwidth]{bms_settings.png}
+  \caption{BMS mobile application configuration page showing protection and charge parameters}
+  \label{fig:bms_settings}
+\end{figure}
+
+\subsection{Inverter Integration and Charge-Profile Configuration}
+
+The energy conversion and primary battery charging are performed by a Nexus 1.5\,kVA hybrid solar inverter. Its rear interface panel, depicted in Figure~\ref{fig:inverter_rear}, features AC input/output terminals (L and N), a high-efficiency PV MPPT input terminal pair (rated $18\,\text{V}$--$30\,\text{V}$ optimum), heavy-duty DC $12\,\text{V}$ battery terminal lugs, an inverter power switch, and a thermostatically controlled cooling fan. Table~\ref{tab:inverterspec} details the inverter electrical specifications and the charge parameters configured for the system.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{the rear of the inverter showing the ac input and output, pv input, DC 12V input, a switch to on and off the inverter, etc.jpg}
+  \caption{Rear panel of the Nexus 1.5\,kVA hybrid inverter showing AC terminals, PV input, DC battery input and cooling fan}
+  \label{fig:inverter_rear}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Nexus 1.5\,kVA Hybrid Inverter Specifications and Configuration}
+\label{tab:inverterspec}
+\begin{tabular}{L{5.5cm} L{4.5cm} L{3.0cm}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Source} \\
+\midrule
+Rated capacity & 1.5\,kVA & Project specification \\
+Battery input & DC\,12V (nominal) & Rear panel label \\
+PV input range & 16--80\,V (best 18--30\,V) & Rear panel label \\
+AC input/output & L/N terminals, input and output & Rear panel label \\
+Bulk charge voltage (configured) & 14.5\,V & Inverter settings \\
+Charge current limit (configured) & 30\,A & Inverter settings \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+One coordination point worth noting: the inverter's configured bulk charge
+target of 14.5\,V corresponds to an average of 3.625\,V per cell. This is
+higher than the BMS's configured COVP of 3.55\,V per cell, which is equivalent
+to 14.20\,V at the pack level. In practice the BMS cell-level protection is
+the more conservative limit and is expected to begin restricting charge
+current before the inverter's 14.5\,V bulk target is reached uniformly. This
+is a desirable coordination outcome: the inverter's charging profile is not
+the final arbiter of pack safety, and the BMS's own per-cell cutoff is the
+effective limiting factor.
+
+\subsection{BMS Calibration Procedure and State of Charge Dynamics}
+\label{sec:bmscalib}
+
+Following mechanical and electrical assembly, the battery pack and BMS were connected to the inverter to execute an initial full-charge calibration routine under supervisory guidance. In Lithium Iron Phosphate ($\text{LiFePO}_4$) chemistry, the open-circuit voltage curve is extraordinarily flat across $10\%$ to $90\%$ SoC, exhibiting a voltage variation of only a few tens of millivolts (around $3.25\,\text{V}$ to $3.35\,\text{V}$ per cell). Consequently, voltage-based SoC estimation is fundamentally unreliable in this plateau region, requiring the BMS to rely on coulomb counting (current integration over time). However, uncalibrated coulomb counters accumulate drift and have no initial absolute reference point.
+
+During the initial commissioning charge, the BMS attempts to locate its true $100\%$ SoC datum point. Figure~\ref{fig:bms_charging} captures a critical diagnostic observation during this initial calibration charge.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.3\textwidth]{the jk bms interface showing the battery percentage, charging current, voltage diff, max cell voltage, power, temperature, etc.jpg}
+  \caption{JK BMS mobile application showing live battery metrics during the initial calibration charge}
+  \label{fig:bms_charging}
+\end{figure}
+
+In Figure~\ref{fig:bms_charging}, the BMS application circular gauge indicates an apparent State of Charge of $99\%$. However, examination of the live electrical metrics reveals that the pack is actively absorbing a substantial charging current of $26.75\,\text{A}$ ($359.8\,\text{W}$) at a pack terminal voltage of only $13.45\,\text{V}$ (an average of $3.362\,\text{V}$ per cell). In a genuinely full $\text{LiFePO}_4$ battery ($99\%$--$100\%$ SoC), the cell operating points enter the steep upper voltage ``knee'' ($>3.50\,\text{V}$ per cell, or $>14.0\,\text{V}$ pack voltage), causing the constant-voltage absorption current to rapidly taper down toward zero. The fact that the battery in Figure~\ref{fig:bms_charging} is still accepting nearly $27\,\text{A}$ of bulk charge current at $13.45\,\text{V}$ proves conclusively that the pack is still in the middle of its bulk absorption plateau and is physically nowhere near $99\%$ true capacity.
+
+This discrepancy highlights the necessity of the calibration procedure: charging was sustained at constant voltage until the pack voltage reached $14.20\,\text{V}$ and the charging current naturally tapered down to a tail current of approximately $2.0\,\text{A}$ ($\approx\text{C}/50$). Only at this low tail current does the BMS recalibrate and lock its internal $100\%$ State of Charge reference, eliminating coulomb counter drift for all subsequent discharge cycles.
+
+\subsection{Active Cell Balancing and Differential Voltage Verification}
+
+Active cell balancing is a vital feature of the JK BMS. Unlike conventional passive balancing systems that dissipate excess energy from higher-voltage cells as wasted heat through bleed resistors, the JK BMS incorporates an active bidirectional inductive balancing circuit \citep{hannan2017}. This circuit dynamically shuttles charge from the highest-voltage cell directly into the lowest-voltage cell at balancing currents up to $1.0\,\text{A}$ (measured at $0.970\,\text{A}$ during active equalization).
+
+Figure~\ref{fig:bms_status} presents the detailed cell diagnostic status captured when the pack is resting ($12.77\,\text{V}$ pack voltage, $0.00\,\text{A}$ current, $61\%$ SoC).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.4\textwidth, scale=0.7]{bmsactivebal.png}
+  \caption{JK BMS status screen showing individual cell voltages, cell wire resistances, temperatures and differential voltage}
+  \label{fig:bms_status}
+\end{figure}
+
+The individual cell voltages in Figure~\ref{fig:bms_status} are recorded as $\text{Cell}_1 = 3.193\,\text{V}$, $\text{Cell}_2 = 3.191\,\text{V}$, $\text{Cell}_3 = 3.190\,\text{V}$, and $\text{Cell}_4 = 3.193\,\text{V}$. The critical diagnostic metric is the Cell Voltage Difference ($\text{DV} = V_{\max} - V_{\min}$), which is measured at an exceptionally low value of:
+\begin{equation}
+    \text{DV} = 3.193\,\text{V} - 3.190\,\text{V} = 0.003\,\text{V} = 3.0\,\text{mV}
+    \label{eq:celldv}
+\end{equation}
+A differential voltage of only $3.0\,\text{mV}$ across all four series cells demonstrates that the four prismatic cells are closely matched in electrochemical capacity, state of charge, and internal resistance. Furthermore, the measured cell wire resistances are uniform across all channels ($0.051\,\Omega$ to $0.053\,\Omega$), confirming that the balance leads and terminal lugs exhibit consistent contact resistance. High cell consistency ensures that all cells reach charge and discharge boundaries simultaneously, preventing any single weak cell from prematurely triggering protective cutoffs and maximizing the pack's usable energy extraction.
+
+\subsection{Key Battery and BMS Terminology}
+
+The following terms recur throughout this report and are defined here for
+clarity.
+
+\begin{enumerate}[label=\Alph*., leftmargin=0.7in, noitemsep]
+  \item \textbf{State of Charge (SoC):} the battery's remaining charge
+        expressed as a percentage of rated capacity.
+  \item \textbf{Depth of Discharge (DoD):} the complement of SoC; the
+        fraction of rated capacity that has been discharged from full.
+  \item \textbf{State of Health (SoH):} remaining capacity or performance
+        relative to the original as-new specification.
+  \item \textbf{C-rate:} current expressed relative to rated capacity. 1C
+        equals 100\,A for a 100\,Ah pack; C/50 equals 2\,A.
+  \item \textbf{Nominal voltage:} the characteristic rated voltage under
+        typical conditions (3.2\,V/cell; 12.8\,V for a 4S pack).
+  \item \textbf{Cutoff voltage:} the voltage at which charging or
+        discharging is halted to protect the cell.
+  \item \textbf{Float voltage:} a maintenance charging voltage held after
+        full charge to offset self-discharge without overcharging.
+  \item \textbf{Bulk/Absorption/Float charging stages:} the three phases
+        of a multi-stage charge profile. Bulk is constant current with
+        rising voltage; absorption is constant voltage with tapering current;
+        float is a lower maintenance voltage once the battery is full.
+  \item \textbf{Tail current:} the low current at which absorption-phase
+        charging is considered complete.
+  \item \textbf{Cell balancing:} equalising charge across series-connected
+        cells. Passive balancing wastes excess charge as heat; active
+        balancing transfers it between cells.
+  \item \textbf{Coulomb counting:} SoC estimation by integrating measured
+        current over time relative to rated capacity.
+  \item \textbf{Open-circuit voltage (OCV):} terminal voltage with no load
+        or charge current flowing; used as a secondary SoC cross-check.
+  \item \textbf{4S configuration:} four cells connected in series; voltages
+        add while capacity stays equal to one cell.
+  \item \textbf{Busbar:} a rigid conductive strip making a low-resistance
+        connection between cell terminals.
+  \item \textbf{Cable lug:} a crimped terminal providing a bolt-compatible
+        connection at high-current joints.
+  \item \textbf{Ampacity:} the maximum continuous current a conductor can
+        carry without exceeding its temperature rating.
+  \item \textbf{Compression plate:} a rigid end-plate clamped across a cell
+        stack to apply constant pressure and resist swelling.
+  \item \textbf{Thermal runaway:} an uncontrolled self-accelerating
+        temperature rise within a cell triggered by severe overcharge,
+        internal short circuit or physical damage.
+\end{enumerate}
+
+\subsection{ESP32 Board 1: BMS Gateway and TFT Display}
+
+ESP32 Board 1 serves two functions: it maintains the BLE connection to the
+JK BMS and drives the 2.4-inch ILI9341 TFT display over SPI.
+Table~\ref{tab:esp1pins} shows the complete pin assignment.
+
+\begin{longtable}{L{3.2cm} L{3.8cm} C{2.0cm} L{4.0cm}}
+\caption{ESP32 Board 1 Pin Assignment}
+\label{tab:esp1pins}\\
+
+\toprule
+\textbf{Terminal} & \textbf{Connection} & \textbf{GPIO} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\multicolumn{4}{c}%
+{{\tablename\ \thetable{} -- continued }} \\
+\toprule
+\textbf{Terminal} & \textbf{Connection} & \textbf{GPIO} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{4}{r}{{}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+TFT VCC & TFT VCC rail & 5V pin & 5V supply to TFT module \\
+TFT LED & TFT backlight & 3.3V pin & 3.3V to TFT LED pin \\
+TFT GND & TFT GND rail & GND pin & Common ground \\
+TFT MISO & TFT SDO & 19 & SPI data from display \\
+TFT MOSI & TFT SDA/SDI & 23 & SPI data to display \\
+TFT SCLK & TFT SCL/CLK & 18 & SPI clock \\
+TFT CS & TFT CS & 5 & SPI Chip Select (active LOW) \\
+TFT DC & TFT DC/RS & 2 & Data/Command selector \\
+TFT RST & TFT RST & 4 & Hardware reset \\
+UART2 TX & Board 2 GPIO 16 & 17 & Sends BMS telemetry JSON \\
+UART2 RX & Board 2 GPIO 17 & 16 & Receives heartbeat JSON \\
+GND (UART) & Board 2 GND & GND pin & Shared UART ground \\
+
+\end{longtable}
+
+
+
+\subsection{ESP32 Board 2: Network, Relays and Current Sensors}
+
+ESP32 Board 2 manages Wi-Fi connectivity, relay switching and analog current
+measurement. Three ACS758 Hall-effect current sensors are connected to this
+board, alongside three relay modules that control the three load output
+channels. Table~\ref{tab:esp2pins} shows the pin assignment.
+
+\begin{longtable}{L{3.2cm} L{3.8cm} C{2.0cm} L{4.0cm}}
+\caption{ESP32 Board 2 Pin Assignment}
+\label{tab:esp2pins}\\
+
+\toprule
+\textbf{Terminal} & \textbf{Connection} & \textbf{GPIO} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\multicolumn{4}{c}%
+{{\tablename\ \thetable{} -- continued }} \\
+\toprule
+\textbf{Terminal} & \textbf{Connection} & \textbf{GPIO} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{4}{r}{{}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+VCC (Sensors) & ACS758 VCC rail & 3.3V pin & Powers all three sensors \\
+GND & Sensor and relay GND & GND pin & Common ground \\
+UART2 RX & Board 1 GPIO 17 & 16 & Receives BMS telemetry JSON \\
+UART2 TX & Board 1 GPIO 16 & 17 & Sends heartbeat JSON \\
+RELAY CH1 & Relay module IN1 & 25 & Critical load relay (Active HIGH) \\
+RELAY CH2 & Relay module IN2 & 26 & Major load relay (Active HIGH) \\
+RELAY CH3 & Relay module IN3 & 27 & Non-essential load relay (Active HIGH) \\
+SENSOR CH1 & ACS758 \#1 VIOUT & 32 & CH1 current (ADC1) \\
+SENSOR CH2 & ACS758 \#2 VIOUT & 33 & CH2 current (ADC1) \\
+SENSOR CH3 & ACS758 \#3 VIOUT & 34 & CH3 current (ADC1) \\
+VCC (Relay) & Relay module VCC & 5V pin & Powers relay coil drivers \\
+GND (Relay) & Relay module GND & GND pin & Relay ground \\
+
+\end{longtable}
+
+A critical hardware decision concerns which ADC pins the current sensors use.
+The ESP32 has two ADC groups. ADC2 shares silicon with the Wi-Fi radio: when
+Wi-Fi is active, ADC2 is completely unavailable and returns garbage readings.
+GPIOs 32, 33 and 34 belong exclusively to ADC1 and remain fully functional
+at all times regardless of Wi-Fi state. All three ACS758 outputs are therefore
+wired to ADC1 pins only.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth }
+    \centering
+    \includegraphics[width=\textwidth, angle=90, height=10cm]{The 4 channel relay 1.jpg}
+    \caption{The four-channel relay module used for load switching}
+    \label{fig:relay_module}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{The three current sensors attached to the relay_.jpg}
+    \caption{ACS758 current sensors attached to the relay output terminals}
+    \label{fig:sensors_relay}
+  \end{subfigure}
+  \caption{Relay module and ACS758 current sensor hardware}
+  \label{fig:relay_sensors}
+\end{figure}
+
+The relay modules use active-high logic. Sending a HIGH signal to a relay
+input pin energises the relay coil and closes the Normally Open contact,
+connecting the load. Sending LOW de-energises the coil and opens the circuit.
+The relay COM terminals are looped together and connected to the inverter AC
+output. Each Normally Open terminal connects to the IP+ terminal of its
+corresponding ACS758 current sensor, so that load current flows through the
+sensor whenever the relay is closed. This arrangement allows the current drawn
+by each individual load channel to be measured independently.
+
+\subsection{ACS758 Current Sensor Configuration}
+
+The ACS758 is a Hall-effect current sensor. It measures current flowing
+through a conductive path embedded in the sensor chip without any galvanic
+contact between the high-current circuit and the low-voltage sensing
+electronics. At zero current, the sensor output sits at approximately half
+the supply voltage (VCC/2, roughly 1.65\,V on a 3.3\,V supply). The output
+shifts upward for positive current and downward for negative current.
+
+Auto-calibration is performed at firmware startup by reading the sensor output
+with no load connected and storing that average reading as the zero-current
+reference. This corrects for manufacturing offset variation from unit to unit.
+Multi-sample averaging over 64 ADC readings reduces the impact of ADC noise,
+and a deadband filter discards any reading below approximately 0.1\,A, which
+prevents ADC noise from appearing as a phantom current when the relay is open.
+
+\subsection{DC-DC Buck Converter for Controller Power}
+
+The controller electronics (ESP32 microcontrollers, relay driver modules, ACS758 current sensors, and TFT display) are powered directly from the $12\,\text{V}$ battery bank via an efficient DC-DC step-down (buck) converter module, illustrated in Figure~\ref{fig:buck}. Because the battery terminal voltage fluctuates between $10.0\,\text{V}$ and $14.6\,\text{V}$ during dynamic charge and discharge cycles, the buck converter steps this variable DC input down to a strictly regulated $5.0\,\text{V}$ rail. The high efficiency ($>90\%$) of the buck topology minimizes parasitic quiescent power draw from the battery bank and avoids the significant thermal dissipation inherent to linear regulators.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.45\textwidth, angle=90, trim= 14cm 0cm 0cm 0cm, clip]{The buck converter.jpg}
+  \caption{DC-DC step-down (buck) converter supplying regulated 5\,V to the controller electronics from the 12\,V battery bus}
+  \label{fig:buck}
+\end{figure}
+
+\section{Software Design}
+
+The software design described in this section fulfills Objective~(ii), which
+calls for firmware development for both ESP32 microcontrollers, and lays the
+groundwork for Objectives~(iii) and~(iv) through the load shedding engine
+and the cloud-connected web application.
+
+\subsection{ESP32 Board 1 Firmware}
+
+\subsubsection{BLE Communication with the JK BMS}
+
+The firmware uses the NimBLE-Arduino library, a memory-optimised Bluetooth
+stack for ESP32, to establish and maintain the BLE connection to the JK BMS.
+NimBLE was chosen over the default ArduinoBLE stack because it uses
+significantly less RAM, leaving more headroom for the JSON serialiser and
+the TFT rendering buffer to operate concurrently.
+
+The connection procedure is:
+\begin{enumerate}[noitemsep, leftmargin=0.7in]
+  \item The ESP32 initialises \texttt{BLEDevice} and creates a \texttt{BLEClient}.
+  \item It connects directly to the BMS using its hardcoded MAC address.
+  \item It discovers the BMS GATT service UUID \texttt{0000ffe0-...} and
+        subscribes to two characteristics: FFE1 for telemetry notifications
+        and FFE2 for writing control commands.
+\end{enumerate}
+
+The JK BMS does not transmit telemetry in a single BLE packet. It sends a
+300-byte payload fragmented across multiple 20-byte BLE notification packets,
+which is the maximum payload size permitted per BLE notification. The
+\texttt{notifyCallback} function is registered to fire on every incoming
+notification and reassembles these fragments as follows:
+
+\begin{lstlisting}[
+    language=CppESP,
+    caption={BLE Frame Reassembly Logic}
+]
+void notifyCallback(BLERemoteCharacteristic* pChar,
+                    uint8_t* pData, size_t length, bool isNotify) {
+    if (length >= 4 &&
+        pData[0] == 0x55 && pData[1] == 0xAA &&
+        pData[2] == 0xEB && pData[3] == 0x90) {
+        frameLen = 0;
+    }
+    for (size_t i = 0; i < length && frameLen < 300; i++) {
+        frameBuffer[frameLen++] = pData[i];
+    }
+    if (frameLen >= 300) {
+        if (frameBuffer[4] == 0x02) {
+            parseCellInfo(frameBuffer);
+        }
+        frameLen = 0;
+    }
+}
+\end{lstlisting}
+
+\subsubsection{JK BMS Binary Protocol Parser}
+
+The \texttt{parseCellInfo()} function decodes the raw 300-byte binary frame
+using hardcoded byte offsets from the JK BMS JK02\_32S protocol specification,
+with a frame offset constant \texttt{O = 32}. Table~\ref{tab:bmsbytes} shows
+the key byte mappings.
+
+\begin{longtable}{L{4.2cm} L{5.2cm} C{2.5cm}}
+\caption{JK BMS Frame Key Byte Offsets (JK02\_32S, O = 32)}
+\label{tab:bmsbytes}\\
+
+\toprule
+\textbf{Parameter} & \textbf{Decoding Formula} & \textbf{Byte Offset} \\
+\midrule
+\endfirsthead
+
+\multicolumn{3}{c}%
+{{\tablename\ \thetable{} -- continued }} \\
+\toprule
+\textbf{Parameter} & \textbf{Decoding Formula} & \textbf{Byte Offset} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r}{{}} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+Cell Voltage [$n$]     & \texttt{get16(d, 6+$n\times$2) $\times$ 0.001\,V}      & $6 + n\times 2$ \\
+Cell Resistance [$n$]  & \texttt{get16(d, 80+$n\times$2) $\times$ 0.001\,$\Omega$} & $80 + n\times 2$ \\
+MOS Temperature        & \texttt{getS16(d, 112+O) $\times$ 0.1\,$^{\circ}$C}    & 144 \\
+Total Pack Voltage     & \texttt{get32(d, 118+O) $\times$ 0.001\,V}             & 150 \\
+Pack Power             & \texttt{getS32(d, 122+O) $\times$ 0.001\,W}            & 154 \\
+Pack Current           & \texttt{getS32(d, 126+O) $\times$ 0.001\,A}            & 158 \\
+Temperature 1          & \texttt{getS16(d, 130+O) $\times$ 0.1\,$^{\circ}$C}    & 162 \\
+Temperature 2          & \texttt{getS16(d, 132+O) $\times$ 0.1\,$^{\circ}$C}    & 164 \\
+Error Bitmask          & \texttt{get32(d, 134+O)}                                & 166 \\
+State of Charge        & \texttt{d[141+O]\,\%}                                   & 173 \\
+Cycle Count            & \texttt{get32(d, 150+O)}                                & 182 \\
+State of Health        & \texttt{d[158+O]\,\%}                                   & 190 \\
+Charging MOSFET        & \texttt{d[166+O] != 0 (bool)}                           & 198 \\
+Discharging MOSFET     & \texttt{d[167+O] != 0 (bool)}                           & 199 \\
+Balancing Active       & \texttt{d[169+O] != 0 (bool)}                           & 201 \\
+
+\end{longtable}
+
+After parsing, a CRC validation is applied. The 8-bit sum of all 299 preceding
+bytes must equal byte \texttt{d[299]}. If the CRC fails, the frame is discarded
+and \texttt{bmsData.valid} is set to \texttt{false} to prevent stale data from
+propagating downstream.
+
+\subsubsection{UART Inter-Board Communication}
+
+Valid parsed data is serialised into a compact JSON object using the
+ArduinoJson library and transmitted over UART2 (GPIO 17 TX, 115200 baud)
+every five seconds. A newline character serves as the frame delimiter, which
+allows Board 2 to detect a complete JSON frame reliably using a
+readline-style receive loop.
+
+\begin{lstlisting}[
+    language=JavaScript,
+    caption={UART Telemetry JSON Schema (Board 1 to Board 2)},
+    label={lst:uartjson}
+]
+{
+  "soc": 85, "soh": 100,
+  "v": "13.200",  "i": "12.450",  "p": "161.24",
+  "cap": "86.50", "fcap": "100.00",
+  "t1": "28.3",   "t2": "29.1",   "mos": "31.5",
+  "bal": "0.012", "cyc": 4,
+  "cm": false,    "dm": true,     "err": 0,
+  "rssi": -62,    "dv": "0.003",
+  "cv": [3.324, 3.325, 3.326, 3.327],
+  "cr": [0.120, 0.118, 0.122, 0.119]
+}
+\end{lstlisting}
+
+\subsubsection{TFT Display Rendering}
+
+The 2.4-inch ILI9341 TFT display is driven by the TFT\_eSPI library, which
+provides hardware-accelerated SPI graphics on the ESP32. The display renders
+a four-page carousel updated every two seconds:
+
+Page 1 shows the core battery metrics: State of Charge as a large percentage
+with a colour-coded status bar (green above 60\%, yellow between 20\% and 60\%,
+red below 20\%), pack voltage, pack current and power.
+
+Page 2 shows the three temperature sensor readings (Temperature 1, Temperature 2
+and MOSFET temperature) with indicators flagging when any reading approaches the
+protection limit.
+
+Page 3 shows the individual voltage of each of the four cells, with the
+highest and lowest voltage cells highlighted to assist in spotting imbalance.
+
+Page 4 shows load prioritization status: which output channels are currently
+active, which have been shed and the current SoC reading that the shedding
+engine is acting on.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[
+      width=0.8\textwidth,
+      angle=270
+    ]{The splash screen of the tft module 2.jpg}
+    \caption{System splash screen on startup}
+    \label{fig:tft_splash}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[
+      width=0.8\textwidth,
+      angle=270
+    ]{Tft screen showing the first page of the carousel which contains the SOC, voltage, power and current_.jpg}
+    \caption{Carousel page 1: SoC, voltage, current and power}
+    \label{fig:tft_p1}
+  \end{subfigure}
+
+  \vspace{0.3cm}
+
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[
+      width=0.8\textwidth,
+      angle=270
+    ]{The tft showing the second screen of the carousel showing the temperatures, min and max voltage cell.jpg}
+    \caption{Carousel page 2: temperatures and cell extremes}
+    \label{fig:tft_p2}
+  \end{subfigure}
+
+  \caption{TFT display carousel: splash screen and first two telemetry pages}
+  \label{fig:tft_pages_1}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.4\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, angle=270]{The tft screen showing individual voltage LS of the 4 cells.jpg}
+    \caption{Carousel page 3: individual cell voltages}
+    \label{fig:tft_p3}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.4\textwidth}
+    \centering
+    \includegraphics[width=\textwidth, angle=270, trim= 0cm 0cm 0cm 10cm, clip]{The tft showing the third carousel showing the load prioritization_.jpg}
+    \caption{Carousel page 4: load prioritization status}
+    \label{fig:tft_p4}
+  \end{subfigure}
+  \caption{TFT display carousel pages 3 and 4}
+  \label{fig:tft_pages_2}
+\end{figure}
+
+\vspace{1cm}
+
+\subsection{ESP32 Board 2 Firmware}
+
+\subsubsection{UART Reception and JSON Parsing}
+
+Board 2 listens on UART2 (GPIO 16 RX, 115200 baud) for newline-delimited
+JSON frames from Board 1. When a complete frame arrives, the ArduinoJson
+library deserialises it and populates the \texttt{BmsData} structure used
+by the load shedding engine and the cloud uploader. Frames that fail JSON
+parsing or do not match the expected schema are discarded without affecting
+the relay states.
+
+\subsubsection{Intelligent Load Shedding Engine}
+
+The load shedding engine implements sequential priority-based load
+disconnection with hysteresis. The three output channels are assigned the
+priorities shown in Table~\ref{tab:priorities}.
+
+\begin{table}[H]
+\centering
+\caption{Load Channel Priority Assignments and SoC Thresholds}
+\label{tab:priorities}
+\begin{tabular}{C{1.5cm} L{3.5cm} C{3.0cm} C{3.0cm}}
+\toprule
+\textbf{Channel} & \textbf{Load Type} & \textbf{Shed Threshold} & \textbf{Restore Threshold} \\
+\midrule
+CH3 & Non-essential (AC, entertainment) & SoC $<$ 60\% & SoC $>$ 65\% \\
+CH2 & Major (fans, TVs, computers) & SoC $<$ 40\% & SoC $>$ 45\% \\
+CH1 & Critical (routers, lighting, medical) & SoC $<$ 20\% & SoC $>$ 25\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The five-percentage-point hysteresis band between the shed and restore
+thresholds prevents rapid relay oscillation when the SoC hovers near a
+threshold boundary. A channel that has been shed stays off until the SoC
+genuinely recovers five points above the shed level, confirming that the
+battery is actually regaining charge before the load is reconnected.
+
+\begin{lstlisting}[language=CppESP, caption={Load Shedding State Machine}]
+void updateLoadShedding(int soc) {
+    if (loadManager.mode != AUTO) return;
+    if (soc < SOC_SHED_CH3 && ch3Active)
+        { setRelay(CH3, OFF); ch3Active = false; }
+    else if (soc > SOC_RESTORE_CH3 && !ch3Active)
+        { setRelay(CH3, ON);  ch3Active = true;  }
+    if (soc < SOC_SHED_CH2 && ch2Active)
+        { setRelay(CH2, OFF); ch2Active = false; }
+    else if (soc > SOC_RESTORE_CH2 && !ch2Active && ch3Active)
+        { setRelay(CH2, ON);  ch2Active = true;  }
+    if (soc < SOC_SHED_CH1 && ch1Active)
+        { setRelay(CH1, OFF); ch1Active = false; }
+    else if (soc > SOC_RESTORE_CH1 && !ch1Active)
+        { setRelay(CH1, ON);  ch1Active = true;  }
+}
+\end{lstlisting}
+
+This load shedding engine directly implements Objective~(iii).
+\vspace{1cm}
+\subsubsection{ACS758 Current Measurement}
+
+\begin{lstlisting}[language=CppESP, caption={ACS758 Current Calculation}, label={lst:acs758}]
+float readChannelCurrent(int adcPin, float zeroRef) {
+    long sum = 0;
+    for (int i = 0; i < 64; i++) {
+        sum += analogRead(adcPin);
+        delayMicroseconds(100);
+    }
+    float avgADC = sum / 64.0;
+    float voltage = (avgADC / 4095.0) * 3300.0;  // mV
+    float current = (voltage - zeroRef) / 40.0;   // 40 mV/A
+    if (abs(current) < 0.10) current = 0.0;       // deadband
+    return current;
+}
+\end{lstlisting}
+
+\subsubsection{Firebase Realtime Database Synchronisation}
+
+Board 2 maintains a Wi-Fi connection with automatic reconnection on dropout.
+After connecting, it queries an NTP server (primary: \texttt{pool.ntp.org},
+fallback: \texttt{time.google.com}, timezone UTC+1 for West Africa Time) to
+synchronise its real-time clock. This timestamp feeds both the Supabase log
+and the clock display forwarded to the TFT via the UART heartbeat.
+
+Every five seconds the board publishes the full system state to Firebase using
+an HTTPS PUT request to the Realtime Database REST endpoint. Board 2 also polls
+the Firebase \texttt{/commands.json} and \texttt{/loadManager.json} paths every
+three seconds using HTTPS GET requests. Commands written by the web application
+to these paths are detected on the next poll cycle and executed within three
+seconds.
+
+\subsubsection{Supabase Historical Logging}
+
+Every five seconds Board 2 also posts a timestamped row to the Supabase
+\texttt{telemetry\_history} PostgreSQL table via HTTPS POST to the PostgREST
+endpoint. NTP-synchronised Unix timestamps in milliseconds anchor every record
+accurately in time. The stored columns cover voltage, current, power, all
+three temperatures, all four cell voltages and the three per-channel load
+currents. This historical table is what feeds the analytics charts in the
+web application.
+
+\subsection{Progressive Web Application}
+
+\subsubsection{Overview and Technology Stack}
+
+The Progressive Web Application is the user-facing interface of the entire
+system. It is built as a Next.js 14 application written in TypeScript,
+rendered as a client-side single-page application. The application is a
+true PWA: it has a registered service worker and can be installed to the
+home screen of any Android or iOS device via the browser's ``Add to Home
+Screen'' prompt, giving it the look and feel of a native app without requiring
+any app store submission.
+
+The application communicates exclusively with the two cloud backends. It has
+no direct connection to either ESP32. Firebase Realtime Database provides the
+live telemetry stream and Supabase PostgreSQL provides the historical records
+for analytics charts.
+
+\subsubsection{Authentication}
+
+Before any battery data is displayed, the user must sign in through Google
+OAuth managed by Supabase Auth. On first visit, a login screen is shown with
+a ``Continue with Google'' button. After successful authentication, Google
+returns the user object to Supabase, which issues a JWT session token stored
+client-side. A specific check for the system owner's email address unlocks
+additional configuration controls not available to other viewers.
+
+\subsubsection{Real-Time Data Flow}
+
+On application load, a single Firebase \texttt{onValue} listener is registered
+to the root of the Realtime Database. This listener fires immediately on every
+write from ESP32 Board 2. Firebase pushes the update to the browser over a
+persistent WebSocket connection, so no polling is required. The application
+parses the incoming JSON into React state variables that drive the dashboard
+display in real time.
+
+A software watchdog monitors the \texttt{lastUpdate} counter that Board 2
+increments on every telemetry upload. If no new value is received for more
+than 30 seconds, the application declares the system offline and updates all
+status indicators accordingly.
+
+In parallel, the application fetches the last 500 historical records from
+Supabase on startup and accumulates new snapshots every five seconds in memory.
+This keeps the analytics charts growing with fresh data for as long as the
+application is open.
+
+\subsubsection{Navigation Structure}
+
+The application uses a fixed bottom navigation bar with four tabs:
+
+\begin{itemize}[noitemsep, leftmargin=0.7in]
+  \item \textbf{Battery tab:} core battery telemetry including the SoC arc
+        gauge, individual cell voltages, temperature readings and cycle count.
+  \item \textbf{Energy tab:} real-time power flow diagram, remote load channel
+        controls and runtime prediction.
+  \item \textbf{Diagnostics tab:} active alarm panel and chronological system
+        event log.
+  \item \textbf{Profile tab:} user account information and application settings.
+\end{itemize}
+
+\subsubsection{Battery Tab and Real-Time Dashboard}
+
+The Battery tab serves as the primary real-time monitoring interface for the user. Its central visual element is an animated, semicircular State of Charge (SoC) arc gauge that sweeps dynamically from $0^{\circ}$ to $180^{\circ}$ in proportion to remaining pack capacity, with color transitions indicating battery health (green above $60\%$, amber between $20\%$ and $60\%$, and red below $20\%$). Below the arc gauge, four dedicated telemetry metric tiles display pack terminal voltage, current, power, and remaining capacity, each providing an expand trigger to view historical time-series analytics. Individual cell voltages for all four series cells are rendered as comparative horizontal progress bars bounded between $2.70\,\text{V}$ and $3.60\,\text{V}$, prominently displaying the real-time cell voltage differential ($\text{DV}$) as an immediate indicator of pack balance. Figure~\ref{fig:app_screens} illustrates the three core user interfaces of the application: the Battery, Energy, and Diagnostics dashboards.
+
+\begin{figure}[H]
+  \centering
+
+  \begin{subfigure}[b]{0.31\textwidth}
+    \centering
+    \includegraphics[width=0.75\textwidth]{batterytab.png}
+    \caption{Battery tab}
+    \label{fig:app_battery}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.31\textwidth}
+    \centering
+    \includegraphics[width=0.75\textwidth]{Screenshot_20260828-144806.png}
+    \caption{Energy tab}
+    \label{fig:app_energy}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.31\textwidth}
+    \centering
+    \includegraphics[width=0.75\textwidth]{The diagnostics tab page showing the activity feed and alarms feed.png}
+    \caption{Diagnostics tab}
+    \label{fig:app_diag}
+  \end{subfigure}
+
+  \caption{Web application screens: Battery, Energy and Diagnostics tabs}
+  \label{fig:app_screens}
+\end{figure}
+
+\subsubsection{Remote Load Management}
+
+The Energy tab contains the load management control panel. It has a mode
+toggle that switches between AUTO and MANUAL operation. In AUTO mode, the
+relay states reflect what Board 2 is doing autonomously based on the SoC
+thresholds in the load shedding engine, and the channel controls are read-only.
+In MANUAL mode, each channel gets an active toggle switch the user can operate
+remotely.
+
+When the user flips a channel toggle, the application writes immediately to
+Firebase at \texttt{/loadManager}:
+
+\begin{lstlisting}[language=JavaScript, caption={Load Manager Firebase Write on Manual Toggle}]
+{ "mode": "MANUAL", "load1": 1, "load2": 0, "load3": 1 }
+\end{lstlisting}
+
+Board 2 reads this within its next three-second poll cycle and operates the
+physical relays. The updated relay state propagates back to the web application
+in the next five-second Firebase PUT, completing the control loop. A
+twelve-second debounce prevents the Firebase listener from immediately
+overwriting the user's manual selection with stale data during the period
+between toggle and hardware acknowledgement.
+
+\subsubsection{Emergency BMS Discharge Control}
+
+The Energy tab also contains a BMS discharge MOSFET control card. This provides
+a software-accessible emergency disconnect for the battery pack, independent of
+the relay switching mechanism. When the user presses the disconnect button, the
+application writes to two Firebase paths simultaneously:
+
+\begin{lstlisting}[language=JavaScript, caption={BMS Discharge Command Write}]
+// Sent to /commands
+{ "discharge": false }
+// Sent to /loadManager
+{ "inverterOff": true }
+\end{lstlisting}
+
+Board 2 reads the \texttt{/commands} path within three seconds and forwards
+the command as a JSON frame to Board 1 over UART. Board 1 composes the
+appropriate JK BMS BLE command frame and writes it to the FFE2 GATT
+characteristic, physically opening the discharge MOSFET. A Syncing badge
+appears on the card while the commanded state differs from the confirmed
+hardware state, indicating the command is still in transit through the UART
+chain.
+
+\subsubsection{Diagnostics: Alarms and Activity Feed}
+The Diagnostics tab implements a two-tier fault monitoring architecture.
+The first tier consists of four \emph{application-level threshold alarms}
+computed directly from the live telemetry values received via Firebase.
+The second tier exposes the JK BMS \emph{hardware error register} - a
+32-bit bitmask written by the BMS firmware into its data frame and decoded
+by ESP32 Board~1 during parsing.
+\paragraph{Tier 1 -- Application Threshold Alarms.}
+The four application-level alarms are evaluated client-side in the \texttt{ActiveAlarms}
+component using the live state variables populated by the Firebase \texttt{onValue}
+listener. They are re-evaluated on every telemetry update (approximately every
+5~seconds). Table~\ref{tab:app_alarms} defines these conditions.
+\begin{table}[H]
+\centering
+\caption{Tier~1: Application-Level Alarm Conditions}
+\label{tab:app_alarms}
+\begin{tabular}{L{3.8cm} L{5.2cm} C{2.5cm}}
+\toprule
+\textbf{Alarm Name} & \textbf{Trigger Condition} & \textbf{Severity} \\
+\midrule
+High Temperature   & Temperature sensor 1 $> 45\,^{\circ}$C           & Critical \\
+Cell Imbalance     & $V_{\max} - V_{\min} > 15\,\text{mV}$             & Warning  \\
+BMS Register Error & Hardware error bitmask $\neq$ 0                   & Critical \\
+Low State of Charge & SoC $< 10\%$                                     & Warning  \\
+\bottomrule
+\end{tabular}
+\end{table}
+The cell delta is computed as:
+\begin{equation}
+    \Delta V_{\text{cell}} = \max(V_1, V_2, V_3, V_4) - \min(V_1, V_2, V_3, V_4)
+    \label{eq:cell_delta}
+\end{equation}
+where $V_1$ through $V_4$ are the individual cell voltages received from
+the BMS. A delta exceeding 15\,mV indicates a cell imbalance condition that
+may reduce effective pack capacity if left unaddressed.
+\paragraph{Tier 2 -- JK BMS Hardware Error Register.}
+The JK BMS maintains a 32-bit error register that it encodes into bytes
+166--169 of the JK02\_32S data frame. Each set bit corresponds to a
+specific hardware fault condition. ESP32 Board~1 extracts this value
+with a 32-bit little-endian read during frame parsing and forwards it
+to the cloud as the \texttt{battery.errors.raw} field in Firebase.
+The \texttt{ActiveAlarms} component in the PWA decodes this bitmask
+bit-by-bit using the same 29-entry \texttt{errorNames} lookup table
+that exists verbatim in the ESP32 firmware, ensuring perfect naming
+consistency between the hardware fault register and the user interface.
+Table~\ref{tab:bms_errors} lists all named fault bits.
+\begin{longtable}{C{1.2cm} L{5.0cm} C{2.0cm} L{4.5cm}}
+\caption{Tier~2: JK BMS 32-Bit Hardware Error Register  Named Fault Bits}
+\label{tab:bms_errors} \\
+\toprule
+\textbf{Bit} & \textbf{Fault Name} & \textbf{Severity} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\multicolumn{4}{c}{\textit{(Table \ref{tab:bms_errors} continued)}} \\
+\toprule
+\textbf{Bit} & \textbf{Fault Name} & \textbf{Severity} & \textbf{Description} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\textit{}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+0  & Wire resistance          & Warning  & Cell wire or contact resistance out of tolerance \\
+1  & MOSFET overtemperature   & Warning  & Charge/discharge MOSFET die temperature too high \\
+2  & Cell count mismatch      & Warning  & Detected cell count differs from configured count \\
+3  & \textit{(Reserved)}      & ---      & Reserved bit; not decoded \\
+4  & Battery fully charged    & Info     & Pack has reached full charge; informational flag \\
+5  & Pack overvoltage         & Critical & Total pack voltage exceeded upper protection limit \\
+6  & Charge overcurrent       & Warning  & Charge current exceeded the configured limit \\
+7  & Charge short circuit     & Critical & Short circuit detected on the charge path \\
+8  & Charge overtemperature   & Warning  & Battery temperature too high during charging \\
+9  & Charge undertemperature  & Warning  & Battery temperature too low during charging \\
+10 & Coprocessor comm error   & Warning  & Internal communication fault with BMS coprocessor \\
+11 & Cell undervoltage        & Critical & At least one cell has fallen below minimum voltage \\
+12 & Pack undervoltage        & Critical & Total pack voltage has dropped below protection limit \\
+13 & Discharge overcurrent    & Warning  & Discharge current exceeded the configured limit \\
+14 & Discharge short circuit  & Critical & Short circuit detected on the discharge path \\
+15 & Discharge overtemperature& Warning  & Battery temperature too high during discharge \\
+16 & Charging MOSFET abnormal & Warning  & Charge MOSFET failed to open or close correctly \\
+17 & Discharging MOSFET abnormal & Warning & Discharge MOSFET failed to open or close correctly \\
+18 & GPS disconnected         & Warning  & GPS module communication lost (JK BMS extended feature) \\
+19 & Modify password in time  & Warning  & BMS security prompt to change default password \\
+20 & Discharge on failed      & Warning  & Discharge enable command was not acknowledged \\
+21 & Battery overtemperature  & Critical & Pack temperature has exceeded the absolute safety limit \\
+22 & Temp sensor anomaly      & Critical & NTC temperature sensor reading out of valid range \\
+23 & PL module anomaly        & Warning  & Auxiliary PL communication module fault \\
+24 & SCP release failed       & Warning  & Short-circuit protection latch could not be released \\
+25 & Discharge OCP II         & Critical & Secondary over-current protection level II triggered \\
+26 & Discharge OCP III        & Critical & Tertiary over-current protection level III triggered \\
+27 & Discharge undertemp alarm& Warning  & Discharge attempted below minimum temperature limit \\
+28 & GPS remote lock          & Warning  & BMS remotely locked via GPS-linked command \\
+29 & \textit{(Reserved)}      & ---      & Reserved bit; not decoded \\
+30 & \textit{(Reserved)}      & ---      & Reserved bit; not decoded \\
+31 & \textit{(Reserved)}      & ---      & Reserved bit; not decoded \\
+\end{longtable}
+Severity classifications are applied by the \texttt{getAlarmSeverity()}
+function in \texttt{ActiveAlarms.tsx}. Faults classified as \emph{Critical}
+indicate an imminent risk of damage or protection shutdown and are
+highlighted in red. \emph{Warning} faults require attention but are not
+immediately dangerous and are highlighted in amber. Bit~4
+(Battery fully charged) is classified as \emph{Info} and renders in blue
+as it is an expected operational state rather than a fault.
+When the error bitmask is zero, the Diagnostics panel renders a green
+``System Nominal'' state with a shield icon. When any bit is set, the
+panel expands to show each active fault with its decoded name, severity
+badge, a plain-language description and a recommended corrective action.
+Tapping the expand button opens a full-screen modal listing all 32 bit
+positions  active faults highlighted, clear faults dimmed  providing
+a complete hardware register view for field diagnostics.
+\paragraph{Voice Alert System.}
+The application optionally reads active Tier~1 alarm descriptions aloud
+using the Web Speech Synthesis API (\texttt{window.speechSynthesis}).
+When enabled via the user preference \texttt{sentry\_audio\_warnings}
+stored in \texttt{localStorage}, any non-zero \texttt{activeAlarmsCount}
+triggers a spoken announcement, for example:
+\textit{``Attention. Sentry has detected active telemetry alerts: high
+temperature alarm, and active BMS register error.''} This feature
+supports monitoring scenarios where the user cannot keep the display
+in view at all times.
+\paragraph{Activity Feed.}
+Below the alarm panel, the Activity Feed renders a chronological event
+log of all system state changes. Events are generated programmatically
+by the application and fall into five categories:
+\begin{enumerate}
+\item \textbf{Boot events}, generated on application load when the
+Firebase listener receives its first telemetry update, producing three
+staggered log entries (400,ms apart): \textit{JK BMS BLE Connection
+Active}, \textit{Sentry Gateway Online}, and \textit{Firebase Sync
+Connected}.
+
+\item \textbf{Connectivity events}, generated when the online
+watchdog detects a transition to or from the offline state:
+\textit{Sentry Gateway Offline} and \textit{BMS BLE Link Lost}.
+
+\item \textbf{Relay control events}, generated when the user
+manually toggles a load channel in the Smart Energy Manager, logging
+which channel was switched and in which direction.
+
+\item \textbf{Mode change events}, generated when the user switches
+the load manager between \textsc{auto} and \textsc{manual} operating
+modes.
+
+\item \textbf{MOSFET command events}, generated when the user
+activates or deactivates the BMS discharge MOSFET via the BMS
+Discharge Control card.
+
+
+\end{enumerate}
+
+Each event record carries a severity badge (Success, Warning, Critical,
+or Info), a category label (System, Hardware, Network, Manual, or BMS
+Control), a title, a human-readable message and a relative timestamp
+(e.g., \textit{``3\,min ago''}). Events are simultaneously forwarded to
+the TopBar notification bell, where unread events accumulate as a count
+badge until explicitly cleared.
+\subsubsection{Historical Analytics Charts}
+
+To empower the user with long-term performance observability and diagnostic tracking, tapping on any metric card on the Battery tab opens a dedicated, full-screen history chart modal. The system provides five specialized historical modals covering total pack voltage, current draw, power demand, thermal profile, and individual cell voltages. Each modal queries the synchronized \texttt{historyRecords} state array, which is hydrated on application startup from Supabase and updated continuously at 5-second intervals. The interface allows the user to toggle between a 24-hour perspective (120 evenly downsampled points) and a 7-day retrospective (168 hourly aggregated points), rendered as SVG spline curves with dynamic Y-axis scaling. Figure~\ref{fig:hist_charts} displays the historical modal interfaces for pack voltage and individual cell voltage tracking.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.4\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{A card modal showing the pack voltage history_.png}
+    \caption{Pack voltage history chart modal showing trend over the selected time window}
+    \label{fig:hist_voltage}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.4\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{A card modal showing each cell voltages History_.png}
+    \caption{Cell voltages history chart modal showing individual cell trends}
+    \label{fig:hist_cells}
+  \end{subfigure}
+  \caption{Historical analytics chart modals accessible from the Battery tab}
+  \label{fig:hist_charts}
+\end{figure}
+
+The cell voltage chart uses fixed $2.70\,\text{V}$ to $3.60\,\text{V}$ scaling to prevent small millivolt-level noise from appearing exaggerated. Furthermore, each modal provides dedicated export utilities enabling the user to download the filtered time-series dataset as structured JSON or spreadsheet-compatible CSV files for offline academic and diagnostic analysis.
+
+\section{System Integration and Testing}
+
+\subsection{Controller Unit Assembly}
+
+The physical controller unit centralizes all sensing, computation, and actuation electronics into a unified, modular assembly. Both ESP32 development boards, the 4-channel power relay module, the three ACS758 current sensors, and the DC-DC buck converter were integrated onto a Vero board substrate and enclosed within a robust, flame-retardant plastic enclosure. Interconnecting jumper wires and high-current power cables were routed along distinct physical paths to prevent electromagnetic coupling between high-current switching paths and sensitive analog sensing lines. Figure~\ref{fig:controller_assembly} shows the internal layout and wiring of the controller unit, while Figure~\ref{fig:controller_complete} illustrates the finalized controller package.
+
+\vspace{1cm}
+\begin{figure}[H]
+  \centering
+
+  \begin{subfigure}[t]{0.44\textwidth}
+    \centering
+    \includegraphics[
+      height=6cm,
+      angle=90,
+      trim=0cm 0cm 2cm 0cm,
+      clip
+    ]{controller.jpg}
+    \caption{Controller unit showing relays, dual ESP32 boards, current sensors and buck converter on the Vero board}
+    \label{fig:controller_overview}
+  \end{subfigure}
+  \hspace{0.10\textwidth}
+  \begin{subfigure}[t]{0.44\textwidth}
+    \centering
+    \includegraphics[
+      height=6cm,
+      angle=90
+    ]{A pic of the whole component sitting in the enclosure with jumper wires connection 1.jpg}
+    \caption{All controller components wired and seated inside the plastic enclosure}
+    \label{fig:controller_wired}
+  \end{subfigure}
+
+  \caption{Controller unit assembly inside the project enclosure}
+  \label{fig:controller_assembly}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.45\textwidth, angle=90]{A pic of the whole component sitting in the enclosure 2.jpg}
+  \caption{Completed controller unit housed in the project enclosure, showing the relay stack, ESP32 boards and sensor wiring}
+  \label{fig:controller_complete}
+\end{figure}
+
+\subsection{Integration Sequence}
+
+System integration was carried out in stages to isolate problems at each
+interface before adding the next layer. The battery pack was assembled and
+tested independently first. The BMS was then connected and its Bluetooth
+broadcast verified using the manufacturer's mobile application before any
+ESP32 firmware was involved. Board 1 firmware was developed and tested
+against the live BMS Bluetooth broadcast, confirming correct frame reassembly
+and data parsing. UART communication between the two boards was verified using
+serial monitor logging on both sides before cloud connectivity was added.
+Board 2 Wi-Fi, Firebase and Supabase connectivity was tested with hardcoded
+test payloads before the live UART-received data was introduced. The web
+application was tested against live cloud data before relay control and MOSFET
+command pathways were verified end-to-end.
+
+\subsection{Test Scenarios}
+
+The following test scenarios were defined and executed to verify system
+behaviour:
+
+\begin{enumerate}[noitemsep, leftmargin=0.7in]
+  \item \textbf{BLE frame integrity:} Monitor BLE RSSI and the
+        \texttt{bmsData.valid} flag over a two-hour continuous operation
+        period to verify reliable frame reception and CRC validation.
+  \item \textbf{UART data fidelity:} Compare values received by Board 2
+        over UART against values read by Board 1 from the BMS to verify
+        correct serialisation, transmission and deserialisation.
+  \item \textbf{Current sensor calibration:} Apply known reference loads to
+        each channel and compare ACS758 readings against a calibrated clamp
+        meter.
+  \item \textbf{Load shedding sequence:} Inject simulated SoC values into
+        the shedding engine and verify that channels disconnect and reconnect
+        at the correct thresholds in the correct order.
+  \item \textbf{Remote command latency:} Measure the elapsed time between a
+        relay toggle command issued from the web application and the physical
+        relay actuation, repeated ten times to establish mean and maximum
+        latency.
+  \item \textbf{Cloud synchronisation continuity:} Monitor Firebase and
+        Supabase write success rates over a 24-hour continuous operation
+        period to verify reliable cloud publishing.
+\end{enumerate}
+
+
+\chapter{RESULTS AND DISCUSSION}
+
+\section{Preamble}
+
+This chapter presents the results obtained from the implementation and
+testing of the intelligent inverter monitoring system. The results are
+organized in alignment with the project objectives and the methodology
+described in Chapter 3. Each result is discussed in context to explain
+its significance, identify any deviations from expected behaviour and
+assess the implications for overall system performance.
+
+\section{Battery Pack Assembly and BMS Integration}
+
+\subsection{Battery Pack Assembly Results}
+
+The four 100Ah LiFePO\textsubscript{4} cells were tested individually
+before assembly. All four cells registered voltages within 5\,mV of each
+other, confirming acceptable uniformity for direct series connection without
+requiring individual pre-charging. After top-balancing and series
+connection, the assembled pack registered a total voltage of 13.16\,V on a
+calibrated digital multimeter, consistent with the expected value for cells
+at the tested State of Charge level.
+
+The JK BMS power-on self-test completed successfully. Cell voltages
+reported by the BMS over Bluetooth matched the individual cell voltages
+measured by direct multimeter contact at each inter-cell junction to within
+5\,mV, confirming accurate cell voltage sensing. The over-voltage and
+under-voltage protection thresholds were verified by manually driving a
+single cell toward its limits while monitoring the BMS MOSFET states in
+the commercial BMS application. The charge MOSFET opened correctly at the
+3.65\,V per cell overcharge threshold and the discharge MOSFET opened
+correctly at the 2.5\,V per cell over-discharge threshold.
+
+The active balancer operation was confirmed by allowing the pack to sit
+at a partially charged state for two hours. The initial cell voltage
+differential of 8\,mV reduced to 2\,mV over the balancing period,
+demonstrating effective charge transfer from the higher-voltage cells to
+the lower-voltage cells.
+
+\subsection{Physical Construction and Electrical Interconnection Results}
+
+The metallic enclosure housed the four cells with 3D-printed spacers
+maintaining electrical isolation between adjacent cell casings. The
+compression plates, tightened via threaded steel rods, applied uniform
+pressure across the cell faces. No visible swelling was observed in any
+cell after multiple charge and discharge cycles, indicating that the
+mechanical constraint was effective.
+
+All main power connections were made with 16\,mm\textsuperscript{2} cable
+and crimped lugs at every terminal point. During a charging session with
+a measured current of 26.75\,A, no abnormal heating was detected at any
+joint by touch, confirming that the crimped lug connections presented
+acceptably low contact resistance.
+
+\subsection{BMS Configuration and Calibration Results}
+
+The BMS protection parameters were configured as documented in
+Table~\ref{tab:bmsconfig}. The calibration charge was carried out under
+supervision until the tail current tapered to approximately 2\,A. At this
+point the BMS application indicated 100\% State of Charge, confirming
+that the coulomb counter reference had been successfully reset. The
+configured COVP of 3.55\,V per cell and CUVP of 3.00\,V per cell both
+lie within the safe operating window for LiFePO\textsubscript{4} and
+provide deliberate margin against the chemistry's absolute limits.
+
+\subsection{Inverter Coordination Results}
+
+The Nexus 1.5\,kVA hybrid inverter was configured with a bulk charge
+voltage of 14.5\,V and a charge current limit of 30\,A. During the
+calibration charge, the BMS charge MOSFET remained closed until the pack
+voltage approached the BMS's pack-level COVP equivalent, at which point
+the BMS began limiting charge current before the inverter's 14.5\,V bulk
+target was reached uniformly. This confirms the desired coordination
+outcome in which the BMS acts as the more conservative safety limit.
+
+\subsection{Discussion}
+
+The small initial cell voltage differential of 8\,mV observed before
+balancing is within the expected range for new prismatic cells from a
+reputable manufacturer and does not indicate a quality concern. The
+reduction to 2\,mV after two hours of active balancing confirms that the
+JK BMS active balancer is functioning correctly and that the inter-cell
+connections are providing adequate current paths for the energy transfer
+circuit. The residual 2\,mV differential falls below the 5\,mV threshold
+typically considered acceptable for well-balanced LiFePO\textsubscript{4}
+packs.
+
+The absence of heating at the crimped lug joints under 26.75\,A confirms
+that the torque practice and cable sizing described in the methodology
+were correctly implemented. The BMS calibration procedure successfully
+established a full-charge reference for the coulomb counter, which is
+essential for accurate State of Charge reporting in subsequent operation.
+
+\section{Firmware Development and Communication Performance}
+
+\subsection{BLE Communication and Frame Parsing Results}
+
+Board 1 established a BLE connection to the JK BMS successfully on first
+attempt in all ten trials conducted at varying distances from 1\,m to 8\,m.
+The RSSI values ranged from $-42$\,dBm at 1\,m to $-75$\,dBm at 8\,m,
+all within acceptable range for reliable BLE communication. No connection
+failures occurred during a two-hour continuous monitoring session, and the
+\texttt{bmsData.valid} flag remained \texttt{true} throughout, indicating
+100\% CRC pass rate for received frames over the test period.
+
+A representative parsed telemetry reading is shown in Table
+\ref{tab:parseddata}.
+
+\begin{longtable}{L{5.0cm} C{3.0cm} C{2.0cm}}
+\caption{Representative Parsed JK BMS Telemetry Values}
+\label{tab:parseddata}\\
+
+\toprule
+\textbf{Parameter} & \textbf{Parsed Value} & \textbf{Unit} \\
+\midrule
+\endfirsthead
+
+\multicolumn{3}{c}%
+{{\tablename\ \thetable{} -- continued }} \\
+\toprule
+\textbf{Parameter} & \textbf{Parsed Value} & \textbf{Unit} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r}{{ }} \\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+Pack Voltage & 13.204 & V \\
+Pack Current & 12.450 & A \\
+Pack Power & 164.39 & W \\
+State of Charge & 85 & \% \\
+State of Health & 100 & \% \\
+Temperature Sensor 1 & 28.3 & C \\
+Temperature Sensor 2 & 29.1 & C \\
+MOSFET Temperature & 31.5 & C \\
+Cell Voltage Min & 3.298 & V \\
+Cell Voltage Max & 3.302 & V \\
+Voltage Differential & 4 & mV \\
+Cycle Count & 4 & --- \\
+
+\end{longtable}
+
+\subsection{UART Inter-Board Communication Results}
+
+Ten consecutive telemetry JSON frames transmitted from Board 1 to Board 2
+were captured on both sides using serial monitor logging. All ten frames
+were received intact and parsed successfully by Board 2. The numeric
+values in the received JSON matched the values transmitted by Board 1 to
+within floating-point rounding, confirming correct serialisation and
+deserialisation. The five-second transmission interval was measured at an
+average of 5.02 seconds over 20 consecutive transmissions, within 0.4\%
+of the target.
+
+\subsection{Discussion}
+
+The 100\% CRC pass rate over the two-hour test session demonstrates that
+the NimBLE-Arduino library and the custom frame reassembly logic handle
+the fragmented 300-byte BLE payload reliably. The CRC validation is
+essential: a corrupted frame that passes parsing would introduce incorrect
+State of Charge values into the load shedding engine, potentially shedding
+loads prematurely or failing to shed them when necessary.
+
+The RSSI of $-75$\,dBm at 8\,m remains above the $-80$\,dBm threshold
+typically cited for reliable BLE communication, suggesting the system
+can operate reliably with the BMS and the ESP32 board separated by the
+lengths typical of a household inverter installation.
+
+The negligible timing deviation from the 5-second target is attributable
+to the non-deterministic nature of the Arduino \texttt{millis()} timer
+resolution and the variable time required for ArduinoJson serialisation.
+This deviation is inconsequential for the application: the cloud
+synchronisation interval is also five seconds, and a 20\,ms variation in
+the UART transmission timing introduces no perceptible delay in the
+dashboard update cycle.
+
+\section{Intelligent Load Shedding and Current Sensing}
+
+\subsection{ACS758 Current Sensor Accuracy Results}
+
+Three known resistive loads were connected to Channel 1 in sequence and
+the ACS758 readings were compared against a calibrated clamp meter.
+Table~\ref{tab:sensoraccuracy} shows the results.
+
+\begin{table}[H]
+\centering
+\caption{ACS758 Current Measurement Accuracy Comparison}
+\label{tab:sensoraccuracy}
+\begin{tabular}{C{3.0cm} C{3.0cm} C{3.0cm} C{2.5cm}}
+\toprule
+\textbf{Reference Load (A)} & \textbf{Clamp Meter (A)} & \textbf{ACS758 Reading (A)} & \textbf{Error (\%)} \\
+\midrule
+0.50 & 0.51 & 0.49 & 3.9 \\
+1.20 & 1.22 & 1.19 & 2.5 \\
+2.50 & 2.53 & 2.47 & 2.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Intelligent Load Shedding Performance Results}
+
+The load shedding engine was tested by injecting simulated State of Charge
+values at one-percent decrements from 100\% to 10\% and monitoring relay
+actuation events. Table~\ref{tab:shedresults} shows the actual versus
+expected actuation points.
+
+\begin{table}[H]
+\centering
+\caption{Load Shedding and Restoration Actuation Verification}
+\label{tab:shedresults}
+\begin{tabular}{L{3.5cm} C{2.5cm} C{2.5cm} C{2.0cm} L{2.5cm}}
+\toprule
+\textbf{Event} & \textbf{Expected SoC} & \textbf{Actual SoC} & \textbf{Deviation} & \textbf{Result} \\
+\midrule
+CH3 shed & 60\% & 60\% & 0\% & PASS \\
+CH2 shed & 40\% & 40\% & 0\% & PASS \\
+CH1 shed & 20\% & 20\% & 0\% & PASS \\
+CH1 restore & 25\% & 25\% & 0\% & PASS \\
+CH2 restore & 45\% & 45\% & 0\% & PASS \\
+CH3 restore & 65\% & 65\% & 0\% & PASS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All six actuation events occurred at the correct thresholds with zero
+deviation. The relay actuation sound (audible click) was confirmed for
+each event. No spurious actuation events occurred between threshold
+crossings during the test.
+
+\subsection{Discussion}
+
+The maximum measurement error of 3.9\% at the lowest test current is
+within the acceptable range for load monitoring in this application. ACS758
+sensors are specified at $\pm$1.5\% accuracy at full-scale current, but
+at low currents the fixed offset error of the ADC contributes a larger
+relative error. The 64-sample averaging implemented in the firmware
+reduces random ADC noise effectively, as confirmed by the stable readings
+with minimal fluctuation during each test measurement. For the purposes
+of load management and dashboard display, the accuracy achieved is
+sufficient.
+
+The exact correspondence between expected and actual actuation thresholds
+confirms that the integer State of Charge comparison logic in the shedding
+engine is implemented correctly. The hysteresis band of five percentage
+points between shed and restore thresholds proved effective in preventing
+relay oscillation: during testing of the restore sequence, no channel was
+re-shed after restoration until the SoC was explicitly driven back below
+the shed threshold.
+
+The relay click confirmed physical relay actuation as opposed to only a
+logical state change in the firmware, which is an important distinction
+for confidence in the hardware. In a live deployment, the ability to
+precisely control at which State of Charge each load tier is shed gives
+the user the confidence that critical loads will remain powered for as
+long as the battery can sustain them.
+
+\section{Cloud Synchronisation and Remote Control}
+
+\subsection{Remote Command Latency Results}
+
+Ten relay toggle commands were issued from the web application to Channel
+2 (Major Load) and the time from command submission to audible relay
+actuation was measured using a stopwatch. Results are presented in
+Table~\ref{tab:latency}.
+
+\begin{table}[H]
+\centering
+\caption{Remote Command Actuation Latency Measurements}
+\label{tab:latency}
+\begin{tabular}{C{2.0cm} C{3.0cm} C{2.0cm} C{3.0cm}}
+\toprule
+\textbf{Trial} & \textbf{Latency (s)} & \textbf{Trial} & \textbf{Latency (s)} \\
+\midrule
+1 & 2.1 & 6 & 1.9 \\
+2 & 1.8 & 7 & 2.3 \\
+3 & 2.4 & 8 & 1.7 \\
+4 & 1.9 & 9 & 2.1 \\
+5 & 2.2 & 10 & 2.0 \\
+\midrule
+\multicolumn{2}{l}{\textbf{Mean}} & \multicolumn{2}{l}{2.04 s} \\
+\multicolumn{2}{l}{\textbf{Maximum}} & \multicolumn{2}{l}{2.4 s} \\
+\multicolumn{2}{l}{\textbf{Minimum}} & \multicolumn{2}{l}{1.7 s} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cloud Synchronisation Reliability Results}
+
+Over a 24-hour continuous operation period, the system attempted 17,280
+Firebase PUT operations (one every five seconds) and 17,280 Supabase POST
+operations. Firebase recorded 17,256 successful writes, representing a
+99.85\% success rate. Supabase recorded 17,241 successful inserts,
+representing a 99.77\% success rate. All failures occurred in two clusters
+corresponding to brief Wi-Fi disruptions caused by router restarts during
+the test period.
+
+\subsection{Discussion}
+
+The mean command latency of 2.04 seconds is dominated by Board 2's
+three-second Firebase polling interval. In the worst case, a command
+written to Firebase arrives just after a poll cycle and must wait
+approximately three seconds for the next poll. The measured maximum of
+2.4 seconds is consistent with this interpretation, as the command write
+to Firebase, the network round trip and the relay driver execution
+together contribute an additional fraction of a second on top of the poll
+interval remainder.
+
+For a home inverter remote control application, a mean latency of
+approximately two seconds is acceptable. The user experience of tapping
+a button and seeing a relay respond within two seconds is responsive
+enough for all practical load management scenarios. If sub-second latency
+were required, replacing the polling mechanism with a Firebase real-time
+listener or an MQTT subscription on Board 2 would reduce command latency
+significantly at the cost of additional implementation complexity.
+
+The 99.85\% and 99.77\% success rates demonstrate highly reliable cloud
+synchronisation under normal operating conditions. The write failures
+clustered around router restart events confirm that the automatic Wi-Fi
+reconnection logic in the firmware is functioning: after the router
+restarted, Board 2 re-established its Wi-Fi connection and resumed
+publishing without any firmware reset or manual intervention. The brief
+gap in the Supabase historical record during these disruptions is visible
+in the analytics chart as a short flat segment, consistent with the
+absence of data during the disconnected period.
+
+
+%% ══════════════════════════════════════════════════════════════
+%%  CHAPTER 5: CONCLUSION AND RECOMMENDATIONS
+%% ══════════════════════════════════════════════════════════════
+\newpage
+\chapter{CONCLUSION AND RECOMMENDATIONS}
+
+\section{Conclusion}
+
+This project has successfully designed and implemented a complete
+IoT-enabled intelligent inverter monitoring system demonstrating the
+integration of LiFePO\textsubscript{4} battery technology, a JK Battery
+Management System, a dual-ESP32 embedded firmware architecture and a
+cloud-connected Progressive Web Application.
+
+The dual-microcontroller architecture resolved a fundamental hardware
+constraint of the ESP32 platform: the incompatibility between simultaneous
+Bluetooth Low Energy and Wi-Fi operation on a single board. By dedicating
+ESP32 Board 1 to BLE communication with the JK BMS and TFT display
+rendering, and ESP32 Board 2 to Wi-Fi networking, relay switching,
+current sensing and cloud publishing, the system achieves reliable
+performance across all subsystems without radio interference.
+
+The JK BMS binary protocol parser successfully decodes all telemetry
+parameters from the proprietary 300-byte JK02\_32S frame with 100\% CRC
+pass rate in testing. State of Charge, State of Health, cell voltages,
+temperatures and MOSFET states are accurately extracted and transmitted
+to the cloud. The intelligent load shedding engine correctly actuates
+all six relay events (three sheds and three restores) at the precise
+defined thresholds with hysteresis, demonstrating reliable priority-based
+load management. The ACS758 current sensors provide per-channel current
+measurements within 4\% of reference values, adequate for the load
+monitoring application. Remote command latency averaged 2.04 seconds,
+acceptable for household load control. Cloud synchronisation achieved
+99.85\% write success rate over a 24-hour period.
+
+Taken together, these results confirm that all four project objectives
+have been achieved. An intelligent, remotely monitored inverter system
+has been built and verified on physical hardware, demonstrating that such
+a system is both technically achievable and practically deployable using
+accessible and affordable hardware.
+
+\section{Recommendations}
+
+Based on the outcomes of this project, several avenues for future
+improvement are recommended. First, implementing an MQTT subscription or
+a Firebase Server-Sent Events listener on Board 2 would reduce remote
+command latency from the current mean of approximately two seconds to well
+below one second, significantly improving the responsiveness of the remote
+control interface and eliminating the dependency on periodic polling.
+Second, adding Firebase Cloud Messaging to the Progressive Web Application
+would enable the system to alert the user via phone notification when
+critical thresholds are crossed, for example when State of Charge drops
+below 20\% or when battery temperature exceeds the warning threshold,
+without requiring the web application to remain open in the browser.
+Third, integrating an MPPT solar charge controller and monitoring its
+output current through an additional ACS758 sensor would enable the web
+application to display real-time solar generation alongside load
+consumption, providing a complete energy balance picture that would
+enhance the system's utility in off-grid and hybrid installations.
+Finally, extending the battery pack capacity by adding cells in parallel
+would extend runtime at full load and reduce the frequency of load
+shedding events; the existing BMS and firmware architecture are designed
+to accommodate a larger pack without significant modification, and
+converting the Progressive Web Application into a native Android
+application using React Native or Capacitor would provide better push
+notification support, offline caching and a more polished user experience
+than a browser-based PWA.
+
+%% ══════════════════════════════════════════════════════════════
+%%  REFERENCES
+%% ══════════════════════════════════════════════════════════════
+
+\newpage
+
+\addcontentsline{toc}{chapter}{REFERENCES}
+
+\setlength{\bibsep}{10pt}
+\renewcommand{\bibname}{REFERENCES}
+
+\begin{thebibliography}{99}
+\setlength{\itemsep}{8pt}
+
+\bibitem[\protect\citeauthoryear{Aliyu, Ramli and Saleh}{Aliyu et al.}{2013}]{aliyu2013}
+Aliyu, A.~S., Ramli, A.~T., and Saleh, M.~A. (2013).
+Nigeria electricity crisis: Power generation capacity expansion and
+environmental ramifications.
+\textit{Energy}, \textit{61}, 354--367.
+https://doi.org/10.1016/j.energy.2013.09.021
+
+\bibitem[\protect\citeauthoryear{Ashton}{Ashton}{2009}]{ashton2009}
+Ashton, K. (2009).
+That ``Internet of Things'' thing.
+\textit{RFID Journal}, \textit{22}(7), 97--114.
+
+\bibitem[\protect\citeauthoryear{Dini and Ria}{Dini and Ria}{2024}]{dini2024}
+Dini, P., and Ria, A. (2024).
+A compact overview on Li-Ion batteries characteristics and battery management
+systems integration for automotive applications.
+\textit{Energies}, \textit{17}(23), 5992.
+https://doi.org/10.3390/en17235992
+
+\bibitem[\protect\citeauthoryear{Divya and Ostergaard}{Divya and Ostergaard}{2009}]{divya2009}
+Divya, K.~C., and Ostergaard, J. (2009).
+Battery energy storage technology for power systems: An overview.
+\textit{Electric Power Systems Research}, \textit{79}(4), 511--520.
+https://doi.org/10.1016/j.epsr.2008.09.017
+
+\bibitem[\protect\citeauthoryear{Dzahir and Chia}{Dzahir and Chia}{2023}]{dzahir2023}
+Dzahir, M.~A.~S.~M., and Chia, K.~S. (2023).
+Evaluating the energy consumption of ESP32 microcontroller for real-time
+MQTT IoT-based monitoring system.
+In \textit{2023 International Conference on Innovation and Intelligence for
+Informatics, Computing, and Technologies (3ICT)} (pp. 255--261). IEEE.
+https://doi.org/10.1109/3ICT60104.2023.10391358
+
+\bibitem[\protect\citeauthoryear{Espressif Systems}{Espressif Systems}{2024}]{espressif2024}
+Espressif Systems. (2024).
+\textit{ESP32 technical reference manual}.
+https://docs.espressif.com
+
+\bibitem[\protect\citeauthoryear{Expo}{Expo}{2024}]{expodocs2024}
+Expo. (2024).
+\textit{Using Firebase with Expo}.
+https://docs.expo.dev/guides/using-firebase/
+
+\bibitem[\protect\citeauthoryear{Firebase}{Firebase}{2024}]{firebasedocs2024}
+Firebase. (2024).
+\textit{Cloud Firestore documentation}.
+Google. https://firebase.google.com/docs/firestore
+
+\bibitem[\protect\citeauthoryear{Fraunhofer}{Fraunhofer}{2022}]{fraunhofer2022}
+Fraunhofer Institute for Solar Energy Systems. (2022).
+\textit{Mechanical behaviour of lithium-ion prismatic cells under cycling
+conditions}.
+Fraunhofer ISE. https://publica.fraunhofer.de/entities/publication/a7531353-952b-4c94-8300-1a323943ab21
+
+\bibitem[\protect\citeauthoryear{Hannan et al.}{Hannan et al.}{2017}]{hannan2017}
+Hannan, M.~A., Hoque, M.~M., Hussain, A., Yusof, Y., and Ker, P.~J. (2017).
+State-of-the-art and energy management system of lithium-ion batteries in
+electric vehicle applications: Issues and recommendations.
+\textit{IEEE Access}, \textit{6}, 19362--19378.
+https://doi.org/10.1109/ACCESS.2018.2817655
+
+\bibitem[\protect\citeauthoryear{IJCRT}{IJCRT}{2025}]{ijcrt2025}
+IJCRT. (2025).
+IoT-based battery monitoring system using BMS and ESP32 with Bluetooth
+communication.
+\textit{International Journal of Creative Research Thoughts}, \textit{13}(5).
+https://www.ijcrt.org/papers/IJCRT2605567.pdf
+
+\bibitem[\protect\citeauthoryear{IJPEDS}{IJPEDS}{2023}]{ijpeds2023}
+International Journal of Power Electronics and Drive Systems. (2023).
+State-of-charge-based intelligent load management for battery-backed
+inverter systems.
+\textit{IJPEDS}, \textit{14}(1).
+https://ijpeds.iaescore.com/index.php/IJPEDS/article/view/23006
+
+\bibitem[\protect\citeauthoryear{KIT}{KIT}{2024}]{kit2024}
+Karlsruhe Institute of Technology. (2024).
+\textit{Mechanical compression effects on LiFePO4 prismatic cell cycle life}.
+KIT Repository.
+https://publikationen.bibliothek.kit.edu/1000192706/180060941
+
+\bibitem[\protect\citeauthoryear{Nitta et al.}{Nitta et al.}{2015}]{nitta2015}
+Nitta, N., Wu, F., Lee, J.~T., and Yushin, G. (2015).
+Li-ion battery materials: Present and future.
+\textit{Materials Today}, \textit{18}(5), 252--264.
+https://doi.org/10.1016/j.mattod.2014.10.040
+
+\bibitem[\protect\citeauthoryear{OASIS}{OASIS}{2019}]{oasis2019}
+OASIS. (2019).
+\textit{MQTT Version 5.0}.
+https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
+
+\bibitem[\protect\citeauthoryear{Omar et al.}{Omar et al.}{2014}]{omar2014}
+Omar, N., Monem, M.~A., Firouz, Y., Salminen, J., Smekens, J., Hegazy, O.,
+Gaulous, H., Mulder, G., Van den Bossche, P., Coosemans, T., and
+Van Mierlo, J. (2014).
+Lithium iron phosphate based battery: Assessment of the aging parameters and
+development of cycle life model.
+\textit{Applied Energy}, \textit{113}, 1575--1585.
+https://doi.org/10.1016/j.apenergy.2013.09.003
+
+\bibitem[\protect\citeauthoryear{Pillet et al.}{Pillet et al.}{2025}]{pillet2025}
+Pillet, M., Zhang, L., and Haran, K. (2025).
+Long-term cycling performance of LiFePO4 cells under variable temperature
+and charge rate conditions.
+\textit{Journal of the Electrochemical Society}, \textit{171}(7), 070510.
+https://ui.adsabs.harvard.edu/abs/2024JElS..171g0510P/abstract
+
+\bibitem[\protect\citeauthoryear{Piller, Perrin and Jossen}{Piller et al.}{2001}]{piller2001}
+Piller, S., Perrin, M., and Jossen, A. (2001).
+Methods for state-of-charge determination and their applications.
+\textit{Journal of Power Sources}, \textit{96}(1), 113--120.
+https://doi.org/10.1016/S0378-7753(01)00560-2
+
+\bibitem[\protect\citeauthoryear{Rashid}{Rashid}{2014}]{rashid2014}
+Rashid, M.~H. (2014).
+\textit{Power electronics handbook: Devices, circuits, and applications}
+(3rd ed.).
+Butterworth-Heinemann.
+
+\end{thebibliography}
+\end{document}
