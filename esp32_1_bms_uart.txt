@@ -385,9 +385,13 @@ void handleControlCommand(const String& jsonStr) {
     // 3. BMS Inverter Discharge/Charge Commands
     if (doc.containsKey("discharge")) {
         setDischarge(doc["discharge"].as<bool>());
+    } else if (doc.containsKey("cmd") && doc["cmd"] == "discharge" && doc.containsKey("val")) {
+        setDischarge(doc["val"].as<bool>());
     }
     if (doc.containsKey("charge")) {
         setCharge(doc["charge"].as<bool>());
+    } else if (doc.containsKey("cmd") && doc["cmd"] == "charge" && doc.containsKey("val")) {
+        setCharge(doc["val"].as<bool>());
     }
 
     // Synchronize updates immediately across all interfaces
