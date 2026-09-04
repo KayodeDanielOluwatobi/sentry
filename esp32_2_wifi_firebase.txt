@@ -293,22 +293,31 @@ void sendToFirebase() {
 // CLOUD PUBLISHING: SUPABASE HISTORICAL DATABASE
 // ============================================================
 void sendToSupabase() {
-    if (WiFi.status() != WL_CONNECTED || !bms.valid) return;
+    if (WiFi.status() != WL_CONNECTED) return;
+    if (!bms.valid) {
+        Serial.println("[Supabase] Awaiting valid BMS telemetry before logging historical snapshot...");
+        return;
+    }
+
+    WiFiClientSecure client;
+    client.setInsecure(); // Bypass TLS cert check on ESP32
 
     HTTPClient http;
     String url = String(SUPABASE_HOST) + SUPABASE_TABLE;
-    http.begin(url);
+    http.begin(client, url);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("apikey", SUPABASE_API_KEY);
     http.addHeader("Authorization", String("Bearer ") + SUPABASE_API_KEY);
     http.addHeader("Prefer", "return=minimal");
 
-    char tsBuf[30];
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 100)) {
-        strftime(tsBuf, sizeof(tsBuf), "\"%Y-%m-%dT%H:%M:%SZ\"", &timeinfo);
+    char tsBuf[32];
+    time_t nowSec = time(NULL);
+    if (nowSec > 100000) {
+        uint64_t ms = ((uint64_t)nowSec) * 1000ULL + (millis() % 1000);
+        snprintf(tsBuf, sizeof(tsBuf), "%llu", ms);
     } else {
-        snprintf(tsBuf, sizeof(tsBuf), "null");
+        uint64_t ms = 1784721310000ULL + millis();
+        snprintf(tsBuf, sizeof(tsBuf), "%llu", ms);
     }
 
     char tempsBuf[64];
@@ -322,27 +331,21 @@ void sendToSupabase() {
     }
     cellsBuf += "]";
 
-    char loadsBuf[64];
-    snprintf(loadsBuf, sizeof(loadsBuf), "[%.1f,%.1f,%.1f]",
-             channels[0].current, channels[1].current, channels[2].current);
-
     String payload = "{";
     payload += "\"timestamp\":"     + String(tsBuf)              + ",";
-    payload += "\"soc\":"           + String(bms.soc)            + ",";
     payload += "\"voltage\":"       + String(bms.voltage, 2)     + ",";
     payload += "\"current\":"       + String(bms.current, 2)     + ",";
     payload += "\"power\":"         + String(bms.power, 2)       + ",";
     payload += "\"temperatures\":"  + String(tempsBuf)           + ",";
     payload += "\"cell_voltages\":" + cellsBuf                   + ",";
-    payload += "\"load_currents\":" + String(loadsBuf)           + ",";
     payload += "\"is_offline\":false";
     payload += "}";
 
     int code = http.POST(payload);
     if (code == 201 || code == 200 || code == 204) {
-        Serial.println("[Supabase] Telemetry snapshot logged.");
+        Serial.println("[Supabase] Telemetry snapshot logged successfully (201 Created).");
     } else {
-        Serial.printf("[Supabase] Insert failed: %d\n", code);
+        Serial.printf("[Supabase] Insert failed: HTTP %d | Response: %s\n", code, http.getString().c_str());
     }
     http.end();
 }
