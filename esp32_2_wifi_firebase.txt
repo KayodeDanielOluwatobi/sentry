@@ -9,8 +9,8 @@
 // ============================================================
 
 // UART Communication to/from ESP32 #1
-#define UART_RX_PIN 16  // Connects to ESP32 #1 TX (GPIO 17)
-#define UART_TX_PIN 17  // Connects to ESP32 #1 RX (GPIO 16)
+#define UART_RX_PIN 14  // Connects to ESP32 #1 TX (GPIO 14)
+#define UART_TX_PIN 13  // Connects to ESP32 #1 RX (GPIO 13)
 
 // ACS758 Current Sensor Analog Inputs (ADC1 Pins)
 const int SENSOR_CH1_PIN = 32;  // ADC1_CH4 -> ACS758 Sensor 1 (CH1 Critical)
@@ -513,8 +513,8 @@ void setup() {
     delay(1000);
 
     Serial.println("ESP32 #2 — Cloud Gateway + Current Sensing");
-    Serial.println("UART RX  : GPIO16 <- ESP32 #1 TX");
-    Serial.println("UART TX  : GPIO17 -> ESP32 #1 RX");
+    Serial.println("UART RX  : GPIO14 <- ESP32 #1 TX (GPIO 14)");
+    Serial.println("UART TX  : GPIO13 -> ESP32 #1 RX (GPIO 13)");
     Serial.println("Sensors  : CH1:GPIO32 | CH2:GPIO33 | CH3:GPIO34");
     Serial.println("==========================================");
 
