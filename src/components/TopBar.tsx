@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Menu02Icon, NotificationIcon, Sun01Icon, Moon01Icon } from "@hugeicons/core-free-icons";
+import { Menu02Icon, NotificationIcon, Sun01Icon, Moon01Icon, BluetoothIcon } from "@hugeicons/core-free-icons";
 import { CardTheme } from "./BentoCard";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -24,6 +24,10 @@ interface TopBarProps {
   events?: any[];
   activeTab?: string;
   onClearNotifications?: () => void;
+  isBleConnected?: boolean;
+  isBleConnecting?: boolean;
+  onBleConnect?: () => void;
+  onBleDisconnect?: () => void;
 }
 
 export default function TopBar({
@@ -49,11 +53,16 @@ export default function TopBar({
   events = [],
   activeTab = "Battery",
   onClearNotifications,
+  isBleConnected = false,
+  isBleConnecting = false,
+  onBleConnect,
+  onBleDisconnect,
 }: TopBarProps) {
   const isDark = theme === "dark";
   const textColor = isDark ? "#ffffff" : "#111111";
   const grayText = isDark ? "#9ca3af" : "#6b7280";
 
+  const [bleHover, setBleHover] = useState(false);
   const [menuHover, setMenuHover] = useState(false);
   const [bellHover, setBellHover] = useState(false);
   const [themeHover, setThemeHover] = useState(false);
@@ -503,8 +512,49 @@ export default function TopBar({
         </p>
       </div>
 
-      {/* ── Right: Theme Switcher & Notification Buttons ── */}
+      {/* ── Right: Bluetooth Direct, Theme Switcher & Notification Buttons ── */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", flexShrink: 0 }}>
+        {/* Direct Bluetooth (Offline Local Link) */}
+        <button
+          type="button"
+          aria-label={isBleConnected ? "Disconnect Direct Bluetooth" : "Connect Direct Bluetooth for Offline Control"}
+          title={isBleConnected ? "Direct Bluetooth Active (Click to Disconnect)" : "Connect Direct Bluetooth (Offline Local Control)"}
+          onClick={isBleConnected ? onBleDisconnect : onBleConnect}
+          onMouseEnter={() => setBleHover(true)}
+          onMouseLeave={() => setBleHover(false)}
+          style={{
+            ...iconButtonStyle,
+            transform: bleHover ? "scale(1.08)" : "scale(1)",
+            width: isBleConnected ? "auto" : "28px",
+            padding: isBleConnected ? "0 8px" : "0",
+            gap: "5px",
+            borderRadius: isBleConnected ? "14px" : "8px",
+            background: isBleConnected
+              ? (isDark ? "rgba(16, 185, 129, 0.18)" : "rgba(16, 185, 129, 0.12)")
+              : (bleHover ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)") : iconButtonStyle.background),
+            border: isBleConnected
+              ? `1px solid ${isDark ? "rgba(16, 185, 129, 0.45)" : "rgba(16, 185, 129, 0.35)"}`
+              : iconButtonStyle.border,
+            color: isBleConnected
+              ? (isDark ? "#34d399" : "#059669")
+              : (isDark ? "#9ca3af" : "#6b7280"),
+            justifyContent: "center",
+          }}
+        >
+          <HugeiconsIcon
+            icon={BluetoothIcon}
+            size={isBleConnected ? 16 : 22}
+            color="currentColor"
+            strokeWidth={1.8}
+            className={isBleConnecting ? "animate-pulse" : ""}
+          />
+          {isBleConnected && (
+            <span style={{ fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.02em" }}>
+              BLE
+            </span>
+          )}
+        </button>
+
         {/* Theme Switcher */}
         <button
           type="button"

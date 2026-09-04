@@ -1,6 +1,8 @@
 #include <BLEDevice.h>
 #include <BLEClient.h>
 #include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
@@ -132,26 +134,63 @@ const unsigned char icon_battery[72] PROGMEM = {
 
 TFT_eSPI tft = TFT_eSPI();
 
-// ===============================
-// UART to/from ESP32 #2
-// TX — GPIO17, RX — GPIO16
-// Now bidirectional: we send telemetry out,
-// and receive discharge/charge commands in.
-// ===============================
-#define UART_TX_PIN 17
-#define UART_RX_PIN 16
+// ============================================================
+// PIN DEFINITIONS & HARDWARE ASSIGNMENTS
+// ============================================================
 
-// ===============================
-// BMS BLE Configuration
-// ===============================
+// UART Communication to/from ESP32 #2
+#define UART_TX_PIN 17  // Connects to ESP32 #2 RX (GPIO 16)
+#define UART_RX_PIN 16  // Connects to ESP32 #2 TX (GPIO 17)
+
+// Relay Outputs (Directly controlled on ESP32 #1)
+const int RELAY_CH1_PIN = 25;   // CH1: Critical Loads (Router, lighting, security)
+const int RELAY_CH2_PIN = 26;   // CH2: Major Loads (Fans, PC, Workstation)
+const int RELAY_CH3_PIN = 27;   // CH3: Non-essential Loads (AC, water heater)
+const bool RELAY_ACTIVE_LOW = false;  // Active-HIGH relay module
+
+// ============================================================
+// LOAD CHANNEL STRUCT & INTELLIGENT SHEDDING CONFIGURATION
+// ============================================================
+struct LoadChannel {
+    const char* name;
+    int pin;
+    float offThreshold;   // SOC% at which channel automatically turns OFF
+    float hysteresis;     // SOC% added back for re-enabling
+    bool isOn;
+};
+
+LoadChannel channels[3] = {
+    {"CH1 (critical)", RELAY_CH1_PIN, 10.0, 5.0, true},
+    {"CH2 (mid)",      RELAY_CH2_PIN, 40.0, 5.0, true},
+    {"CH3 (non-crit)", RELAY_CH3_PIN, 60.0, 5.0, true},
+};
+
+const int NUM_CHANNELS = 3;
+String currentMode = "AUTO"; // "AUTO" or "MANUAL"
+
+// ============================================================
+// BLE DUAL CONFIGURATION:
+// 1) CLIENT: Connects to JK-BMS to stream telemetry
+// 2) SERVER: Advertises SENTRY_CONTROL for Phone / Offline Web Bluetooth
+// ============================================================
+
+// BMS Client UUIDs
 static BLEAddress bmsAddress("a4:c1:38:06:91:dc");
 static BLEUUID serviceUUID("0000ffe0-0000-1000-8000-00805f9b34fb");
 static BLEUUID dataCharUUID("0000ffe1-0000-1000-8000-00805f9b34fb");
 static BLEUUID writeCharUUID("0000ffe2-0000-1000-8000-00805f9b34fb");
 
 BLEClient* pClient = nullptr;
-BLERemoteCharacteristic* pDataChar  = nullptr;  // FFE1 — notify/read (telemetry + legacy sendCommand)
-BLERemoteCharacteristic* pWriteChar = nullptr;  // FFE2 — write (discharge/charge MOSFET control)
+BLERemoteCharacteristic* pDataChar  = nullptr;  // FFE1 — notify/read telemetry
+BLERemoteCharacteristic* pWriteChar = nullptr;  // FFE2 — write MOSFET control
+
+// Sentry Local Offline Control Service (BLE Server for Phone)
+#define SENTRY_SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define SENTRY_CTRL_CHAR_UUID      "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+BLEServer* pServer = nullptr;
+BLECharacteristic* pCtrlChar = nullptr;
+bool blePhoneConnected = false;
 
 uint8_t frameBuffer[320];
 size_t frameLen = 0;
@@ -160,10 +199,9 @@ bool bmsConnected = false;
 
 const int OFF = 16;  // JK02_32S offset
 
-// Load Prioritization logic has been migrated to ESP32 #2
-// ===============================
+// ============================================================
 // Parsed BMS Data Structure
-// ===============================
+// ============================================================
 struct BMSData {
     float cellVoltages[32];
     float cellResistances[32];
@@ -204,12 +242,8 @@ struct BMSData {
     int rssi;           // BLE signal strength (dBm)
 } bmsData;
 
-// System Status from Board 2
+// Status data received from Board 2 via UART Heartbeat
 bool sysWifi = false;
-String sysMode = "AUTO";
-bool sysL1 = true;
-bool sysL2 = true;
-bool sysL3 = true;
 String sysTime = "--:--";
 String sysC1 = "0.0";
 String sysC2 = "0.0";
@@ -220,9 +254,151 @@ unsigned long lastUartSend = 0;
 const unsigned long PRINT_INTERVAL     = 10000; // 10 s
 const unsigned long UART_SEND_INTERVAL = 5000;  // 5 s
 
-// ===============================
-// Helper Functions
-// ===============================
+// Forward declarations
+void handleControlCommand(const String& jsonStr);
+void sendBLEStateNotify();
+void sendOverUART();
+void setDischarge(bool enable);
+void setCharge(bool enable);
+void sendPassword(uint32_t pwd);
+void sendPasswordASCII(String pwdStr);
+void drawStaticUI();
+void updateLiveValues();
+void showSplashScreen();
+void tftLog(String msg);
+bool connectBLE();
+
+// ============================================================
+// RELAY PHYSICAL ACTUATION & SHEDDING ENGINE
+// ============================================================
+void setRelay(LoadChannel &ch, bool on) {
+    ch.isOn = on;
+    bool pinState = RELAY_ACTIVE_LOW ? !on : on;
+    digitalWrite(ch.pin, pinState ? HIGH : LOW);
+}
+
+void evaluateLoadShedding(float soc) {
+    if (currentMode != "AUTO") return;
+    for (int i = 0; i < NUM_CHANNELS; i++) {
+        if (channels[i].isOn && soc <= channels[i].offThreshold) {
+            setRelay(channels[i], false);
+            Serial.printf("[AUTO SHED] %s OFF at SOC=%.1f%% (threshold %.1f%%)\n",
+                          channels[i].name, soc, channels[i].offThreshold);
+        } else if (!channels[i].isOn && soc >= (channels[i].offThreshold + channels[i].hysteresis)) {
+            setRelay(channels[i], true);
+            Serial.printf("[AUTO RESTORE] %s ON at SOC=%.1f%% (threshold %.1f%%)\n",
+                          channels[i].name, soc, channels[i].offThreshold + channels[i].hysteresis);
+        }
+    }
+}
+
+// ============================================================
+// BLE SERVER CALLBACKS (Phone / Offline Web Bluetooth Interface)
+// ============================================================
+class MyServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+        blePhoneConnected = true;
+        Serial.println("[BLE SERVER] Phone connected directly via Bluetooth!");
+        sendBLEStateNotify();
+    }
+    void onDisconnect(BLEServer* pServer) {
+        blePhoneConnected = false;
+        Serial.println("[BLE SERVER] Phone disconnected.");
+        BLEDevice::startAdvertising(); // Resume advertising for reconnects
+    }
+};
+
+class ControlCallback : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+        String rxValue = pCharacteristic->getValue().c_str();
+        if (rxValue.length() > 0) {
+            Serial.print("[BLE SERVER RX]: ");
+            Serial.println(rxValue);
+            handleControlCommand(rxValue);
+        }
+    }
+};
+
+void sendBLEStateNotify() {
+    if (!pCtrlChar) return;
+    StaticJsonDocument<256> doc;
+    doc["mode"] = currentMode;
+    doc["ch1"]  = channels[0].isOn;
+    doc["ch2"]  = channels[1].isOn;
+    doc["ch3"]  = channels[2].isOn;
+    doc["soc"]  = bmsData.soc;
+    doc["v"]    = serialized(String(bmsData.totalVoltage, 2));
+    doc["i"]    = serialized(String(bmsData.current, 2));
+    doc["p"]    = serialized(String(bmsData.power, 1));
+    char buffer[256];
+    size_t len = serializeJson(doc, buffer);
+    pCtrlChar->setValue((uint8_t*)buffer, len);
+    pCtrlChar->notify();
+}
+
+// ============================================================
+// UNIFIED CONTROL COMMAND HANDLER
+// (Handles commands from BOTH Local Bluetooth AND Remote Cloud/UART)
+// ============================================================
+void handleControlCommand(const String& jsonStr) {
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, jsonStr);
+    if (err) {
+        Serial.print("[CMD] JSON parse failed: "); Serial.println(err.c_str());
+        return;
+    }
+
+    // 1. Mode Change
+    if (doc.containsKey("mode")) {
+        String m = doc["mode"].as<String>();
+        m.toUpperCase();
+        if (m == "AUTO" || m == "MANUAL") {
+            currentMode = m;
+            Serial.printf("[CMD] Operating Mode -> %s\n", currentMode.c_str());
+            if (currentMode == "AUTO" && bmsData.valid) {
+                evaluateLoadShedding(bmsData.soc);
+            }
+        }
+    }
+
+    // 2. Manual Relay Actuation (only executes in MANUAL mode or if mode explicitly changed)
+    if (currentMode == "MANUAL") {
+        if (doc.containsKey("ch1") || doc.containsKey("l1") || doc.containsKey("load1")) {
+            bool s = doc.containsKey("ch1") ? doc["ch1"].as<bool>() : (doc.containsKey("l1") ? doc["l1"].as<bool>() : doc["load1"].as<bool>());
+            setRelay(channels[0], s);
+            Serial.printf("[CMD] CH1 -> %s\n", s ? "ON" : "OFF");
+        }
+        if (doc.containsKey("ch2") || doc.containsKey("l2") || doc.containsKey("load2")) {
+            bool s = doc.containsKey("ch2") ? doc["ch2"].as<bool>() : (doc.containsKey("l2") ? doc["l2"].as<bool>() : doc["load2"].as<bool>());
+            setRelay(channels[1], s);
+            Serial.printf("[CMD] CH2 -> %s\n", s ? "ON" : "OFF");
+        }
+        if (doc.containsKey("ch3") || doc.containsKey("l3") || doc.containsKey("load3")) {
+            bool s = doc.containsKey("ch3") ? doc["ch3"].as<bool>() : (doc.containsKey("l3") ? doc["l3"].as<bool>() : doc["load3"].as<bool>());
+            setRelay(channels[2], s);
+            Serial.printf("[CMD] CH3 -> %s\n", s ? "ON" : "OFF");
+        }
+    }
+
+    // 3. BMS Inverter Discharge/Charge Commands
+    if (doc.containsKey("discharge")) {
+        setDischarge(doc["discharge"].as<bool>());
+    }
+    if (doc.containsKey("charge")) {
+        setCharge(doc["charge"].as<bool>());
+    }
+
+    // Synchronize updates immediately across all interfaces
+    sendBLEStateNotify();
+    sendOverUART();
+    if (bmsConnected) {
+        updateLiveValues();
+    }
+}
+
+// ============================================================
+// HELPER FUNCTIONS & PROTOCOL DECODERS
+// ============================================================
 uint16_t get16(uint8_t* d, size_t i)  { return d[i] | (d[i+1] << 8); }
 uint32_t get32(uint8_t* d, size_t i)  { return (uint32_t)get16(d, i) | ((uint32_t)get16(d, i+2) << 16); }
 int16_t  getS16(uint8_t* d, size_t i) { return (int16_t)get16(d, i); }
@@ -239,9 +415,9 @@ const char* errorNames[32] = {
   "GPS remote lock",           "",                           "",                          ""
 };
 
-// ===============================
-// Parse Cell Info Frame
-// ===============================
+// ============================================================
+// Parse Cell Info Frame from JK-BMS
+// ============================================================
 void parseCellInfo(uint8_t* d, size_t len) {
     int numCells = 32;
     int o = OFF * 2;  // = 32
@@ -302,7 +478,6 @@ void parseCellInfo(uint8_t* d, size_t len) {
     bmsData.timeToSleep         = get32(d, 238 + o);
     bmsData.chargeStatus        = d[248 + o];
 
-    // Read BLE RSSI
     if (pClient && pClient->isConnected()) {
         bmsData.rssi = pClient->getRssi();
     }
@@ -314,12 +489,16 @@ void parseCellInfo(uint8_t* d, size_t len) {
     if ((crcCalc & 0xFF) != crc) {
         Serial.println("[!] CRC MISMATCH — frame discarded");
         bmsData.valid = false;
+        return;
     }
+
+    // Evaluate Load Shedding on freshly parsed accurate BMS SOC
+    evaluateLoadShedding(bmsData.soc);
 }
 
-// ===============================
+// ============================================================
 // Print BMS Data to Serial Monitor
-// ===============================
+// ============================================================
 void printBMSData() {
     if (!bmsData.valid) {
         Serial.println("No valid BMS data.");
@@ -338,84 +517,25 @@ void printBMSData() {
         Serial.print(": "); Serial.print(bmsData.cellVoltages[i], 3); Serial.println(" V");
     }
 
-    Serial.println("\n--- CELL STATISTICS ---");
-    Serial.print("  Active cells: "); Serial.println(bmsData.activeCells);
-    Serial.print("  Average: "); Serial.print(bmsData.avgVoltage, 3); Serial.println(" V");
-    Serial.print("  Delta:   "); Serial.print(bmsData.deltaVoltage, 3); Serial.println(" V");
-    Serial.print("  Max cell: #"); Serial.println(bmsData.maxCell);
-    Serial.print("  Min cell: #"); Serial.println(bmsData.minCell);
-
-    Serial.println("\n--- CELL RESISTANCES ---");
-    for (int i = 0; i < bmsData.activeCells; i++) {
-        Serial.print("  Cell "); Serial.print(i + 1);
-        Serial.print(": "); Serial.print(bmsData.cellResistances[i], 3); Serial.println(" Ohm");
-    }
-
-    Serial.println("\n--- TEMPERATURES ---");
-    Serial.print("  MOS Temp:  "); Serial.print(bmsData.mosTemp, 1); Serial.println(" C");
-    Serial.print("  Sensor 1:  "); Serial.print(bmsData.temp1, 1); Serial.println(" C");
-    Serial.print("  Sensor 2:  "); Serial.print(bmsData.temp2, 1); Serial.println(" C");
-    Serial.print("  Sensor 3:  "); if (bmsData.temp3 > -100) { Serial.print(bmsData.temp3, 1); Serial.println(" C"); } else Serial.println("Not connected");
-    Serial.print("  Sensor 4:  "); if (bmsData.temp4 > -100) { Serial.print(bmsData.temp4, 1); Serial.println(" C"); } else Serial.println("Not connected");
-    Serial.print("  Sensor 5:  "); if (bmsData.temp5 > -100) { Serial.print(bmsData.temp5, 1); Serial.println(" C"); } else Serial.println("Not connected");
-
     Serial.println("\n--- ELECTRICAL ---");
     Serial.print("  Total Voltage: "); Serial.print(bmsData.totalVoltage, 3); Serial.println(" V");
     Serial.print("  Current:       "); Serial.print(bmsData.current, 3); Serial.println(" A");
     Serial.print("  Power:         "); Serial.print(bmsData.power, 2); Serial.println(" W");
-    Serial.print("  Balance Curr:  "); Serial.print(bmsData.balanceCurrent, 3); Serial.println(" A");
 
-    Serial.println("\n--- BATTERY STATE ---");
-    Serial.print("  SOC:      "); Serial.print(bmsData.soc); Serial.println("%");
-    Serial.print("  Capacity: "); Serial.print(bmsData.capacityRemaining, 1);
-    Serial.print(" / "); Serial.print(bmsData.nominalCapacity, 1); Serial.println(" Ah");
-
-    // Relay logic has been moved to ESP32 #2
-    Serial.print("  Cycles:   "); Serial.println(bmsData.cycleCount);
-    Serial.print("  SOH:      "); Serial.print(bmsData.soh); Serial.println("%");
-    Serial.print("  Runtime:  ");
-    Serial.print(bmsData.runtime / 3600); Serial.print("h ");
-    Serial.print((bmsData.runtime % 3600) / 60); Serial.print("m ");
-    Serial.print(bmsData.runtime % 60); Serial.println("s");
-
-    Serial.println("\n--- MOSFET STATES ---");
-    Serial.print("  Charging:    "); Serial.println(bmsData.charging    ? "ON" : "OFF");
-    Serial.print("  Discharging: "); Serial.println(bmsData.discharging ? "ON" : "OFF");
-    Serial.print("  Precharging: "); Serial.println(bmsData.precharging ? "ON" : "OFF");
-    Serial.print("  Balancing:   "); Serial.println(bmsData.balancing   ? "ON" : "OFF");
-    Serial.print("  Heating:     "); Serial.println(bmsData.heating     ? "ON" : "OFF");
-
-    Serial.println("\n--- STATUS ---");
-    Serial.print("  Emergency countdown: "); Serial.print(bmsData.emergencyCountdown); Serial.println(" s");
-    Serial.print("  Time to sleep:       "); Serial.print(bmsData.timeToSleep); Serial.println(" s");
-    Serial.print("  Charge status: ");
-    switch (bmsData.chargeStatus) {
-        case 0: Serial.println("Bulk"); break;
-        case 1: Serial.println("Absorption"); break;
-        case 2: Serial.println("Float"); break;
-        default: Serial.println("Unknown");
-    }
-
-    Serial.println("\n--- ERRORS ---");
-    if (bmsData.errorsBitmask == 0) {
-        Serial.println("  No errors active");
-    } else {
-        for (int b = 0; b < 32; b++) {
-            if ((bmsData.errorsBitmask >> b) & 1 && strlen(errorNames[b]) > 0) {
-                Serial.print("  [!] "); Serial.println(errorNames[b]);
-            }
-        }
-    }
+    Serial.println("\n--- RELAYS & LOAD CONTROL ---");
+    Serial.printf("  Operating Mode: %s\n", currentMode.c_str());
+    Serial.printf("  CH1 (Critical) : %s\n", channels[0].isOn ? "ON" : "OFF");
+    Serial.printf("  CH2 (Major)    : %s\n", channels[1].isOn ? "ON" : "OFF");
+    Serial.printf("  CH3 (Non-crit) : %s\n", channels[2].isOn ? "ON" : "OFF");
     Serial.println("========================================");
 }
 
-// ===============================
-// Serialize and Send Over UART
-// ===============================
+// ============================================================
+// Serialize and Send Telemetry + State Over UART to ESP32 #2
+// ============================================================
 void sendOverUART() {
     if (!bmsData.valid) return;
 
-    // Use ArduinoJson to build the payload safely
     StaticJsonDocument<2048> doc;
 
     doc["soc"]   = bmsData.soc;
@@ -442,7 +562,11 @@ void sendOverUART() {
     doc["dv"]    = serialized(String(bmsData.deltaVoltage, 3));
     doc["avg"]   = serialized(String(bmsData.avgVoltage, 3));
 
-    // Load telemetry moved to Board 2
+    // Master Relay States & Mode
+    doc["mode"]  = currentMode;
+    doc["l1"]    = channels[0].isOn ? 1 : 0;
+    doc["l2"]    = channels[1].isOn ? 1 : 0;
+    doc["l3"]    = channels[2].isOn ? 1 : 0;
 
     // Individual cell voltages
     JsonArray cv = doc.createNestedArray("cv");
@@ -456,17 +580,15 @@ void sendOverUART() {
         cr.add(serialized(String(bmsData.cellResistances[i], 3)));
     }
 
-    // Serialize to Serial2 (UART to ESP32 #2)
-    // serializeJson adds no newline — we add \n as frame delimiter
     serializeJson(doc, Serial2);
-    Serial2.println(); // \n = end of frame
+    Serial2.println(); // \n frame delimiter
 
-    Serial.println("[UART] Data sent to ESP32 #2");
+    Serial.println("[UART] Telemetry & Relay state pushed to ESP32 #2");
 }
 
-// ===============================
-// BLE Notify Callback
-// ===============================
+// ============================================================
+// BLE NOTIFY CALLBACK FOR BMS CLIENT
+// ============================================================
 static void notifyCallback(BLERemoteCharacteristic* pChar, uint8_t* pData, size_t length, bool isNotify) {
     if (length == 4 && pData[0] == 0x41 && pData[1] == 0x54) return;
 
@@ -495,9 +617,6 @@ static void notifyCallback(BLERemoteCharacteristic* pChar, uint8_t* pData, size_
     }
 }
 
-// ===============================
-// Send Command to BMS
-// ===============================
 void sendCommand(uint8_t cmd) {
     uint8_t frame[20] = {0xAA, 0x55, 0x90, 0xEB, cmd, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     uint16_t sum = 0;
@@ -506,241 +625,112 @@ void sendCommand(uint8_t cmd) {
     if (pDataChar) pDataChar->writeValue(frame, sizeof(frame), false);
 }
 
-// ===============================
-// ===============================
-// Discharge / Charge MOSFET Control
-// Written to FFE1/FFE2.
-// Bytes verified against ESPHome jk_bms_ble source
-// (syssi/esphome-jk-bms), register 0x1E = discharge,
-// register 0x1D = charge.
-// ALWAYS uses write-without-response (false).
-// ===============================
 void writeBLEFrame(uint8_t* frame, size_t len) {
     bool success = false;
-    
-    // Try FFE1 (pDataChar) first as it is the validated active command channel
     if (pDataChar) {
         try {
-            Serial.println("[BLE] Writing frame to FFE1 (pDataChar)...");
             pDataChar->writeValue(frame, len, false);
-            Serial.println("[BLE] Frame written successfully to FFE1.");
             success = true;
-        } catch (...) {
-            Serial.println("[BLE] Exception while writing to FFE1!");
-        }
+        } catch (...) {}
     }
-    
-    // Fall back to FFE2 (pWriteChar) if FFE1 failed or is null
     if (!success && pWriteChar) {
         try {
-            Serial.println("[BLE] Writing frame to FFE2 (pWriteChar)...");
             pWriteChar->writeValue(frame, len, false);
-            Serial.println("[BLE] Frame written successfully to FFE2.");
             success = true;
-        } catch (...) {
-            Serial.println("[BLE] Exception while writing to FFE2!");
-        }
+        } catch (...) {}
     }
-
-    if (!success) {
-        Serial.println("[!] ERROR: Failed to write to BOTH FFE1 and FFE2 characteristics!");
-    }
-}
-
-void sendPassword(uint32_t pwd) {
-    uint8_t frame[20] = {0};
-    frame[0] = 0xAA;
-    frame[1] = 0x55;
-    frame[2] = 0x90;
-    frame[3] = 0xEB;
-    frame[4] = 0x05;                          // pair/password register
-    frame[5] = 0x04;                          // length
-    frame[6] = (uint8_t)(pwd & 0xFF);         // value byte 0
-    frame[7] = (uint8_t)((pwd >> 8) & 0xFF);  // value byte 1
-    frame[8] = (uint8_t)((pwd >> 16) & 0xFF); // value byte 2
-    frame[9] = (uint8_t)((pwd >> 24) & 0xFF); // value byte 3
-
-    uint16_t sum = 0;
-    for (int i = 0; i < 19; i++) sum += frame[i];
-    frame[19] = sum & 0xFF;
-
-    Serial.print("[CMD] Settings Password (");
-    Serial.print(pwd);
-    Serial.print(") frame: ");
-    for (int i = 0; i < 20; i++) {
-        if (frame[i] < 0x10) Serial.print("0");
-        Serial.print(frame[i], HEX);
-        Serial.print(" ");
-    }
-    Serial.println();
-
-    writeBLEFrame(frame, sizeof(frame));
-}
-
-void sendPasswordASCII(String pwdStr) {
-    uint8_t frame[20] = {0};
-    frame[0] = 0xAA;
-    frame[1] = 0x55;
-    frame[2] = 0x90;
-    frame[3] = 0xEB;
-    frame[4] = 0x05;                              // pair/password register
-    frame[5] = (uint8_t)pwdStr.length();          // length of string
-
-    int len = pwdStr.length();
-    if (len > 13) len = 13; // limit to fit in 20-byte frame
-    for (int i = 0; i < len; i++) {
-        frame[6 + i] = pwdStr.charAt(i);
-    }
-    
-    uint16_t sum = 0;
-    for (int i = 0; i < 19; i++) sum += frame[i];
-    frame[19] = sum & 0xFF;
-
-    Serial.print("[CMD] Settings Password ASCII (");
-    Serial.print(pwdStr);
-    Serial.print(") frame: ");
-    for (int i = 0; i < 20; i++) {
-        if (frame[i] < 0x10) Serial.print("0");
-        Serial.print(frame[i], HEX);
-        Serial.print(" ");
-    }
-    Serial.println();
-
-    writeBLEFrame(frame, sizeof(frame));
 }
 
 void setDischarge(bool enable) {
     uint8_t frame[20] = {
         0xAA, 0x55, 0x90, 0xEB,
-        0x1E,                    // discharge register
-        0x04,                    // length
-        enable ? 0x01 : 0x00,    // value
-        0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00
+        0x1E, 0x04, (uint8_t)(enable ? 0x01 : 0x00),
+        0,0,0,0,0,0,0,0,0,0,0,0
     };
     uint16_t sum = 0;
     for (int i = 0; i < 19; i++) sum += frame[i];
     frame[19] = sum & 0xFF;
-
-    Serial.print("[CMD] setDischarge (");
-    Serial.print(enable ? "ON" : "OFF");
-    Serial.print(") frame: ");
-    for (int i = 0; i < 20; i++) {
-        if (frame[i] < 0x10) Serial.print("0");
-        Serial.print(frame[i], HEX);
-        Serial.print(" ");
-    }
-    Serial.println();
-
     writeBLEFrame(frame, sizeof(frame));
 }
 
 void setCharge(bool enable) {
     uint8_t frame[20] = {
         0xAA, 0x55, 0x90, 0xEB,
-        0x1D,                    // charge register
-        0x04,
-        enable ? 0x01 : 0x00,
-        0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00
+        0x1D, 0x04, (uint8_t)(enable ? 0x01 : 0x00),
+        0,0,0,0,0,0,0,0,0,0,0,0
     };
     uint16_t sum = 0;
     for (int i = 0; i < 19; i++) sum += frame[i];
     frame[19] = sum & 0xFF;
-
-    Serial.print("[CMD] setCharge (");
-    Serial.print(enable ? "ON" : "OFF");
-    Serial.print(") frame: ");
-    for (int i = 0; i < 20; i++) {
-        if (frame[i] < 0x10) Serial.print("0");
-        Serial.print(frame[i], HEX);
-        Serial.print(" ");
-    }
-    Serial.println();
-
     writeBLEFrame(frame, sizeof(frame));
 }
 
-// ===============================
-// Handle a command JSON line received over UART from ESP32 #2
-// Expected format: {"cmd":"discharge","val":0}  or {"cmd":"charge","val":1}
-// Or bulk update format: {"mode":"AUTO","load1":1,"load2":0,"load3":1}
-// ===============================
+// ============================================================
+// Handle incoming UART frames from ESP32 #2
+// ============================================================
 void handleUARTCommand(const String& line) {
-    Serial.print("[UART-CMD] Received: \"");
-    Serial.print(line);
-    Serial.println("\"");
-
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<384> doc;
     DeserializationError err = deserializeJson(doc, line);
-    if (err) {
-        Serial.print("[UART-CMD] JSON parse error: ");
-        Serial.println(err.c_str());
-        Serial.print("[UART-CMD] Raw hex characters: ");
-        for (size_t i = 0; i < line.length(); i++) {
-            Serial.printf("%02X ", (uint8_t)line.charAt(i));
-        }
-        Serial.println();
-        return;
-    }
-
-    bool handled = false;
+    if (err) return;
 
     if (doc.containsKey("cmd")) {
         const char* cmd = doc["cmd"] | "";
 
-        if (strcmp(cmd, "discharge") == 0) {
-            bool val = doc["val"] | false;
-            setDischarge(val);
-            handled = true;
-        } else if (strcmp(cmd, "charge") == 0) {
-            bool val = doc["val"] | false;
-            setCharge(val);
-            handled = true;
-        } else if (strcmp(cmd, "status") == 0) {
+        if (strcmp(cmd, "status") == 0) {
             sysWifi = doc["wifi"] | false;
-            sysMode = doc["mode"] | "AUTO";
-            sysL1 = (doc["l1"] | 0) == 1;
-            sysL2 = (doc["l2"] | 0) == 1;
-            sysL3 = (doc["l3"] | 0) == 1;
             sysC1 = doc["c1"] | "0.0";
             sysC2 = doc["c2"] | "0.0";
             sysC3 = doc["c3"] | "0.0";
             sysTime = doc["time"] | "--:--";
-            handled = true;
-            // No ACK needed for status heartbeat
+            return;
+        } else if (strcmp(cmd, "loadManager") == 0 || strcmp(cmd, "discharge") == 0 || strcmp(cmd, "charge") == 0) {
+            handleControlCommand(line);
             return;
         }
     }
 
-    if (!handled) {
-        Serial.print("[UART-CMD] Unknown input: "); Serial.println(line);
-        return;
+    // Direct JSON packet
+    if (doc.containsKey("mode") || doc.containsKey("ch1") || doc.containsKey("l1")) {
+        handleControlCommand(line);
     }
-
-    // Send unified status ACK back to ESP32 #2 so it can confirm the command was actioned
-    StaticJsonDocument<256> ack;
-    ack["ack"] = "loadManager";
-    // Relay logic has been migrated to Board 2, so we only ACK receipt
-    serializeJson(ack, Serial2);
-    Serial2.println();
 }
 
-// ===============================
-// BLE Connection
-// ===============================
+// ============================================================
+// BLE Initialization (Server for Phone + Client for BMS)
+// ============================================================
+void setupBLEServer() {
+    pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    BLEService* pControlService = pServer->createService(SENTRY_SERVICE_UUID);
+
+    pCtrlChar = pControlService->createCharacteristic(
+        SENTRY_CTRL_CHAR_UUID,
+        BLECharacteristic::PROPERTY_READ |
+        BLECharacteristic::PROPERTY_WRITE |
+        BLECharacteristic::PROPERTY_NOTIFY
+    );
+    pCtrlChar->setCallbacks(new ControlCallback());
+    pCtrlChar->addDescriptor(new BLE2902());
+
+    pControlService->start();
+
+    BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SENTRY_SERVICE_UUID);
+    pAdvertising->setScanResponse(true);
+    pAdvertising->setMinPreferred(0x06);
+    pAdvertising->setMinPreferred(0x12);
+    BLEDevice::startAdvertising();
+    Serial.println("[BLE SERVER] Sentry Offline Control Service Advertising!");
+}
+
 bool connectBLE() {
     if (bmsConnected && pClient && pClient->isConnected()) return true;
 
-    Serial.println("Connecting to BMS...");
+    Serial.println("Connecting to JK-BMS...");
     tftLog("Connecting to BMS...");
 
     if (!pClient) {
-        BLEDevice::init("");
         pClient = BLEDevice::createClient();
     }
 
@@ -757,53 +747,41 @@ bool connectBLE() {
     pDataChar = pService->getCharacteristic(dataCharUUID);
     if (!pDataChar) { pClient->disconnect(); bmsConnected = false; return false; }
 
-    if (pDataChar) {
-        Serial.println("[BLE] FFE1 Data characteristic resolved!");
-        tftLog("Resolved Data Char (FFE1)");
-    }
-
     if (pDataChar->canNotify()) {
         pDataChar->registerForNotify(notifyCallback);
     }
 
     pWriteChar = pService->getCharacteristic(writeCharUUID);
-    if (pWriteChar) {
-        Serial.println("[BLE] FFE2 Write characteristic resolved!");
-        tftLog("Resolved Write Char (FFE2)");
-    } else {
-        Serial.println("[!] WARNING: FFE2 write characteristic not found");
-        tftLog("WARN: Write Char missing");
-    }
 
-    tftLog("Initializing data stream...");
+    tftLog("Initializing BMS data stream...");
     delay(1000);
     sendCommand(0x97);
     delay(1000);
     sendCommand(0x96);
 
-    Serial.println("BMS connected, streaming started");
-    tftLog("Streaming started. Dashboard loading...");
-    delay(500); // Give user half a second to read success msg
+    Serial.println("BMS connected, telemetry active.");
+    tftLog("BMS connected! Dashboard loading...");
+    delay(500);
     
     bmsConnected = true;
-    drawStaticUI(); // Transition to the main dashboard
+    drawStaticUI();
     return true;
 }
 
-// ===============================
-// TFT Display Rendering (Light Mode App UI)
-// ===============================
-#define TFT_BG         0xF7BE  // Offwhite background for carousel
-#define TFT_TEXT       0x18E3  // Slate Gray (approx #1e293b)
-#define TFT_TEXT_LIGHT 0x4A69  // Lighter Gray
-#define TFT_ACCENT     0x07E0  // Vibrant Emerald Green
-#define TFT_WARN       0xFDA0  // Amber/Orange
-#define TFT_CRIT       0xF800  // Red
-#define TFT_CARD_BG    0xFFFF  // White for cards
-#define TFT_CARD_BORD  0xE71C  // Light gray border
-#define TFT_SENTRY_GRN 0x03E0  // Dark Green for Sentry logo
-#define TFT_BLE_ON     0x041F  // Blue
-#define TFT_BLE_OFF    0x8410  // Grey
+// ============================================================
+// TFT DISPLAY RENDERING
+// ============================================================
+#define TFT_BG         0xF7BE
+#define TFT_TEXT       0x18E3
+#define TFT_TEXT_LIGHT 0x4A69
+#define TFT_ACCENT     0x07E0
+#define TFT_WARN       0xFDA0
+#define TFT_CRIT       0xF800
+#define TFT_CARD_BG    0xFFFF
+#define TFT_CARD_BORD  0xE71C
+#define TFT_SENTRY_GRN 0x03E0
+#define TFT_BLE_ON     0x041F
+#define TFT_BLE_OFF    0x8410
 
 int tftLogY = 80;
 int currentPage = 0;
@@ -833,167 +811,126 @@ void showSplashScreen() {
 }
 
 void tftLog(String msg) {
-    if (bmsConnected) return; // Don't log if we are already in the dashboard
+    if (bmsConnected) return;
     tft.setTextColor(TFT_TEXT, TFT_BG);
-    tft.setTextFont(1); // Standard GLCD font (small, monospaced)
+    tft.setTextFont(1);
     tft.setFreeFont(NULL); 
     tft.setTextDatum(TL_DATUM);
-    tft.setTextPadding(320); // Clear the line
+    tft.setTextPadding(320);
     tft.drawString(msg, 10, tftLogY);
-    tftLogY += 12; // GLCD font is much shorter
+    tftLogY += 12;
     if (tftLogY > 220) {
         tftLogY = 85;
-        tft.fillRect(0, 85, 320, 150, TFT_BG); // Clear log area
+        tft.fillRect(0, 85, 320, 150, TFT_BG);
     }
+}
+
+void drawTopBar() {
+    tft.fillRect(0, 0, 320, 28, TFT_BG);
+    tft.drawFastHLine(0, 28, 320, TFT_CARD_BORD);
+
+    tft.setTextColor(TFT_SENTRY_GRN, TFT_BG);
+    tft.setFreeFont(&FreeSansBold9pt7b);
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString("Sentry", 12, 6);
+
+    uint16_t bleCol = bmsConnected ? TFT_BLE_ON : TFT_BLE_OFF;
+    tft.drawBitmap(130, 2, icon_bluetooth, 24, 24, bleCol);
+
+    uint16_t wifiCol = sysWifi ? TFT_BLE_ON : TFT_BLE_OFF;
+    tft.drawBitmap(160, 2, icon_wifi, 24, 24, wifiCol);
+
+    tft.setTextColor(TFT_TEXT_LIGHT, TFT_BG);
+    tft.setFreeFont(&FreeSans9pt7b);
+    tft.setTextDatum(TR_DATUM);
+    tft.drawString(sysTime, 308, 6);
+}
+
+void drawPageIndicator() {
+    int startX = 160 - (4 * 14) / 2;
+    for (int i = 0; i < 4; i++) {
+        if (i == currentPage) {
+            tft.fillRoundRect(startX + (i * 14), 232, 12, 4, 2, TFT_ACCENT);
+        } else {
+            tft.fillCircle(startX + (i * 14) + 4, 234, 2, TFT_CARD_BORD);
+        }
+    }
+}
+
+void drawMetric(int x, int y, const char* value, const char* unit, uint16_t color = TFT_TEXT) {
+    tft.setTextColor(color, TFT_CARD_BG);
+    tft.setFreeFont(&FreeSansBold12pt7b);
+    tft.setTextDatum(ML_DATUM);
+    tft.drawString(value, x, y);
+    int valWidth = tft.textWidth(value);
+    tft.setTextColor(TFT_TEXT_LIGHT, TFT_CARD_BG);
+    tft.setFreeFont(&FreeSans9pt7b);
+    tft.drawString(unit, x + valWidth + 4, y + 2);
 }
 
 void drawStaticUI() {
     tft.fillScreen(TFT_BG);
-
-    // Top Bar Background
-    tft.fillRect(0, 0, 320, 30, TFT_CARD_BG);
-    tft.drawFastHLine(0, 30, 320, TFT_CARD_BORD); // Faint divider line
-    
-    // Sentry Logo (Top Left)
-    tft.setTextColor(TFT_SENTRY_GRN, TFT_CARD_BG);
-    tft.setFreeFont(&FreeSansBold9pt7b);
-    tft.setTextDatum(TL_DATUM);
-    tft.drawString("Sentry", 10, 7);
-    
-    // Draw Icons (Top Right)
-    
-    // Battery: X=180
-    uint16_t batColor = TFT_ACCENT; // Green
-    if (bmsData.soc < 20) batColor = TFT_CRIT; // Red when low
-    else if (bmsData.soc < 60) batColor = TFT_WARN; // Orange below 60
-    tft.drawBitmap(180, 3, icon_battery, 24, 24, batColor);
-    
-    // WiFi: X=210
-    if (sysWifi) {
-        tft.drawBitmap(210, 3, icon_wifi, 24, 24, TFT_ACCENT);
-    } else {
-        tft.drawBitmap(210, 3, icon_wifi, 24, 24, TFT_TEXT_LIGHT);
-    }
-    
-    // Bluetooth: X=240
-    if (bmsConnected) {
-        tft.drawBitmap(240, 3, icon_bluetooth, 24, 24, TFT_BLE_ON);
-    } else {
-        tft.drawBitmap(240, 3, icon_bluetooth, 24, 24, TFT_BLE_OFF);
-    }
-
-    // Time: X=270
-    tft.setTextColor(TFT_TEXT, TFT_CARD_BG);
-    tft.setFreeFont(&FreeSans9pt7b);
-    tft.drawString(sysTime, 270, 7);
+    drawTopBar();
 
     if (currentPage == 0) {
-        drawCard(10, 40, 145, 90, "SoC");
-        drawCard(10, 140, 145, 90, "Power");
-        drawCard(165, 40, 145, 90, "Voltage");
-        drawCard(165, 140, 145, 90, "Current");
+        drawCard(10, 36, 145, 90, "STATE OF CHARGE");
+        drawCard(165, 36, 145, 90, "PACK VOLTAGE");
+        drawCard(10, 134, 145, 90, "PACK CURRENT");
+        drawCard(165, 134, 145, 90, "OUTPUT POWER");
     } else if (currentPage == 1) {
-        drawCard(10, 40, 145, 90, "T1 / T2");
-        drawCard(10, 140, 145, 90, "MOS Temp");
-        drawCard(165, 40, 145, 90, "Max Cell");
-        drawCard(165, 140, 145, 90, "Min Cell");
+        drawCard(10, 36, 95, 90, "TEMP 1");
+        drawCard(112, 36, 95, 90, "TEMP 2");
+        drawCard(215, 36, 95, 90, "MOS TEMP");
+        drawCard(10, 134, 145, 90, "HIGHEST CELL");
+        drawCard(165, 134, 145, 90, "LOWEST CELL");
     } else if (currentPage == 2) {
-        tft.setTextColor(TFT_TEXT_LIGHT, TFT_BG);
-        tft.setTextFont(1);
-        tft.drawString("LOAD PRIORITIZATION", 10, 31);
-        
-        drawCard(10, 40, 145, 90, "System Mode");
-        drawCard(10, 140, 145, 90, "Critical");
-        drawCard(165, 40, 145, 90, "Major");
-        drawCard(165, 140, 145, 90, "Non-essential");
+        drawCard(10, 36, 300, 188, "INDIVIDUAL CELL VOLTAGES");
     } else if (currentPage == 3) {
-        drawCard(10, 40, 145, 90, "Cell 1");
-        drawCard(10, 140, 145, 90, "Cell 2");
-        drawCard(165, 40, 145, 90, "Cell 3");
-        drawCard(165, 140, 145, 90, "Cell 4");
+        drawCard(10, 36, 300, 188, "LOAD MANAGEMENT");
     }
-}
 
-void drawMetric(int x, int y, String valueStr, String unitStr, bool isCrit = false, bool isWarn = false, bool isTemp = false, String subText = "") {
-    // Clear only the text area to avoid "outgrowth" past card borders
-    // We clear a 130x40 area right where the text is going to be drawn.
-    tft.fillRect(x, y, 130, 40, TFT_CARD_BG);
-
-    if (isCrit) tft.setTextColor(TFT_CRIT, TFT_CARD_BG);
-    else if (isWarn) tft.setTextColor(TFT_WARN, TFT_CARD_BG);
-    else tft.setTextColor(TFT_TEXT, TFT_CARD_BG);
-
-    tft.setFreeFont(&FreeSansBold12pt7b);
-    tft.setTextDatum(TL_DATUM);
-    tft.setTextPadding(0); // DISABLE padding to prevent the outgrowth bug!
-    
-    int textWidth = tft.textWidth(valueStr);
-    tft.drawString(valueStr, x, y);
-
-    tft.setTextColor(TFT_TEXT_LIGHT, TFT_CARD_BG);
-    tft.setFreeFont(&FreeSans9pt7b);
-    
-    if (isTemp) {
-        tft.drawCircle(x + textWidth + 3, y + 1, 2, TFT_TEXT_LIGHT); // degree symbol
-    }
-    
-    tft.drawString(unitStr, x + textWidth + 8, y + 5);
-
-    if (subText != "") {
-        tft.setTextColor(TFT_TEXT_LIGHT, TFT_CARD_BG);
-        tft.setTextFont(1); // Small standard font so it fits nicely
-        tft.drawString(subText, x, y + 22);
-    }
+    drawPageIndicator();
 }
 
 void updateLiveValues() {
-    if(!bmsData.valid) return;
-    char buf[16];
+    if (!bmsData.valid) return;
+    char buf[32];
 
     if (currentPage == 0) {
-        // Page 0: Main Power
         sprintf(buf, "%d", bmsData.soc);
-        drawMetric(20, 75, buf, "%", bmsData.soc <= 20, false);
-        
-        sprintf(buf, "%.0f", bmsData.power);
-        drawMetric(20, 175, buf, "W");
+        drawMetric(20, 85, buf, "%");
+        int barW = map(constrain(bmsData.soc, 0, 100), 0, 100, 0, 125);
+        tft.fillRoundRect(20, 108, 125, 6, 3, TFT_CARD_BORD);
+        uint16_t socCol = bmsData.soc > 60 ? TFT_ACCENT : (bmsData.soc > 20 ? TFT_WARN : TFT_CRIT);
+        tft.fillRoundRect(20, 108, barW, 6, 3, socCol);
 
-        sprintf(buf, "%.1f", bmsData.totalVoltage);
-        drawMetric(175, 75, buf, "V");
+        sprintf(buf, "%.2f", bmsData.totalVoltage);
+        drawMetric(175, 85, buf, "V");
 
-        sprintf(buf, "%.1f", bmsData.current);
-        drawMetric(175, 175, buf, "A", false, bmsData.current < 0);
-    } 
-    else if (currentPage == 1) {
-        // Page 1: Battery Health
+        sprintf(buf, "%.2f", bmsData.current);
+        drawMetric(20, 183, buf, "A");
+
+        sprintf(buf, "%.1f", bmsData.power);
+        drawMetric(175, 183, buf, "W");
+    } else if (currentPage == 1) {
         sprintf(buf, "%.1f", bmsData.temp1);
-        drawMetric(20, 75, buf, "C", bmsData.temp1 > 45, bmsData.temp1 > 35, true);
-        
+        drawMetric(20, 85, buf, "C");
+
+        sprintf(buf, "%.1f", bmsData.temp2);
+        drawMetric(122, 85, buf, "C");
+
         sprintf(buf, "%.1f", bmsData.mosTemp);
-        drawMetric(20, 175, buf, "C", bmsData.mosTemp > 50, bmsData.mosTemp > 40, true);
+        drawMetric(225, 85, buf, "C");
 
-        // Fix Min/Max Cell array indexing (JK BMS usually reports 1-indexed cell numbers)
-        int maxC = (bmsData.maxCell > 0 && bmsData.maxCell <= 32) ? bmsData.maxCell - 1 : 0;
-        int minC = (bmsData.minCell > 0 && bmsData.minCell <= 32) ? bmsData.minCell - 1 : 0;
-        
-        sprintf(buf, "%.3f", bmsData.cellVoltages[maxC]);
-        drawMetric(175, 75, buf, "V");
+        sprintf(buf, "C%d %.3f", bmsData.maxCell, bmsData.cellVoltages[bmsData.maxCell - 1]);
+        drawMetric(20, 183, buf, "V");
 
-        sprintf(buf, "%.3f", bmsData.cellVoltages[minC]);
-        drawMetric(175, 175, buf, "V");
-    }
-    else if (currentPage == 2) {
-        // Page 2: System Status (Board 2 UART Heartbeat)
-        drawMetric(20, 75, sysMode, "", false, false);
-        drawMetric(20, 175, sysL1 ? "ON" : "OFF", "", !sysL1, false, false, sysC1 + " A");
-        drawMetric(175, 75, sysL2 ? "ON" : "OFF", "", !sysL2, false, false, sysC2 + " A");
-        drawMetric(175, 175, sysL3 ? "ON" : "OFF", "", !sysL3, false, false, sysC3 + " A");
-    }
-    else if (currentPage == 3) {
-        // Page 3: Cell Voltages (Cells 1 to 4)
+        sprintf(buf, "C%d %.3f", bmsData.minCell, bmsData.cellVoltages[bmsData.minCell - 1]);
+        drawMetric(175, 183, buf, "V");
+    } else if (currentPage == 2) {
         sprintf(buf, "%.3f", bmsData.cellVoltages[0]);
         drawMetric(20, 75, buf, "V");
-        
+
         sprintf(buf, "%.3f", bmsData.cellVoltages[1]);
         drawMetric(20, 175, buf, "V");
 
@@ -1002,40 +939,71 @@ void updateLiveValues() {
 
         sprintf(buf, "%.3f", bmsData.cellVoltages[3]);
         drawMetric(175, 175, buf, "V");
+    } else if (currentPage == 3) {
+        tft.setTextColor(TFT_TEXT, TFT_CARD_BG);
+        tft.setFreeFont(&FreeSansBold9pt7b);
+        tft.setTextDatum(TL_DATUM);
+        sprintf(buf, "Mode: %s", currentMode.c_str());
+        tft.drawString(buf, 20, 60);
+
+        auto drawChannel = [&](int y, const char* name, bool on, String cur) {
+            tft.setTextColor(TFT_TEXT, TFT_CARD_BG);
+            tft.setFreeFont(&FreeSans9pt7b);
+            tft.drawString(name, 20, y);
+            tft.drawString(cur + " A", 170, y);
+            uint16_t statusCol = on ? TFT_ACCENT : TFT_CRIT;
+            tft.setTextColor(statusCol, TFT_CARD_BG);
+            tft.setFreeFont(&FreeSansBold9pt7b);
+            tft.drawString(on ? "ACTIVE" : "SHED", 240, y);
+        };
+
+        drawChannel(90,  "CH1: Critical", channels[0].isOn, sysC1);
+        drawChannel(130, "CH2: Major",    channels[1].isOn, sysC2);
+        drawChannel(170, "CH3: Non-crit", channels[2].isOn, sysC3);
     }
 }
 
-// ===============================
-// Setup
-// ===============================
+// ============================================================
+// SETUP
+// ============================================================
 void setup() {
-    Serial.begin(115200);  // USB Serial Monitor
-    Serial2.setRxBufferSize(1024); // Increase RX buffer to hold commands during network blocks
+    Serial.begin(115200);
+    Serial2.setRxBufferSize(2048);
     Serial2.begin(115200, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
-    Serial2.setTimeout(50); // Prevent blocking on corrupted garbage data  // UART to ESP32 #2
+    Serial2.setTimeout(50);
     delay(1000);
 
-    Serial.println("ESP32 #1 — BLE Parser + UART Sender");
-    Serial.println("Protocol : JK02_32S");
-    Serial.println("UART TX  : GPIO17");
-    Serial.println("================================");
+    Serial.println("ESP32 #1 — Master Controller (BLE Client + Server + Relays + TFT)");
+    Serial.println("UART TX  : GPIO17 -> ESP32 #2 RX");
+    Serial.println("UART RX  : GPIO16 <- ESP32 #2 TX");
+    Serial.println("Relay CH1: GPIO25 | CH2: GPIO26 | CH3: GPIO27");
+    Serial.println("=================================================");
 
-    // Initialize TFT
+    // Initialize Relay Pins
+    for (int i = 0; i < NUM_CHANNELS; i++) {
+        pinMode(channels[i].pin, OUTPUT);
+        setRelay(channels[i], true); // Start all loads energized
+    }
+
+    // Initialize TFT Display
     tft.init();
     tft.setRotation(1); // Landscape (320x240)
     showSplashScreen();
     Serial.println("[TFT] Display initialized.");
 
+    // Initialize BLE Subsystem (Dual Server & Client)
+    BLEDevice::init("Sentry_Controller");
+    setupBLEServer();
     connectBLE();
 }
 
-// ===============================
-// Loop
-// ===============================
+// ============================================================
+// MAIN LOOP
+// ============================================================
 void loop() {
-    // BLE reconnect if lost
+    // Reconnect to JK-BMS if BLE Client stream is lost
     if (!bmsConnected || !pClient || !pClient->isConnected()) {
-        Serial.println("BLE lost, reconnecting in 5s...");
+        Serial.println("[BLE] BMS connection lost, reconnecting in 5s...");
         bmsConnected = false;
         showSplashScreen();
         tftLog("BLE Connection Lost!");
@@ -1046,74 +1014,58 @@ void loop() {
 
     unsigned long now = millis();
 
-    // SOC auto evaluation moved to Board 2
-    // Print to Serial Monitor every 10s
+    // Print diagnostic info to USB Serial Monitor
     if (now - lastPrint >= PRINT_INTERVAL) {
         lastPrint = now;
         printBMSData();
     }
 
-    // Send over UART to ESP32 #2 every 5s
+    // Send Telemetry + Relay States to ESP32 #2 over UART
     if (now - lastUartSend >= UART_SEND_INTERVAL) {
         lastUartSend = now;
         sendOverUART();
-        updateLiveValues(); // Update TFT display with fresh data
+        sendBLEStateNotify();
+        if (bmsConnected) {
+            updateLiveValues();
+        }
     }
 
-    // Carousel Flip every 8 seconds
+    // TFT Carousel Auto-Flip every 8 seconds
     if (bmsConnected && (now - lastPageSwap >= 8000)) {
         lastPageSwap = now;
-        currentPage = (currentPage + 1) % 4; // Cycle through 4 pages
+        currentPage = (currentPage + 1) % 4;
         drawStaticUI();
         updateLiveValues();
     }
 
-    // Check for incoming discharge/charge commands from ESP32 #2
+    // Listen for incoming UART Commands from ESP32 #2 (Remote Cloud Web Overrides)
     if (Serial2.available()) {
         String line = Serial2.readStringUntil('\n');
         line.trim();
-        if (line.length() > 5 && strlen(line.c_str()) > 5) {
+        if (line.length() > 3) {
             handleUARTCommand(line);
         }
     }
 
-    // Check for incoming diagnostic commands typed in USB Serial Monitor
+    // Diagnostic CLI via USB Serial Monitor
     if (Serial.available()) {
         String usbLine = Serial.readStringUntil('\n');
         usbLine.trim();
-        if (usbLine == "d0") {
-            Serial.println("[TEST CLI] Forcing setDischarge(false) [Discharge OFF]");
-            setDischarge(false);
-        } else if (usbLine == "d1") {
-            Serial.println("[TEST CLI] Forcing setDischarge(true) [Discharge ON]");
-            setDischarge(true);
-        } else if (usbLine == "c0") {
-            Serial.println("[TEST CLI] Forcing setCharge(false) [Charge OFF]");
-            setCharge(false);
-        } else if (usbLine == "c1") {
-            Serial.println("[TEST CLI] Forcing setCharge(true) [Charge ON]");
-            setCharge(true);
-        // Relay/mode manual commands moved to Board 2
-        } else if (usbLine.startsWith("p")) {
-            String pwdStr = usbLine.substring(1);
-            pwdStr.trim();
-            uint32_t pwd = pwdStr.toInt();
-            Serial.print("[TEST CLI] Sending settings password (integer): "); Serial.println(pwd);
-            sendPassword(pwd);
-        } else if (usbLine.startsWith("s")) {
-            String pwdStr = usbLine.substring(1);
-            pwdStr.trim();
-            Serial.print("[TEST CLI] Sending settings password (ASCII): "); Serial.println(pwdStr);
-            sendPasswordASCII(pwdStr);
-        } else if (usbLine.length() > 0) {
-            Serial.print("[TEST CLI] Unknown manual instruction: "); Serial.println(usbLine);
-            Serial.println("[TEST CLI] Commands available:");
-            Serial.println("  'd0' - Discharge OFF      'd1' - Discharge ON");
-            Serial.println("  'c0' - Charge OFF         'c1' - Charge ON");
-            Serial.println("  'p654321' - Send password as 4-byte integer");
-            Serial.println("  's654321' - Send password as ASCII string");
+        if (usbLine == "d0") setDischarge(false);
+        else if (usbLine == "d1") setDischarge(true);
+        else if (usbLine == "c0") setCharge(false);
+        else if (usbLine == "c1") setCharge(true);
+        else if (usbLine == "r1on")  { currentMode = "MANUAL"; setRelay(channels[0], true);  sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine == "r1off") { currentMode = "MANUAL"; setRelay(channels[0], false); sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine == "r2on")  { currentMode = "MANUAL"; setRelay(channels[1], true);  sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine == "r2off") { currentMode = "MANUAL"; setRelay(channels[1], false); sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine == "r3on")  { currentMode = "MANUAL"; setRelay(channels[2], true);  sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine == "r3off") { currentMode = "MANUAL"; setRelay(channels[2], false); sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine == "auto")  { currentMode = "AUTO";   if (bmsData.valid) evaluateLoadShedding(bmsData.soc); sendBLEStateNotify(); sendOverUART(); }
+        else if (usbLine.startsWith("{")) {
+            handleControlCommand(usbLine);
         }
     }
 
-    delay(100);
+    delay(50);
 }

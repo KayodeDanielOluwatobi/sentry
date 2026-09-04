@@ -25,9 +25,11 @@ import SentryLineChart from "@/components/SentryLineChart";
 import { ThirdBracketSquareIcon, Csv01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { sentryBle, BleConnectionState, BleStatePacket } from "@/lib/web-bluetooth";
 
 function HomeInner() {
   const authUser = useAuthUser();
+  const [bleState, setBleState] = useState<BleConnectionState>(sentryBle.getState());
 
   // Extract first name from Google account metadata — falls back gracefully
   const firstName = (() => {
@@ -347,6 +349,83 @@ function HomeInner() {
 
     return () => clearInterval(watchdog);
   }, [lastFirebaseUpdate]);
+
+  // Web Bluetooth Subscription: handles direct offline BLE connection and telemetry streams
+  useEffect(() => {
+    const unsubState = sentryBle.onStateChange((state) => {
+      setBleState(state);
+      if (state.isConnected) {
+        setBleConnected(true);
+        const evt: ActivityEvent = {
+          id: `evt_ble_conn_${Date.now()}`,
+          type: "cell_imbalance",
+          severity: "success",
+          title: "Direct Bluetooth Connected",
+          message: `Direct offline control link active with ${state.deviceName || "Sentry Controller"}.`,
+          timestamp: new Date(),
+          badge: "Direct BLE",
+        };
+        setEvents((prev) => [evt, ...prev]);
+        setNotifications((prev) => [evt, ...prev]);
+      } else {
+        setBleConnected(false);
+        if (state.error) {
+          const evt: ActivityEvent = {
+            id: `evt_ble_err_${Date.now()}`,
+            type: "cell_imbalance",
+            severity: "warning",
+            title: "Bluetooth Status Notice",
+            message: state.error,
+            timestamp: new Date(),
+            badge: "Bluetooth",
+          };
+          setEvents((prev) => [evt, ...prev]);
+        }
+      }
+    });
+
+    const unsubTelemetry = sentryBle.onTelemetry((packet) => {
+      if (packet.soc !== undefined) setSoc(packet.soc);
+      if (packet.v !== undefined) setVoltage(packet.v);
+      if (packet.i !== undefined) {
+        setCurrent(packet.i);
+        setIsCharging(packet.i > 0.5);
+      }
+      if (packet.p !== undefined) {
+        setPower(packet.p);
+        setCurrentLoad(Math.abs(packet.p));
+      }
+      if (packet.mode) {
+        const parsedMode = packet.mode.toLowerCase() === "manual" ? "manual" : "auto";
+        setManagerMode(parsedMode);
+      }
+      if (packet.ch1 !== undefined || packet.ch2 !== undefined || packet.ch3 !== undefined) {
+        setManagerLoads((prev) => {
+          const next = [...prev];
+          if (next[0] && packet.ch1 !== undefined) {
+            next[0].isOn = packet.ch1;
+            next[0].status = packet.ch1 ? "active" : "shed";
+          }
+          if (next[1] && packet.ch2 !== undefined) {
+            next[1].isOn = packet.ch2;
+            next[1].status = packet.ch2 ? "active" : "shed";
+          }
+          if (next[2] && packet.ch3 !== undefined) {
+            next[2].isOn = packet.ch3;
+            next[2].status = packet.ch3 ? "active" : "shed";
+          }
+          return next;
+        });
+      }
+      setLastFirebaseUpdate(Date.now());
+      setIsSystemOnline(true);
+    });
+
+    return () => {
+      unsubState();
+      unsubTelemetry();
+    };
+  }, []);
 
   const prevLastUpdateRef = useRef<number | undefined>(undefined);
 
@@ -817,14 +896,26 @@ function HomeInner() {
 
     if (typeof window !== "undefined") {
       localStorage.setItem("sentry_manual_loads", JSON.stringify(updatedLoads));
+    }    // 1. Direct Offline Web Bluetooth Command (0ms local latency)
+    if (sentryBle.getState().isConnected) {
+      sentryBle.sendCommand({
+        mode: "MANUAL",
+        ch1: updatedLoads.find(l => l.id === "1")?.isOn ?? true,
+        ch2: updatedLoads.find(l => l.id === "2")?.isOn ?? true,
+        ch3: updatedLoads.find(l => l.id === "3")?.isOn ?? true,
+      });
     }
 
+    // 2. Cloud Firebase Command (Remote sync)
     if (db) {
       const loadUpdates = {
         "mode": "MANUAL",
         "load1": updatedLoads.find(l => l.id === "1")?.isOn ? 1 : 0,
         "load2": updatedLoads.find(l => l.id === "2")?.isOn ? 1 : 0,
         "load3": updatedLoads.find(l => l.id === "3")?.isOn ? 1 : 0,
+        "channel1": updatedLoads.find(l => l.id === "1")?.isOn ?? true,
+        "channel2": updatedLoads.find(l => l.id === "2")?.isOn ?? true,
+        "channel3": updatedLoads.find(l => l.id === "3")?.isOn ?? true,
       };
       update(ref(db, "/loadManager"), loadUpdates)
         .catch(err => console.error("Error writing load state to Firebase:", err));
@@ -852,6 +943,17 @@ function HomeInner() {
       localStorage.setItem("sentry_manual_mode", newMode);
     }
 
+    // 1. Direct Offline Web Bluetooth Command
+    if (sentryBle.getState().isConnected) {
+      sentryBle.sendCommand({
+        mode: newMode === "auto" ? "AUTO" : "MANUAL",
+        ch1: managerLoads.find(l => l.id === "1")?.isOn ?? true,
+        ch2: managerLoads.find(l => l.id === "2")?.isOn ?? true,
+        ch3: managerLoads.find(l => l.id === "3")?.isOn ?? true,
+      });
+    }
+
+    // 2. Cloud Firebase Command
     if (db) {
       const firebaseMode = newMode === "auto" ? "AUTO" : "MANUAL";
       update(ref(db, "/loadManager"), { mode: firebaseMode })
@@ -880,6 +982,12 @@ function HomeInner() {
     setEvents(prev => [newEvent, ...prev]);
     setNotifications(prev => [newEvent, ...prev]);
 
+    // 1. Direct Offline Web Bluetooth Command
+    if (sentryBle.getState().isConnected) {
+      sentryBle.sendCommand({ discharge: enable });
+    }
+
+    // 2. Cloud Firebase Command
     if (db) {
       update(ref(db, "/commands"), { discharge: enable })
         .catch(err => console.error("Error writing discharge command to Firebase:", err));
@@ -918,13 +1026,15 @@ function HomeInner() {
         if (list.length > 0) {
           const msg = `Attention. Sentry has detected active telemetry alerts: ${list.join(", and ")}`;
           const synth = window.speechSynthesis;
-          synth.cancel(); // clear previous speech queue
+          if (synth.speaking) synth.cancel();
           const utterance = new SpeechSynthesisUtterance(msg);
+          utterance.rate = 1.05;
+          utterance.pitch = 1.0;
           synth.speak(utterance);
         }
       }
     }
-  }, [activeAlarmsCount, temperature, cellDeltaVal, hasBmsError, soc]);
+  }, [activeAlarmsCount]);
 
   return (
     <div
@@ -960,6 +1070,10 @@ function HomeInner() {
             activeTab={activeTab}
             onClearNotifications={() => setNotifications([])}
             userName={firstName}
+            isBleConnected={bleState.isConnected}
+            isBleConnecting={bleState.isConnecting}
+            onBleConnect={() => sentryBle.connect()}
+            onBleDisconnect={() => sentryBle.disconnect()}
           />
         </div>
 
