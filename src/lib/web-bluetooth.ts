@@ -195,23 +195,50 @@ class SentryWebBluetooth {
     }
   }
 
+  private writeQueue: Promise<any> = Promise.resolve();
+
   public async sendCommand(commandObj: Record<string, any>): Promise<boolean> {
     if (!this.ctrlCharacteristic || !this.state.isConnected) {
       console.warn("[Web BLE] Cannot send command — not connected.");
       return false;
     }
 
-    try {
-      const encoder = new TextEncoder();
-      const jsonStr = JSON.stringify(commandObj);
-      const encoded = encoder.encode(jsonStr);
-      await this.ctrlCharacteristic.writeValue(encoded);
-      console.log("[Web BLE Command Sent]:", jsonStr);
-      return true;
-    } catch (err) {
-      console.error("[Web BLE Command Error]:", err);
-      return false;
-    }
+    // Queue commands sequentially to prevent GATT write collisions during rapid button taps
+    return new Promise<boolean>((resolve) => {
+      this.writeQueue = this.writeQueue
+        .then(async () => {
+          if (!this.ctrlCharacteristic || !this.state.isConnected) {
+            resolve(false);
+            return;
+          }
+          const encoder = new TextEncoder();
+          const jsonStr = JSON.stringify(commandObj);
+          const encoded = encoder.encode(jsonStr);
+
+          // Try writeValueWithoutResponse if available for ultra-fast throughput
+          if (typeof this.ctrlCharacteristic.writeValueWithoutResponse === "function") {
+            try {
+              await this.ctrlCharacteristic.writeValueWithoutResponse(encoded);
+              console.log("[Web BLE Command Sent (NoResp)]:", jsonStr);
+              resolve(true);
+              return;
+            } catch {
+              // Fallback to standard writeValue
+            }
+          }
+
+          await this.ctrlCharacteristic.writeValue(encoded);
+          console.log("[Web BLE Command Sent]:", jsonStr);
+          
+          // 25ms micro-pause to allow ESP32 radio buffer to cycle cleanly
+          await new Promise((r) => setTimeout(r, 25));
+          resolve(true);
+        })
+        .catch((err) => {
+          console.error("[Web BLE Command Error]:", err);
+          resolve(false);
+        });
+    });
   }
 }
 

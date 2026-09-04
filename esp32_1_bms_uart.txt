@@ -249,10 +249,12 @@ String sysC1 = "0.0";
 String sysC2 = "0.0";
 String sysC3 = "0.0";
 
-unsigned long lastPrint    = 0;
-unsigned long lastUartSend = 0;
-const unsigned long PRINT_INTERVAL     = 10000; // 10 s
-const unsigned long UART_SEND_INTERVAL = 5000;  // 5 s
+unsigned long lastPrint      = 0;
+unsigned long lastUartSend   = 0;
+unsigned long lastBmsAttempt = 0;
+const unsigned long PRINT_INTERVAL         = 10000; // 10 s
+const unsigned long UART_SEND_INTERVAL     = 5000;  // 5 s
+const unsigned long BMS_RECONNECT_INTERVAL = 10000; // 10 s non-blocking attempt
 
 // Forward declarations
 void handleControlCommand(const String& jsonStr);
@@ -320,7 +322,7 @@ class ControlCallback : public BLECharacteristicCallbacks {
 };
 
 void sendBLEStateNotify() {
-    if (!pCtrlChar) return;
+    if (!blePhoneConnected || !pCtrlChar) return;
     StaticJsonDocument<256> doc;
     doc["mode"] = currentMode;
     doc["ch1"]  = channels[0].isOn;
@@ -971,9 +973,10 @@ void setup() {
     Serial2.setRxBufferSize(2048);
     Serial2.begin(115200, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
     Serial2.setTimeout(50);
-    delay(1000);
+    delay(500);
 
-    Serial.println("ESP32 #1 — Master Controller (BLE Client + Server + Relays + TFT)");
+    Serial.println("=================================================");
+    Serial.println("ESP32 #1 — Master Controller (BLE Server + Relays + TFT)");
     Serial.println("UART TX  : GPIO17 -> ESP32 #2 RX");
     Serial.println("UART RX  : GPIO16 <- ESP32 #2 TX");
     Serial.println("Relay CH1: GPIO25 | CH2: GPIO26 | CH3: GPIO27");
@@ -994,6 +997,10 @@ void setup() {
     // Initialize BLE Subsystem (Dual Server & Client)
     BLEDevice::init("Sentry_Controller");
     setupBLEServer();
+    Serial.println("[BLE] BLE Server ready and advertising.");
+
+    // First non-blocking attempt to connect to BMS
+    lastBmsAttempt = millis();
     connectBLE();
 }
 
@@ -1001,18 +1008,25 @@ void setup() {
 // MAIN LOOP
 // ============================================================
 void loop() {
-    // Reconnect to JK-BMS if BLE Client stream is lost
-    if (!bmsConnected || !pClient || !pClient->isConnected()) {
-        Serial.println("[BLE] BMS connection lost, reconnecting in 5s...");
-        bmsConnected = false;
-        showSplashScreen();
-        tftLog("BLE Connection Lost!");
-        tftLog("Reconnecting in 5s...");
-        delay(5000);
-        connectBLE();
-    }
-
     unsigned long now = millis();
+
+    // Asynchronous non-blocking BMS connection check
+    if (!bmsConnected || !pClient || !pClient->isConnected()) {
+        if (bmsConnected) {
+            Serial.println("[BLE] BMS connection lost!");
+            bmsConnected = false;
+            showSplashScreen();
+            tftLog("BMS Disconnected");
+            tftLog("Retrying in background...");
+        }
+
+        // Attempt background reconnection every BMS_RECONNECT_INTERVAL without blocking loop
+        if (now - lastBmsAttempt >= BMS_RECONNECT_INTERVAL) {
+            lastBmsAttempt = now;
+            Serial.println("[BLE] Background search for JK-BMS...");
+            connectBLE();
+        }
+    }
 
     // Print diagnostic info to USB Serial Monitor
     if (now - lastPrint >= PRINT_INTERVAL) {
@@ -1030,7 +1044,7 @@ void loop() {
         }
     }
 
-    // TFT Carousel Auto-Flip every 8 seconds
+    // TFT Carousel Auto-Flip every 8 seconds (only when live data available)
     if (bmsConnected && (now - lastPageSwap >= 8000)) {
         lastPageSwap = now;
         currentPage = (currentPage + 1) % 4;
@@ -1067,5 +1081,5 @@ void loop() {
         }
     }
 
-    delay(50);
+    delay(20);
 }
