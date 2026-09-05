@@ -200,6 +200,32 @@ bool bmsConnected = false;
 const int OFF = 16;  // JK02_32S offset
 
 // ============================================================
+// BMS Settings-Lock Password
+// This is the SAME password required by the official JK BMS mobile
+// app before it allows toggling charge/discharge/balancer switches.
+// Numeric form (register 0x05). If discharge/charge writes silently
+// fail to take effect after adding unlockBMS(), try the ASCII form
+// instead (see sendPasswordASCII, currently unused but kept below
+// as a fallback you can wire in).
+// ============================================================
+const uint32_t BMS_PASSWORD = 654321;
+
+// Forward declarations
+void handleControlCommand(const String& jsonStr);
+void sendBLEStateNotify();
+void sendOverUART();
+void setDischarge(bool enable);
+void setCharge(bool enable);
+void sendPassword(uint32_t pwd);
+void sendPasswordASCII(String pwdStr);
+void unlockBMS();
+void drawStaticUI();
+void updateLiveValues();
+void showSplashScreen();
+void tftLog(String msg);
+bool connectBLE();
+
+// ============================================================
 // Parsed BMS Data Structure
 // ============================================================
 struct BMSData {
@@ -255,20 +281,6 @@ unsigned long lastBmsAttempt = 0;
 const unsigned long PRINT_INTERVAL         = 10000; // 10 s
 const unsigned long UART_SEND_INTERVAL     = 5000;  // 5 s
 const unsigned long BMS_RECONNECT_INTERVAL = 10000; // 10 s non-blocking attempt
-
-// Forward declarations
-void handleControlCommand(const String& jsonStr);
-void sendBLEStateNotify();
-void sendOverUART();
-void setDischarge(bool enable);
-void setCharge(bool enable);
-void sendPassword(uint32_t pwd);
-void sendPasswordASCII(String pwdStr);
-void drawStaticUI();
-void updateLiveValues();
-void showSplashScreen();
-void tftLog(String msg);
-bool connectBLE();
 
 // ============================================================
 // RELAY PHYSICAL ACTUATION & SHEDDING ENGINE
@@ -528,6 +540,10 @@ void printBMSData() {
     Serial.print("  Current:       "); Serial.print(bmsData.current, 3); Serial.println(" A");
     Serial.print("  Power:         "); Serial.print(bmsData.power, 2); Serial.println(" W");
 
+    Serial.println("\n--- MOSFET STATES ---");
+    Serial.print("  Discharge MOSFET: "); Serial.println(bmsData.discharging ? "ON" : "OFF");
+    Serial.print("  Charge MOSFET:    "); Serial.println(bmsData.charging ? "ON" : "OFF");
+
     Serial.println("\n--- RELAYS & LOAD CONTROL ---");
     Serial.printf("  Operating Mode: %s\n", currentMode.c_str());
     Serial.printf("  CH1 (Critical) : %s\n", channels[0].isOn ? "ON" : "OFF");
@@ -645,9 +661,79 @@ void writeBLEFrame(uint8_t* frame, size_t len) {
             success = true;
         } catch (...) {}
     }
+    if (!success) {
+        Serial.println("[!] writeBLEFrame FAILED — no valid characteristic or BMS not connected");
+    }
 }
 
+// ============================================================
+// BMS Password / Settings-Lock Unlock
+// ============================================================
+void sendPassword(uint32_t pwd) {
+    uint8_t frame[20] = {0};
+    frame[0] = 0xAA; frame[1] = 0x55; frame[2] = 0x90; frame[3] = 0xEB;
+    frame[4] = 0x05;  // password/pair register
+    frame[5] = 0x04;
+    frame[6] = (uint8_t)(pwd & 0xFF);
+    frame[7] = (uint8_t)((pwd >> 8) & 0xFF);
+    frame[8] = (uint8_t)((pwd >> 16) & 0xFF);
+    frame[9] = (uint8_t)((pwd >> 24) & 0xFF);
+    uint16_t sum = 0;
+    for (int i = 0; i < 19; i++) sum += frame[i];
+    frame[19] = sum & 0xFF;
+    writeBLEFrame(frame, sizeof(frame));
+
+    Serial.print("[BMS] Password frame sent (numeric ");
+    Serial.print(pwd);
+    Serial.print("): ");
+    for (int i = 0; i < 20; i++) {
+        if (frame[i] < 0x10) Serial.print("0");
+        Serial.print(frame[i], HEX); Serial.print(" ");
+    }
+    Serial.println();
+}
+
+// Fallback ASCII form — only use if numeric sendPassword() doesn't
+// actually unlock the BMS (some JK firmware revisions expect the
+// password as literal ASCII bytes rather than a packed integer).
+void sendPasswordASCII(String pwdStr) {
+    uint8_t frame[20] = {0};
+    frame[0] = 0xAA; frame[1] = 0x55; frame[2] = 0x90; frame[3] = 0xEB;
+    frame[4] = 0x05;
+    int n = pwdStr.length();
+    if (n > 10) n = 10; // clamp to available payload bytes
+    frame[5] = (uint8_t)n;
+    for (int i = 0; i < n; i++) {
+        frame[6 + i] = (uint8_t)pwdStr[i];
+    }
+    uint16_t sum = 0;
+    for (int i = 0; i < 19; i++) sum += frame[i];
+    frame[19] = sum & 0xFF;
+    writeBLEFrame(frame, sizeof(frame));
+
+    Serial.print("[BMS] Password frame sent (ASCII \"");
+    Serial.print(pwdStr);
+    Serial.print("\"): ");
+    for (int i = 0; i < 20; i++) {
+        if (frame[i] < 0x10) Serial.print("0");
+        Serial.print(frame[i], HEX); Serial.print(" ");
+    }
+    Serial.println();
+}
+
+void unlockBMS() {
+    sendPassword(BMS_PASSWORD);
+    // If numeric doesn't work, comment the line above and use instead:
+    // sendPasswordASCII("654321");
+    delay(300); // let the BMS accept auth before the next register write lands
+}
+
+// ============================================================
+// Discharge / Charge MOSFET Control (password-gated)
+// ============================================================
 void setDischarge(bool enable) {
+    unlockBMS();
+
     uint8_t frame[20] = {
         0xAA, 0x55, 0x90, 0xEB,
         0x1E, 0x04, (uint8_t)(enable ? 0x01 : 0x00),
@@ -656,10 +742,22 @@ void setDischarge(bool enable) {
     uint16_t sum = 0;
     for (int i = 0; i < 19; i++) sum += frame[i];
     frame[19] = sum & 0xFF;
+
+    Serial.print("[CMD] setDischarge(");
+    Serial.print(enable ? "ON" : "OFF");
+    Serial.print(") frame: ");
+    for (int i = 0; i < 20; i++) {
+        if (frame[i] < 0x10) Serial.print("0");
+        Serial.print(frame[i], HEX); Serial.print(" ");
+    }
+    Serial.println();
+
     writeBLEFrame(frame, sizeof(frame));
 }
 
 void setCharge(bool enable) {
+    unlockBMS();
+
     uint8_t frame[20] = {
         0xAA, 0x55, 0x90, 0xEB,
         0x1D, 0x04, (uint8_t)(enable ? 0x01 : 0x00),
@@ -668,6 +766,16 @@ void setCharge(bool enable) {
     uint16_t sum = 0;
     for (int i = 0; i < 19; i++) sum += frame[i];
     frame[19] = sum & 0xFF;
+
+    Serial.print("[CMD] setCharge(");
+    Serial.print(enable ? "ON" : "OFF");
+    Serial.print(") frame: ");
+    for (int i = 0; i < 20; i++) {
+        if (frame[i] < 0x10) Serial.print("0");
+        Serial.print(frame[i], HEX); Serial.print(" ");
+    }
+    Serial.println();
+
     writeBLEFrame(frame, sizeof(frame));
 }
 
@@ -744,14 +852,15 @@ bool connectBLE() {
         Serial.println("BMS connection FAILED");
         tftLog("BMS connection FAILED. Retrying...");
         bmsConnected = false;
+        BLEDevice::startAdvertising();
         return false;
     }
 
     BLERemoteService* pService = pClient->getService(serviceUUID);
-    if (!pService) { pClient->disconnect(); bmsConnected = false; return false; }
+    if (!pService) { pClient->disconnect(); bmsConnected = false; BLEDevice::startAdvertising(); return false; }
 
     pDataChar = pService->getCharacteristic(dataCharUUID);
-    if (!pDataChar) { pClient->disconnect(); bmsConnected = false; return false; }
+    if (!pDataChar) { pClient->disconnect(); bmsConnected = false; BLEDevice::startAdvertising(); return false; }
 
     if (pDataChar->canNotify()) {
         pDataChar->registerForNotify(notifyCallback);
@@ -768,9 +877,13 @@ bool connectBLE() {
     Serial.println("BMS connected, telemetry active.");
     tftLog("BMS connected! Dashboard loading...");
     delay(500);
-    
+
     bmsConnected = true;
     drawStaticUI();
+
+    // Re-enable BLE Advertising so Phone can connect seamlessly concurrently with BMS Client
+    BLEDevice::startAdvertising();
+    Serial.println("[BLE SERVER] Sentry Offline Control advertising resumed (Dual-BLE Active).");
     return true;
 }
 
@@ -808,11 +921,11 @@ void showSplashScreen() {
     tft.setFreeFont(&FreeSansBold18pt7b);
     tft.setTextDatum(TC_DATUM);
     tft.drawString("Sentry", 160, 20);
-    
+
     tft.setTextColor(TFT_TEXT_LIGHT, TFT_BG);
     tft.setFreeFont(&FreeSans9pt7b);
     tft.drawString("Smart Energy System", 160, 50);
-    
+
     tftLogY = 85;
 }
 
@@ -820,7 +933,7 @@ void tftLog(String msg) {
     if (bmsConnected) return;
     tft.setTextColor(TFT_TEXT, TFT_BG);
     tft.setTextFont(1);
-    tft.setFreeFont(NULL); 
+    tft.setFreeFont(NULL);
     tft.setTextDatum(TL_DATUM);
     tft.setTextPadding(320);
     tft.drawString(msg, 10, tftLogY);
