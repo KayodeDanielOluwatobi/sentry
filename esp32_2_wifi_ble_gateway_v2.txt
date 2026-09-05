@@ -13,7 +13,7 @@
 // ============================================================
 // Architecture:
 // - ESP32 #2 acts as the central Wireless Hub:
-//     1. Wi-Fi Station (Cloud): Publishes live telemetry to Firebase RTDB & Supabase history.
+//     1. Wi-Fi Station (Cloud): Publishes live telemetry to Firebase RTDB & Supabase history via HTTPS.
 //     2. BLE Server (Phone App): Advertises as "Sentry_Controller" for direct Web Bluetooth PWA control.
 //     3. ACS758 Current Sensors: Measures individual load branch currents on ADC1 (GPIO 32, 33, 34).
 //     4. UART Bridge (Serial2): Bidirectionally links with ESP32 #1 (GPIO 16 RX, GPIO 17 TX).
@@ -59,12 +59,15 @@ const char* SUPABASE_HOST    = "https://depcetmlhqtabuzhvtdf.supabase.co";
 const char* SUPABASE_TABLE   = "/rest/v1/telemetry_history";
 const char* SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlcGNldG1saHF0YWJ1emh2dGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2OTgzNzgsImV4cCI6MjEwMDI3NDM3OH0.pxIKVsqFbAgP1r2K14FnKP23ZQ2Auto-9hCjy6D4WpE";
 
+unsigned long lastFirebaseUpload   = 0;
 unsigned long lastSupabaseUpload   = 0;
 unsigned long lastStatusSent       = 0;
 unsigned long lastCommandPoll      = 0;
-const unsigned long SUPABASE_INTERVAL_MS     = 5000;
-const unsigned long COMMAND_POLL_INTERVAL_MS = 1500;
-const unsigned long STATUS_INTERVAL_MS       = 3000;
+
+const unsigned long FIREBASE_INTERVAL_MS     = 2000; // Upload live telemetry every 2s
+const unsigned long SUPABASE_INTERVAL_MS     = 5000; // Log historical snapshot every 5s
+const unsigned long COMMAND_POLL_INTERVAL_MS = 2500; // Poll cloud commands every 2.5s
+const unsigned long STATUS_INTERVAL_MS       = 3000; // Send heartbeat to Board 1 every 3s
 
 // NTP Configuration
 const char* NTP_SERVER1 = "pool.ntp.org";
@@ -304,7 +307,7 @@ void connectWiFi() {
 }
 
 // ============================================================
-// CLOUD PUBLISHING: FIREBASE REALTIME DATABASE
+// CLOUD PUBLISHING: FIREBASE REALTIME DATABASE (HTTPS)
 // ============================================================
 String chargeState() {
     if (bms.current > 0.5)  return "CHARGING";
@@ -315,9 +318,14 @@ String chargeState() {
 void sendToFirebase() {
     if (WiFi.status() != WL_CONNECTED || !bms.valid) return;
 
+    WiFiClientSecure client;
+    client.setInsecure(); // Required for HTTPS on ESP32 without certificate bundle
+    client.setTimeout(3000);
+
     HTTPClient http;
     String url = String(FIREBASE_HOST) + "/telemetry.json";
-    http.begin(url);
+    http.begin(client, url);
+    http.setTimeout(3000);
     http.addHeader("Content-Type", "application/json");
 
     String payload = "{";
@@ -394,7 +402,7 @@ void sendToFirebase() {
 }
 
 // ============================================================
-// CLOUD PUBLISHING: SUPABASE HISTORICAL DATABASE
+// CLOUD PUBLISHING: SUPABASE HISTORICAL DATABASE (HTTPS)
 // ============================================================
 void sendToSupabase() {
     if (WiFi.status() != WL_CONNECTED) return;
@@ -405,10 +413,12 @@ void sendToSupabase() {
 
     WiFiClientSecure client;
     client.setInsecure(); // Bypass TLS cert check on ESP32
+    client.setTimeout(4000);
 
     HTTPClient http;
     String url = String(SUPABASE_HOST) + SUPABASE_TABLE;
     http.begin(client, url);
+    http.setTimeout(4000);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("apikey", SUPABASE_API_KEY);
     http.addHeader("Authorization", String("Bearer ") + SUPABASE_API_KEY);
@@ -455,94 +465,108 @@ void sendToSupabase() {
 }
 
 // ============================================================
-// CLOUD COMMAND POLLING: FIREBASE /commands & /loadManager
+// CLOUD COMMAND POLLING: FIREBASE /commands & /loadManager (HTTPS)
 // ============================================================
 void pollCommands() {
     if (WiFi.status() != WL_CONNECTED) return;
 
     // 1. Poll /commands.json (Inverter Charge/Discharge control)
-    HTTPClient http;
-    http.begin(String(FIREBASE_HOST) + "/commands.json");
-    int code = http.GET();
+    {
+        WiFiClientSecure clientCmd;
+        clientCmd.setInsecure();
+        clientCmd.setTimeout(2500);
 
-    if (code == 200) {
-        String body = http.getString();
-        StaticJsonDocument<256> doc;
-        if (!deserializeJson(doc, body)) {
-            bool discharge = doc["discharge"] | true;
-            bool charge    = doc["charge"]    | true;
+        HTTPClient http;
+        http.begin(clientCmd, String(FIREBASE_HOST) + "/commands.json");
+        http.setTimeout(2500);
+        int code = http.GET();
 
-            if (!commandsInitialized) {
-                lastKnownDischarge  = discharge;
-                lastKnownCharge     = charge;
-                commandsInitialized = true;
-            } else {
-                if (discharge != lastKnownDischarge) {
-                    lastKnownDischarge = discharge;
-                    StaticJsonDocument<128> cmd;
-                    cmd["cmd"] = "discharge";
-                    cmd["val"] = discharge;
-                    serializeJson(cmd, Serial2);
-                    Serial2.println();
-                }
-                if (charge != lastKnownCharge) {
-                    lastKnownCharge = charge;
-                    StaticJsonDocument<128> cmd;
-                    cmd["cmd"] = "charge";
-                    cmd["val"] = charge;
-                    serializeJson(cmd, Serial2);
-                    Serial2.println();
+        if (code == 200) {
+            String body = http.getString();
+            StaticJsonDocument<256> doc;
+            if (!deserializeJson(doc, body)) {
+                bool discharge = doc["discharge"] | true;
+                bool charge    = doc["charge"]    | true;
+
+                if (!commandsInitialized) {
+                    lastKnownDischarge  = discharge;
+                    lastKnownCharge     = charge;
+                    commandsInitialized = true;
+                } else {
+                    if (discharge != lastKnownDischarge) {
+                        lastKnownDischarge = discharge;
+                        StaticJsonDocument<128> cmd;
+                        cmd["cmd"] = "discharge";
+                        cmd["val"] = discharge;
+                        serializeJson(cmd, Serial2);
+                        Serial2.println();
+                    }
+                    if (charge != lastKnownCharge) {
+                        lastKnownCharge = charge;
+                        StaticJsonDocument<128> cmd;
+                        cmd["cmd"] = "charge";
+                        cmd["val"] = charge;
+                        serializeJson(cmd, Serial2);
+                        Serial2.println();
+                    }
                 }
             }
         }
+        http.end();
     }
-    http.end();
 
     // 2. Poll /loadManager.json (Remote Web Relay Overrides)
-    HTTPClient httpLM;
-    httpLM.begin(String(FIREBASE_HOST) + "/loadManager.json");
-    int lmCode = httpLM.GET();
+    {
+        WiFiClientSecure clientLM;
+        clientLM.setInsecure();
+        clientLM.setTimeout(2500);
 
-    if (lmCode == 200) {
-        String body = httpLM.getString();
-        StaticJsonDocument<256> doc;
-        if (!deserializeJson(doc, body)) {
-            String mode = doc["mode"] | "AUTO";
-            bool l1     = doc["channel1"] | true;
-            bool l2     = doc["channel2"] | true;
-            bool l3     = doc["channel3"] | true;
+        HTTPClient httpLM;
+        httpLM.begin(clientLM, String(FIREBASE_HOST) + "/loadManager.json");
+        httpLM.setTimeout(2500);
+        int lmCode = httpLM.GET();
 
-            if (!loadManagerInitialized) {
-                lastKnownMode = mode;
-                lastKnownLoad1 = l1;
-                lastKnownLoad2 = l2;
-                lastKnownLoad3 = l3;
-                loadManagerInitialized = true;
-            } else {
-                // If the remote user clicked anything on the Web Dashboard:
-                if (mode != lastKnownMode || l1 != lastKnownLoad1 || l2 != lastKnownLoad2 || l3 != lastKnownLoad3) {
+        if (lmCode == 200) {
+            String body = httpLM.getString();
+            StaticJsonDocument<256> doc;
+            if (!deserializeJson(doc, body)) {
+                String mode = doc["mode"] | "AUTO";
+                bool l1     = doc["channel1"] | true;
+                bool l2     = doc["channel2"] | true;
+                bool l3     = doc["channel3"] | true;
+
+                if (!loadManagerInitialized) {
                     lastKnownMode = mode;
                     lastKnownLoad1 = l1;
                     lastKnownLoad2 = l2;
                     lastKnownLoad3 = l3;
+                    loadManagerInitialized = true;
+                } else {
+                    // If the remote user clicked anything on the Web Dashboard:
+                    if (mode != lastKnownMode || l1 != lastKnownLoad1 || l2 != lastKnownLoad2 || l3 != lastKnownLoad3) {
+                        lastKnownMode = mode;
+                        lastKnownLoad1 = l1;
+                        lastKnownLoad2 = l2;
+                        lastKnownLoad3 = l3;
 
-                    Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
-                                  mode.c_str(), l1, l2, l3);
+                        Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
+                                      mode.c_str(), l1, l2, l3);
 
-                    StaticJsonDocument<256> fwd;
-                    fwd["cmd"] = "loadManager";
-                    fwd["mode"] = mode;
-                    fwd["ch1"] = l1;
-                    fwd["ch2"] = l2;
-                    fwd["ch3"] = l3;
+                        StaticJsonDocument<256> fwd;
+                        fwd["cmd"] = "loadManager";
+                        fwd["mode"] = mode;
+                        fwd["ch1"] = l1;
+                        fwd["ch2"] = l2;
+                        fwd["ch3"] = l3;
 
-                    serializeJson(fwd, Serial2);
-                    Serial2.println();
+                        serializeJson(fwd, Serial2);
+                        Serial2.println();
+                    }
                 }
             }
         }
+        httpLM.end();
     }
-    httpLM.end();
 }
 
 // ============================================================
@@ -603,9 +627,6 @@ void processIncomingTelemetry() {
         Serial.printf("[UART-RX] Telemetry Received: SOC=%d%%, V=%.2fV, Mode=%s, Relays=[%d,%d,%d]\n",
                       bms.soc, bms.voltage, isAutoMode ? "AUTO" : "MANUAL",
                       channels[0].isOn, channels[1].isOn, channels[2].isOn);
-
-        // Upload instantly to Firebase
-        sendToFirebase();
 
         // Push immediate live notification to Phone App via BLE
         if (phoneBleConnected) {
@@ -702,7 +723,13 @@ void loop() {
         notifyPhoneBle();
     }
 
-    // Poll Firebase for remote cloud commands
+    // Upload to Firebase RTDB every 2 seconds
+    if (now - lastFirebaseUpload >= FIREBASE_INTERVAL_MS) {
+        lastFirebaseUpload = now;
+        sendToFirebase();
+    }
+
+    // Poll Firebase for remote cloud commands every 2.5 seconds
     if (now - lastCommandPoll >= COMMAND_POLL_INTERVAL_MS) {
         lastCommandPoll = now;
         pollCommands();
