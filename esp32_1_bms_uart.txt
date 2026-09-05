@@ -139,8 +139,8 @@ TFT_eSPI tft = TFT_eSPI();
 // ============================================================
 
 // UART Communication to/from ESP32 #2
-#define UART_TX_PIN 14  // Connects to ESP32 #2 RX (GPIO 14)
-#define UART_RX_PIN 13  // Connects to ESP32 #2 TX (GPIO 13)
+#define UART_TX_PIN 17  // Connects to ESP32 #2 RX (GPIO 16)
+#define UART_RX_PIN 16  // Connects to ESP32 #2 TX (GPIO 17)
 
 // Relay Outputs (Directly controlled on ESP32 #1)
 const int RELAY_CH1_PIN = 25;   // CH1: Critical Loads (Router, lighting, security)
@@ -981,8 +981,8 @@ void setup() {
 
     Serial.println("=================================================");
     Serial.println("ESP32 #1 — Master Controller (BLE Server + Relays + TFT)");
-    Serial.println("UART TX  : GPIO14 -> ESP32 #2 RX (GPIO 14)");
-    Serial.println("UART RX  : GPIO13 <- ESP32 #2 TX (GPIO 13)");
+    Serial.println("UART TX  : GPIO17 -> ESP32 #2 RX (GPIO 16)");
+    Serial.println("UART RX  : GPIO16 <- ESP32 #2 TX (GPIO 17)");
     Serial.println("Relay CH1: GPIO25 | CH2: GPIO26 | CH3: GPIO27");
     Serial.println("=================================================");
 
