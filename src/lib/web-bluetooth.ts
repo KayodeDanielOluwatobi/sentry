@@ -63,6 +63,12 @@ class SentryWebBluetooth {
   private ctrlCharacteristic: BluetoothRemoteGATTCharacteristic | null = null;
   private listeners: Array<(packet: BleStatePacket) => void> = [];
   private stateListeners: Array<(state: BleConnectionState) => void> = [];
+  private wakeLock: any = null;
+  private keepAliveTimer: any = null;
+  private isExplicitDisconnect: boolean = false;
+  private isReconnecting: boolean = false;
+  private reconnectAttempts: number = 0;
+  private readonly maxReconnectAttempts: number = 5;
 
   private state: BleConnectionState = {
     isConnected: false,
@@ -99,6 +105,50 @@ class SentryWebBluetooth {
     this.stateListeners.forEach((cb) => cb(this.getState()));
   }
 
+  private async requestWakeLock() {
+    try {
+      if (typeof navigator !== "undefined" && "wakeLock" in navigator && (navigator as any).wakeLock) {
+        this.wakeLock = await (navigator as any).wakeLock.request("screen");
+        console.log("[Web BLE] Screen Wake Lock acquired (prevents mobile OS from suspending BLE).");
+        this.wakeLock.addEventListener("release", () => {
+          this.wakeLock = null;
+        });
+      }
+    } catch (err) {
+      console.warn("[Web BLE] Wake Lock request not permitted:", err);
+    }
+  }
+
+  private releaseWakeLock() {
+    if (this.wakeLock) {
+      try {
+        this.wakeLock.release();
+      } catch {}
+      this.wakeLock = null;
+    }
+  }
+
+  private startKeepAlive() {
+    this.stopKeepAlive();
+    // Ping/read every 10 seconds to keep GATT supervision window open
+    this.keepAliveTimer = setInterval(async () => {
+      if (this.ctrlCharacteristic && this.state.isConnected) {
+        try {
+          await this.ctrlCharacteristic.readValue();
+        } catch {
+          // If read fails, GATT will trigger disconnect handler for auto-reconnect
+        }
+      }
+    }, 10000);
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+  }
+
   public async connect(): Promise<boolean> {
     if (!this.isSupported()) {
       this.updateState({ error: "Web Bluetooth is not supported in this browser. Use Chrome or Edge on Android/PC." });
@@ -106,6 +156,8 @@ class SentryWebBluetooth {
     }
 
     try {
+      this.isExplicitDisconnect = false;
+      this.reconnectAttempts = 0;
       this.updateState({ isConnecting: true, error: null });
 
       console.log("[Web BLE] Requesting Bluetooth Device...");
@@ -120,8 +172,24 @@ class SentryWebBluetooth {
 
       this.device.addEventListener("gattserverdisconnected", this.handleDisconnect.bind(this));
 
+      return await this.setupGattConnection();
+    } catch (err: any) {
+      console.error("[Web BLE] Connection failed:", err);
+      this.updateState({
+        isConnected: false,
+        isConnecting: false,
+        error: err.message || "Failed to connect to Bluetooth device.",
+      });
+      return false;
+    }
+  }
+
+  private async setupGattConnection(): Promise<boolean> {
+    if (!this.device || !this.device.gatt) return false;
+
+    try {
       console.log("[Web BLE] Connecting to GATT Server...");
-      this.server = await this.device.gatt!.connect();
+      this.server = await this.device.gatt.connect();
 
       console.log("[Web BLE] Getting Primary Service...");
       const service = await this.server.getPrimaryService(SENTRY_BLE_SERVICE_UUID);
@@ -147,34 +215,74 @@ class SentryWebBluetooth {
         error: null,
       });
 
-      console.log("[Web BLE] Connected and listening to Sentry Controller!");
+      this.reconnectAttempts = 0;
+      this.isReconnecting = false;
+      await this.requestWakeLock();
+      this.startKeepAlive();
+
+      console.log("[Web BLE] Connected and persistent session active!");
       return true;
     } catch (err: any) {
-      console.error("[Web BLE] Connection failed:", err);
+      console.error("[Web BLE] GATT setup failed:", err);
       this.updateState({
         isConnected: false,
         isConnecting: false,
-        error: err.message || "Failed to connect to Bluetooth device.",
+        error: err.message || "GATT setup failed.",
       });
       return false;
     }
   }
 
   public async disconnect() {
+    this.isExplicitDisconnect = true;
+    this.stopKeepAlive();
+    this.releaseWakeLock();
     if (this.device && this.device.gatt && this.device.gatt.connected) {
       this.device.gatt.disconnect();
     }
     this.handleDisconnect();
   }
 
-  private handleDisconnect() {
-    console.log("[Web BLE] Bluetooth connection closed.");
+  private async handleDisconnect() {
+    console.log("[Web BLE] Bluetooth connection dropped.");
+    this.stopKeepAlive();
+    this.releaseWakeLock();
     this.ctrlCharacteristic = null;
     this.server = null;
+
+    // If disconnected unexpectedly (e.g. idle timeout / brief radio dip), attempt silent auto-reconnect
+    if (!this.isExplicitDisconnect && this.device && this.device.gatt && this.reconnectAttempts < this.maxReconnectAttempts && !this.isReconnecting) {
+      this.isReconnecting = true;
+      this.reconnectAttempts++;
+      const backoffMs = Math.min(1000 * this.reconnectAttempts, 4000);
+      console.log(`[Web BLE] Attempting silent auto-reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${backoffMs}ms...`);
+
+      this.updateState({
+        isConnected: false,
+        isConnecting: true,
+        error: `Reconnecting to ${this.device.name || "Sentry"}...`,
+      });
+
+      setTimeout(async () => {
+        const ok = await this.setupGattConnection();
+        if (!ok && this.reconnectAttempts >= this.maxReconnectAttempts) {
+          this.isReconnecting = false;
+          this.updateState({
+            isConnected: false,
+            isConnecting: false,
+            deviceName: null,
+            error: "Bluetooth connection lost. Tap to reconnect.",
+          });
+        }
+      }, backoffMs);
+      return;
+    }
+
     this.updateState({
       isConnected: false,
       isConnecting: false,
       deviceName: null,
+      error: this.isExplicitDisconnect ? null : "Bluetooth disconnected.",
     });
   }
 
@@ -187,11 +295,12 @@ class SentryWebBluetooth {
     try {
       const decoder = new TextDecoder("utf-8");
       const jsonString = decoder.decode(dataView);
+      if (!jsonString || jsonString.length < 2) return;
       const parsed = JSON.parse(jsonString) as BleStatePacket;
       console.log("[Web BLE Telemetry Received]:", parsed);
       this.listeners.forEach((cb) => cb(parsed));
     } catch (err) {
-      console.warn("[Web BLE] Could not decode incoming packet:", err);
+      // Ignored for raw binary/empty buffers
     }
   }
 
