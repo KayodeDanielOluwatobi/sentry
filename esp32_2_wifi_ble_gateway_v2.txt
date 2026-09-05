@@ -1,0 +1,747 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+#include <time.h>           // For NTP / real Unix timestamps
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// ============================================================
+// PROJECT SENTRY — FIRMWARE V2 (ESP32 #2: UNIFIED WIRELESS GATEWAY)
+// ============================================================
+// Architecture:
+// - ESP32 #2 acts as the central Wireless Hub:
+//     1. Wi-Fi Station (Cloud): Publishes live telemetry to Firebase RTDB & Supabase history.
+//     2. BLE Server (Phone App): Advertises as "Sentry_Controller" for direct Web Bluetooth PWA control.
+//     3. ACS758 Current Sensors: Measures individual load branch currents on ADC1 (GPIO 32, 33, 34).
+//     4. UART Bridge (Serial2): Bidirectionally links with ESP32 #1 (GPIO 16 RX, GPIO 17 TX).
+// - Commands from Phone Bluetooth OR Firebase are immediately forwarded to ESP32 #1 for physical relay switching.
+// ============================================================
+
+// ============================================================
+// PIN DEFINITIONS & HARDWARE ASSIGNMENTS
+// ============================================================
+
+// UART Communication to/from ESP32 #1
+#define UART_RX_PIN 16  // Connects to ESP32 #1 TX (GPIO 17)
+#define UART_TX_PIN 17  // Connects to ESP32 #1 RX (GPIO 16)
+
+// ACS758 Current Sensor Analog Inputs (ADC1 Pins - safe with Wi-Fi & BLE active)
+const int SENSOR_CH1_PIN = 32;  // ADC1_CH4 -> ACS758 Sensor 1 (CH1 Critical)
+const int SENSOR_CH2_PIN = 33;  // ADC1_CH5 -> ACS758 Sensor 2 (CH2 Mid)
+const int SENSOR_CH3_PIN = 34;  // ADC1_CH6 -> ACS758 Sensor 3 (CH3 Non-crit)
+
+// ============================================================
+// BLUETOOTH LOW ENERGY (PHONE PWA INTERFACE)
+// ============================================================
+#define SENTRY_BLE_SERVICE_UUID    "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define SENTRY_BLE_CTRL_CHAR_UUID  "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+BLEServer*         pBleServer         = nullptr;
+BLECharacteristic* pBleCtrlChar       = nullptr;
+bool               phoneBleConnected  = false;
+bool               oldPhoneConnected  = false;
+unsigned long      lastBleNotifyTime  = 0;
+const unsigned long BLE_NOTIFY_INTERVAL = 1000; // Notify phone app every 1s
+
+// ============================================================
+// NETWORK & CLOUD CONFIGURATION
+// ============================================================
+const char* WIFI_SSID      = "Dan";
+const char* WIFI_PASSWORD  = "iveiveive";
+const char* FIREBASE_HOST  = "https://fyp-inverter-monitor-default-rtdb.firebaseio.com";
+const unsigned long WIFI_TIMEOUT = 20000;
+
+// Supabase Configuration
+const char* SUPABASE_HOST    = "https://depcetmlhqtabuzhvtdf.supabase.co";
+const char* SUPABASE_TABLE   = "/rest/v1/telemetry_history";
+const char* SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlcGNldG1saHF0YWJ1emh2dGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2OTgzNzgsImV4cCI6MjEwMDI3NDM3OH0.pxIKVsqFbAgP1r2K14FnKP23ZQ2Auto-9hCjy6D4WpE";
+
+unsigned long lastSupabaseUpload   = 0;
+unsigned long lastStatusSent       = 0;
+unsigned long lastCommandPoll      = 0;
+const unsigned long SUPABASE_INTERVAL_MS     = 5000;
+const unsigned long COMMAND_POLL_INTERVAL_MS = 1500;
+const unsigned long STATUS_INTERVAL_MS       = 3000;
+
+// NTP Configuration
+const char* NTP_SERVER1 = "pool.ntp.org";
+const char* NTP_SERVER2 = "time.google.com";
+const long  GMT_OFFSET  = 3600;  // UTC+1 (WAT)
+const int   DST_OFFSET  = 0;
+bool ntpSynced = false;
+
+// ============================================================
+// LOAD CHANNEL TRACKING & ACS758 SENSING
+// ============================================================
+struct LoadChannel {
+    const char* name;
+    int sensorPin;
+    bool isOn;
+    float current;        // Live current in Amps
+    float zeroVoltage;    // Auto-calibrated zero-point voltage
+};
+
+LoadChannel channels[3] = {
+    {"CH1 (critical)", SENSOR_CH1_PIN, true, 0.0, 1.66},
+    {"CH2 (mid)",      SENSOR_CH2_PIN, true, 0.0, 1.66},
+    {"CH3 (non-crit)", SENSOR_CH3_PIN, true, 0.0, 1.66},
+};
+
+const int NUM_CHANNELS = 3;
+bool isAutoMode = true;
+
+// Cloud Command Tracking
+bool lastKnownDischarge = true;
+bool lastKnownCharge    = true;
+bool commandsInitialized = false;
+
+String lastKnownMode = "AUTO";
+bool lastKnownLoad1 = true;
+bool lastKnownLoad2 = true;
+bool lastKnownLoad3 = true;
+bool loadManagerInitialized = false;
+
+// ============================================================
+// BMS TELEMETRY STRUCTURE (Received from Board 1 via UART)
+// ============================================================
+struct BMSData {
+    int      soc             = 0;
+    int      soh             = 0;
+    float    voltage         = 0;
+    float    current         = 0;
+    float    power           = 0;
+    float    capRemaining    = 0;
+    float    fullCap         = 0;
+    float    temp1           = 0;
+    float    temp2           = 0;
+    float    mosTemp         = 0;
+    float    balCurrent      = 0;
+    uint32_t cycleCount      = 0;
+    uint32_t runtime         = 0;
+    bool     charging        = false;
+    bool     discharging     = false;
+    bool     balancing       = false;
+    bool     heating         = false;
+    uint32_t errorBits       = 0;
+    uint8_t  chargeStatus    = 0;
+    int      rssi            = 0;
+    int      activeCells     = 0;
+    float    cellVoltages[32]    = {0};
+    float    cellResistances[32] = {0};
+    float    deltaVoltage    = 0;
+    float    avgVoltage      = 0;
+    bool     valid           = false;
+} bms;
+
+// Forward declaration
+void notifyPhoneBle();
+
+// ============================================================
+// BLE SERVER CALLBACKS (Phone App Connection Lifecycle)
+// ============================================================
+class SentryServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+        phoneBleConnected = true;
+        Serial.println("[Phone BLE] Client connected successfully!");
+    }
+
+    void onDisconnect(BLEServer* pServer) {
+        phoneBleConnected = false;
+        Serial.println("[Phone BLE] Client disconnected.");
+    }
+};
+
+// ============================================================
+// BLE CHARACTERISTIC CALLBACKS (Incoming Phone Commands)
+// ============================================================
+class SentryCharCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+        String rxValue = pCharacteristic->getValue().c_str();
+        if (rxValue.length() == 0) return;
+
+        Serial.print("[Phone BLE RX] Received Command: ");
+        Serial.println(rxValue);
+
+        StaticJsonDocument<256> doc;
+        DeserializationError err = deserializeJson(doc, rxValue);
+        if (err) {
+            Serial.print("[Phone BLE RX] JSON Deserialization error: ");
+            Serial.println(err.c_str());
+            return;
+        }
+
+        // Keep-alive ping from phone app
+        if (doc.containsKey("ping")) {
+            Serial.println("[Phone BLE] Keep-alive ping acknowledged.");
+            notifyPhoneBle();
+            return;
+        }
+
+        // Relay Load Manager or Mode override command from Phone App
+        if (doc.containsKey("mode") || doc.containsKey("ch1") || doc.containsKey("cmd")) {
+            // Forward directly over Serial2 to ESP32 #1
+            Serial.print("[Phone BLE -> Board 1 UART] Forwarding: ");
+            Serial.println(rxValue);
+
+            Serial2.println(rxValue);
+            Serial2.flush();
+
+            // Optimistically update local tracking state for instantaneous phone UI feedback
+            if (doc.containsKey("mode")) {
+                const char* m = doc["mode"];
+                isAutoMode = (strcmp(m, "AUTO") == 0);
+            }
+            if (doc.containsKey("ch1")) channels[0].isOn = doc["ch1"];
+            if (doc.containsKey("ch2")) channels[1].isOn = doc["ch2"];
+            if (doc.containsKey("ch3")) channels[2].isOn = doc["ch3"];
+
+            // Immediate BLE state response back to phone
+            notifyPhoneBle();
+        }
+    }
+};
+
+// ============================================================
+// NOTIFY PHONE APP OVER BLE WITH LIVE STATE
+// ============================================================
+void notifyPhoneBle() {
+    if (!phoneBleConnected || !pBleCtrlChar) return;
+
+    StaticJsonDocument<256> doc;
+    doc["mode"] = isAutoMode ? "AUTO" : "MANUAL";
+    doc["ch1"]  = channels[0].isOn;
+    doc["ch2"]  = channels[1].isOn;
+    doc["ch3"]  = channels[2].isOn;
+    doc["soc"]  = bms.soc;
+    doc["v"]    = serialized(String(bms.voltage, 2));
+    doc["i"]    = serialized(String(bms.current, 2));
+    doc["p"]    = serialized(String(bms.power, 1));
+
+    String output;
+    serializeJson(doc, output);
+
+    pBleCtrlChar->setValue(output.c_str());
+    pBleCtrlChar->notify();
+}
+
+// ============================================================
+// ACS758 CURRENT SENSOR CALIBRATION & READING
+// ============================================================
+float readChannelCurrent(LoadChannel& ch) {
+    long sum = 0;
+    for (int i = 0; i < 50; i++) {
+        sum += analogRead(ch.sensorPin);
+        delayMicroseconds(100);
+    }
+    float avgAdc = sum / 50.0;
+    float voltage = (avgAdc / 4095.0) * 3.3;
+    
+    // ACS758-050B sensitivity at 3.3V supply is approx 0.0264 V/A
+    float current = (voltage - ch.zeroVoltage) / 0.0264;
+    
+    // Deadband for sensor noise
+    if (abs(current) < 0.3) current = 0.0;
+    
+    return abs(current);
+}
+
+void calibrateSensors() {
+    Serial.println("[Sensors] Auto-calibrating zero-points... (Ensure no load current is flowing)");
+    for (int i = 0; i < NUM_CHANNELS; i++) {
+        long sum = 0;
+        int samples = 500;
+        for (int j = 0; j < samples; j++) {
+            sum += analogRead(channels[i].sensorPin);
+            delayMicroseconds(500);
+        }
+        float avgAdc = sum / (float)samples;
+        channels[i].zeroVoltage = (avgAdc / 4095.0) * 3.3;
+        
+        Serial.printf("[Sensors] %s zero-point calibrated to: %.3f V\n", 
+                      channels[i].name, channels[i].zeroVoltage);
+    }
+    Serial.println("[Sensors] Calibration complete.");
+}
+
+// ============================================================
+// WIFI & NTP INITIALIZATION
+// ============================================================
+void connectWiFi() {
+    if (WiFi.status() == WL_CONNECTED) return;
+
+    Serial.print("[WiFi] Connecting to: ");
+    Serial.println(WIFI_SSID);
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_TIMEOUT) {
+        delay(500);
+        Serial.print(".");
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\n[WiFi] Connected successfully!");
+        Serial.print("[WiFi] IP Address: ");
+        Serial.println(WiFi.localIP());
+
+        configTime(GMT_OFFSET, DST_OFFSET, NTP_SERVER1, NTP_SERVER2);
+        Serial.println("[NTP] Syncing network time...");
+        struct tm timeinfo;
+        if (getLocalTime(&timeinfo, 5000)) {
+            Serial.println("[NTP] Time synchronized successfully.");
+            ntpSynced = true;
+        } else {
+            Serial.println("[NTP] Failed to sync time on boot.");
+        }
+    } else {
+        Serial.println("\n[WiFi] Connection failed. Will retry in loop.");
+    }
+}
+
+// ============================================================
+// CLOUD PUBLISHING: FIREBASE REALTIME DATABASE
+// ============================================================
+String chargeState() {
+    if (bms.current > 0.5)  return "CHARGING";
+    if (bms.current < -0.5) return "DISCHARGING";
+    return "IDLE";
+}
+
+void sendToFirebase() {
+    if (WiFi.status() != WL_CONNECTED || !bms.valid) return;
+
+    HTTPClient http;
+    String url = String(FIREBASE_HOST) + "/telemetry.json";
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+
+    String payload = "{";
+    payload += "\"summary\":{";
+    payload += "\"soc\":"             + String(bms.soc)                     + ",";
+    payload += "\"voltage\":"         + String(bms.voltage, 2)              + ",";
+    payload += "\"current\":"         + String(bms.current, 2)              + ",";
+    payload += "\"power\":"           + String(bms.power, 1)                + ",";
+    payload += "\"soh\":"             + String(bms.soh)                     + ",";
+    payload += "\"capacityRemaining\":" + String(bms.capRemaining, 2)       + ",";
+    payload += "\"fullCapacity\":"    + String(bms.fullCap, 2)              + ",";
+    payload += "\"chargeState\":\""   + chargeState()                       + "\"";
+    payload += "},";
+
+    payload += "\"loadCurrents\":{";
+    payload += "\"ch1\":" + String(channels[0].current, 1) + ",";
+    payload += "\"ch2\":" + String(channels[1].current, 1) + ",";
+    payload += "\"ch3\":" + String(channels[2].current, 1);
+    payload += "},";
+
+    payload += "\"temperatures\":{";
+    payload += "\"temp1\":"  + String(bms.temp1, 1)   + ",";
+    payload += "\"temp2\":"  + String(bms.temp2, 1)   + ",";
+    payload += "\"mosfet\":" + String(bms.mosTemp, 1);
+    payload += "},";
+
+    payload += "\"relays\":{";
+    payload += "\"ch1\":"  + String(channels[0].isOn ? "true" : "false") + ",";
+    payload += "\"ch2\":"  + String(channels[1].isOn ? "true" : "false") + ",";
+    payload += "\"ch3\":"  + String(channels[2].isOn ? "true" : "false") + ",";
+    payload += "\"mode\":\"" + String(isAutoMode ? "AUTO" : "MANUAL") + "\"";
+    payload += "},";
+
+    payload += "\"mosfets\":{";
+    payload += "\"charging\":"    + String(bms.charging    ? "true" : "false") + ",";
+    payload += "\"discharging\":" + String(bms.discharging ? "true" : "false") + ",";
+    payload += "\"balancing\":"   + String(bms.balancing   ? "true" : "false");
+    payload += "},";
+
+    payload += "\"cellVoltages\":[";
+    for (int i = 0; i < bms.activeCells; i++) {
+        payload += String(bms.cellVoltages[i], 3);
+        if (i < bms.activeCells - 1) payload += ",";
+    }
+    payload += "],";
+
+    payload += "\"cellResistances\":[";
+    for (int i = 0; i < bms.activeCells; i++) {
+        payload += String(bms.cellResistances[i], 3);
+        if (i < bms.activeCells - 1) payload += ",";
+    }
+    payload += "],";
+
+    payload += "\"diagnostics\":{";
+    payload += "\"deltaVoltage\":"  + String(bms.deltaVoltage, 3) + ",";
+    payload += "\"averageVoltage\":"+ String(bms.avgVoltage, 3)   + ",";
+    payload += "\"balanceCurrent\":"+ String(bms.balCurrent, 3)   + ",";
+    payload += "\"cycleCount\":"    + String(bms.cycleCount)      + ",";
+    payload += "\"runtimeSeconds\":"+ String(bms.runtime)         + ",";
+    payload += "\"errorBits\":"     + String(bms.errorBits)       + ",";
+    payload += "\"bleRssi\":"       + String(bms.rssi);
+    payload += "},";
+
+    payload += "\"updatedAt\":{\".sv\":\"timestamp\"}";
+    payload += "}";
+
+    int code = http.PUT(payload);
+    if (code == 200) {
+        Serial.println("[Firebase] /telemetry updated successfully.");
+    } else {
+        Serial.printf("[Firebase] /telemetry PUT failed: %d\n", code);
+    }
+    http.end();
+}
+
+// ============================================================
+// CLOUD PUBLISHING: SUPABASE HISTORICAL DATABASE
+// ============================================================
+void sendToSupabase() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    if (!bms.valid) {
+        Serial.println("[Supabase] Awaiting valid BMS telemetry before logging historical snapshot...");
+        return;
+    }
+
+    WiFiClientSecure client;
+    client.setInsecure(); // Bypass TLS cert check on ESP32
+
+    HTTPClient http;
+    String url = String(SUPABASE_HOST) + SUPABASE_TABLE;
+    http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", SUPABASE_API_KEY);
+    http.addHeader("Authorization", String("Bearer ") + SUPABASE_API_KEY);
+    http.addHeader("Prefer", "return=minimal");
+
+    char tsBuf[32];
+    time_t nowSec = time(NULL);
+    if (nowSec > 100000) {
+        uint64_t ms = ((uint64_t)nowSec) * 1000ULL + (millis() % 1000);
+        snprintf(tsBuf, sizeof(tsBuf), "%llu", ms);
+    } else {
+        uint64_t ms = 1784721310000ULL + millis();
+        snprintf(tsBuf, sizeof(tsBuf), "%llu", ms);
+    }
+
+    char tempsBuf[64];
+    snprintf(tempsBuf, sizeof(tempsBuf), "[%.1f,%.1f,%.1f]",
+             bms.temp1, bms.temp2, bms.mosTemp);
+
+    String cellsBuf = "[";
+    for (int i = 0; i < bms.activeCells; i++) {
+        cellsBuf += String(bms.cellVoltages[i], 3);
+        if (i < bms.activeCells - 1) cellsBuf += ",";
+    }
+    cellsBuf += "]";
+
+    String payload = "{";
+    payload += "\"timestamp\":"     + String(tsBuf)              + ",";
+    payload += "\"voltage\":"       + String(bms.voltage, 2)     + ",";
+    payload += "\"current\":"       + String(bms.current, 2)     + ",";
+    payload += "\"power\":"         + String(bms.power, 2)       + ",";
+    payload += "\"temperatures\":"  + String(tempsBuf)           + ",";
+    payload += "\"cell_voltages\":" + cellsBuf                   + ",";
+    payload += "\"is_offline\":false";
+    payload += "}";
+
+    int code = http.POST(payload);
+    if (code == 201 || code == 200 || code == 204) {
+        Serial.println("[Supabase] Telemetry snapshot logged successfully (201 Created).");
+    } else {
+        Serial.printf("[Supabase] Insert failed: HTTP %d | Response: %s\n", code, http.getString().c_str());
+    }
+    http.end();
+}
+
+// ============================================================
+// CLOUD COMMAND POLLING: FIREBASE /commands & /loadManager
+// ============================================================
+void pollCommands() {
+    if (WiFi.status() != WL_CONNECTED) return;
+
+    // 1. Poll /commands.json (Inverter Charge/Discharge control)
+    HTTPClient http;
+    http.begin(String(FIREBASE_HOST) + "/commands.json");
+    int code = http.GET();
+
+    if (code == 200) {
+        String body = http.getString();
+        StaticJsonDocument<256> doc;
+        if (!deserializeJson(doc, body)) {
+            bool discharge = doc["discharge"] | true;
+            bool charge    = doc["charge"]    | true;
+
+            if (!commandsInitialized) {
+                lastKnownDischarge  = discharge;
+                lastKnownCharge     = charge;
+                commandsInitialized = true;
+            } else {
+                if (discharge != lastKnownDischarge) {
+                    lastKnownDischarge = discharge;
+                    StaticJsonDocument<128> cmd;
+                    cmd["cmd"] = "discharge";
+                    cmd["val"] = discharge;
+                    serializeJson(cmd, Serial2);
+                    Serial2.println();
+                }
+                if (charge != lastKnownCharge) {
+                    lastKnownCharge = charge;
+                    StaticJsonDocument<128> cmd;
+                    cmd["cmd"] = "charge";
+                    cmd["val"] = charge;
+                    serializeJson(cmd, Serial2);
+                    Serial2.println();
+                }
+            }
+        }
+    }
+    http.end();
+
+    // 2. Poll /loadManager.json (Remote Web Relay Overrides)
+    HTTPClient httpLM;
+    httpLM.begin(String(FIREBASE_HOST) + "/loadManager.json");
+    int lmCode = httpLM.GET();
+
+    if (lmCode == 200) {
+        String body = httpLM.getString();
+        StaticJsonDocument<256> doc;
+        if (!deserializeJson(doc, body)) {
+            String mode = doc["mode"] | "AUTO";
+            bool l1     = doc["channel1"] | true;
+            bool l2     = doc["channel2"] | true;
+            bool l3     = doc["channel3"] | true;
+
+            if (!loadManagerInitialized) {
+                lastKnownMode = mode;
+                lastKnownLoad1 = l1;
+                lastKnownLoad2 = l2;
+                lastKnownLoad3 = l3;
+                loadManagerInitialized = true;
+            } else {
+                // If the remote user clicked anything on the Web Dashboard:
+                if (mode != lastKnownMode || l1 != lastKnownLoad1 || l2 != lastKnownLoad2 || l3 != lastKnownLoad3) {
+                    lastKnownMode = mode;
+                    lastKnownLoad1 = l1;
+                    lastKnownLoad2 = l2;
+                    lastKnownLoad3 = l3;
+
+                    Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
+                                  mode.c_str(), l1, l2, l3);
+
+                    StaticJsonDocument<256> fwd;
+                    fwd["cmd"] = "loadManager";
+                    fwd["mode"] = mode;
+                    fwd["ch1"] = l1;
+                    fwd["ch2"] = l2;
+                    fwd["ch3"] = l3;
+
+                    serializeJson(fwd, Serial2);
+                    Serial2.println();
+                }
+            }
+        }
+    }
+    httpLM.end();
+}
+
+// ============================================================
+// PARSE INCOMING UART TELEMETRY FROM BOARD 1
+// ============================================================
+void processIncomingTelemetry() {
+    while (Serial2.available()) {
+        String line = Serial2.readStringUntil('\n');
+        line.trim();
+        if (line.length() < 10) continue;
+
+        StaticJsonDocument<2048> doc;
+        DeserializationError err = deserializeJson(doc, line);
+        if (err) continue;
+
+        bms.soc          = doc["soc"]  | 0;
+        bms.soh          = doc["soh"]  | 0;
+        bms.voltage      = doc["v"]    | 0.0f;
+        bms.current      = doc["i"]    | 0.0f;
+        bms.power        = doc["p"]    | 0.0f;
+        bms.capRemaining = doc["cap"]  | 0.0f;
+        bms.fullCap      = doc["fcap"] | 0.0f;
+        bms.temp1        = doc["t1"]   | 0.0f;
+        bms.temp2        = doc["t2"]   | 0.0f;
+        bms.mosTemp      = doc["mos"]  | 0.0f;
+        bms.balCurrent   = doc["bal"]  | 0.0f;
+        bms.cycleCount   = doc["cyc"]  | 0;
+        bms.runtime      = doc["rt"]   | 0;
+        bms.charging     = doc["cm"]   | false;
+        bms.discharging  = doc["dm"]   | false;
+        bms.balancing    = doc["blk"]  | false;
+        bms.heating      = doc["htg"]  | false;
+        bms.errorBits    = doc["err"]  | 0;
+        bms.chargeStatus = doc["cs"]   | 0;
+        bms.rssi         = doc["rssi"] | 0;
+        bms.activeCells  = doc["cells"]| 0;
+        bms.deltaVoltage = doc["dv"]   | 0.0f;
+        bms.avgVoltage   = doc["avg"]  | 0.0f;
+
+        // Authoritative Relay states from Board 1
+        String m = doc["mode"] | "AUTO";
+        isAutoMode = (m == "AUTO");
+        channels[0].isOn = (doc["l1"] | 1) == 1;
+        channels[1].isOn = (doc["l2"] | 1) == 1;
+        channels[2].isOn = (doc["l3"] | 1) == 1;
+
+        JsonArray cv = doc["cv"];
+        for (int i = 0; i < bms.activeCells && i < 32; i++) {
+            bms.cellVoltages[i] = cv[i] | 0.0f;
+        }
+
+        JsonArray cr = doc["cr"];
+        for (int i = 0; i < bms.activeCells && i < 32; i++) {
+            bms.cellResistances[i] = cr[i] | 0.0f;
+        }
+
+        bms.valid = true;
+        Serial.printf("[UART-RX] Telemetry Received: SOC=%d%%, V=%.2fV, Mode=%s, Relays=[%d,%d,%d]\n",
+                      bms.soc, bms.voltage, isAutoMode ? "AUTO" : "MANUAL",
+                      channels[0].isOn, channels[1].isOn, channels[2].isOn);
+
+        // Upload instantly to Firebase
+        sendToFirebase();
+
+        // Push immediate live notification to Phone App via BLE
+        if (phoneBleConnected) {
+            notifyPhoneBle();
+        }
+    }
+}
+
+// ============================================================
+// BLE SERVER INITIALIZATION
+// ============================================================
+void initBLEServer() {
+    Serial.println("[Phone BLE] Initializing BLE Server (Sentry_Controller)...");
+    BLEDevice::init("Sentry_Controller");
+
+    pBleServer = BLEDevice::createServer();
+    pBleServer->setCallbacks(new SentryServerCallbacks());
+
+    BLEService* pService = pBleServer->createService(SENTRY_BLE_SERVICE_UUID);
+
+    pBleCtrlChar = pService->createCharacteristic(
+        SENTRY_BLE_CTRL_CHAR_UUID,
+        BLECharacteristic::PROPERTY_READ   |
+        BLECharacteristic::PROPERTY_WRITE  |
+        BLECharacteristic::PROPERTY_NOTIFY
+    );
+
+    pBleCtrlChar->addDescriptor(new BLE2902());
+    pBleCtrlChar->setCallbacks(new SentryCharCallbacks());
+
+    pService->start();
+
+    BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(SENTRY_BLE_SERVICE_UUID);
+    pAdvertising->setScanResponse(true);
+    pAdvertising->setMinPreferred(0x06);
+    pAdvertising->setMinPreferred(0x12);
+    BLEDevice::startAdvertising();
+
+    Serial.println("[Phone BLE] Sentry_Controller advertising started!");
+}
+
+// ============================================================
+// SETUP
+// ============================================================
+void setup() {
+    Serial.begin(115200);
+    Serial2.setRxBufferSize(2048);
+    Serial2.begin(115200, SERIAL_8N1, UART_RX_PIN, UART_TX_PIN);
+    Serial2.setTimeout(50);
+    delay(1000);
+
+    Serial.println("=================================================");
+    Serial.println("ESP32 #2 — Cloud Gateway + Phone BLE Server");
+    Serial.println("UART RX  : GPIO16 <- ESP32 #1 TX (GPIO 17)");
+    Serial.println("UART TX  : GPIO17 -> ESP32 #1 RX (GPIO 16)");
+    Serial.println("Sensors  : CH1:GPIO32 | CH2:GPIO33 | CH3:GPIO34");
+    Serial.println("Phone BLE: Server (Sentry_Controller)");
+    Serial.println("=================================================");
+
+    calibrateSensors();
+    connectWiFi();
+    initBLEServer();
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+void loop() {
+    unsigned long now = millis();
+
+    // Check Wi-Fi connection
+    if (WiFi.status() != WL_CONNECTED) {
+        connectWiFi();
+    }
+
+    // Handle BLE advertising restart if disconnected
+    if (!phoneBleConnected && oldPhoneConnected) {
+        delay(500); // Give bluetooth stack time to reset
+        pBleServer->startAdvertising();
+        Serial.println("[Phone BLE] Restarted advertising...");
+        oldPhoneConnected = phoneBleConnected;
+    }
+    if (phoneBleConnected && !oldPhoneConnected) {
+        oldPhoneConnected = phoneBleConnected;
+    }
+
+    // Process incoming BMS Telemetry and Relay States from Board 1
+    processIncomingTelemetry();
+
+    // Periodic BLE Notification to Phone App
+    if (phoneBleConnected && (now - lastBleNotifyTime >= BLE_NOTIFY_INTERVAL)) {
+        lastBleNotifyTime = now;
+        notifyPhoneBle();
+    }
+
+    // Poll Firebase for remote cloud commands
+    if (now - lastCommandPoll >= COMMAND_POLL_INTERVAL_MS) {
+        lastCommandPoll = now;
+        pollCommands();
+    }
+
+    // Upload to Supabase History every 5 seconds
+    if (now - lastSupabaseUpload >= SUPABASE_INTERVAL_MS) {
+        lastSupabaseUpload = now;
+        sendToSupabase();
+    }
+
+    // Send Sensor Readings & Heartbeat to Board 1 every 3 seconds
+    if (now - lastStatusSent >= STATUS_INTERVAL_MS) {
+        lastStatusSent = now;
+
+        // Read current sensors
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            channels[i].current = channels[i].isOn ? readChannelCurrent(channels[i]) : 0.0;
+        }
+
+        StaticJsonDocument<256> stat;
+        stat["cmd"]  = "status";
+        stat["wifi"] = (WiFi.status() == WL_CONNECTED);
+        stat["c1"]   = serialized(String(channels[0].current, 1));
+        stat["c2"]   = serialized(String(channels[1].current, 1));
+        stat["c3"]   = serialized(String(channels[2].current, 1));
+
+        struct tm timeinfo;
+        if (getLocalTime(&timeinfo, 10)) {
+            char timeStr[10];
+            strftime(timeStr, sizeof(timeStr), "%H:%M", &timeinfo);
+            stat["time"] = timeStr;
+        } else {
+            stat["time"] = "--:--";
+        }
+
+        serializeJson(stat, Serial2);
+        Serial2.println();
+    }
+
+    delay(20);
+}
