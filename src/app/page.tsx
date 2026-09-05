@@ -650,22 +650,19 @@ function HomeInner() {
       hasLoadedFirebase = true;
       clearTimeout(fallbackTimeout);
 
-      // Only reset the "Last updated" clock if the ESP32 lastUpdate field actually changed
+      // Track packet receipt timestamp from ESP32 #2 (/telemetry or /loadManager)
       let localLastUpdate = Date.now();
-      if (data.battery && data.battery.connectivity) {
-        const currentLastUpdate = data.battery.connectivity.lastUpdate;
+      const currentLastUpdate = data.telemetry?.updatedAt ?? data.loadManager?.updatedAt ?? data.battery?.connectivity?.lastUpdate;
 
-        // Cache this timestamp locally to persist the offline timer across page refreshes
+      if (currentLastUpdate) {
         const cachedBmsVal = typeof window !== "undefined" ? localStorage.getItem("lastUpdateBmsVal") : null;
         const cachedTimestamp = typeof window !== "undefined" ? localStorage.getItem("lastFirebaseUpdateTimestamp") : null;
 
         if (cachedBmsVal && cachedTimestamp && currentLastUpdate.toString() === cachedBmsVal) {
-          // No new telemetry was sent by the ESP32; retrieve the cached packet receipt time
           localLastUpdate = parseInt(cachedTimestamp, 10);
           setLastFirebaseUpdate(localLastUpdate);
           prevLastUpdateRef.current = currentLastUpdate;
         } else if (currentLastUpdate !== prevLastUpdateRef.current) {
-          // Fresh telemetry packet received! Record and update cache.
           const now = Date.now();
           localLastUpdate = now;
           setLastFirebaseUpdate(now);
@@ -679,21 +676,83 @@ function HomeInner() {
         setLastFirebaseUpdate(localLastUpdate);
       }
 
-      // Determine true system online status dynamically using localLastUpdate to bypass React state sync latency
+      // Determine true system online status dynamically (online if packet received within 30s)
       const systemOnline = (Date.now() - localLastUpdate) <= 30000;
       setIsSystemOnline(systemOnline);
 
-      // 1. Battery Telemetry parsing
-      if (data.battery) {
+      // ========================================================
+      // 1. PRIMARY TELEMETRY PIPELINE (ESP32 #2 /telemetry.json)
+      // ========================================================
+      if (data.telemetry) {
+        const t = data.telemetry;
+        const sum = t.summary;
+        if (sum) {
+          if (sum.soc !== undefined) setSoc(Number(sum.soc));
+          if (sum.voltage !== undefined) setVoltage(Number(sum.voltage));
+          if (sum.current !== undefined) setCurrent(Number(sum.current));
+          if (sum.power !== undefined) {
+            const p = Number(sum.power);
+            setPower(p);
+            setCurrentLoad(Math.abs(p));
+          }
+          if (sum.soh !== undefined) setSoh(Number(sum.soh));
+          if (sum.capacityRemaining !== undefined) setRemainingCapacity(Number(sum.capacityRemaining));
+          if (sum.fullCapacity !== undefined) setFullCapacity(Number(sum.fullCapacity));
+          if (sum.chargeState !== undefined) {
+            setIsCharging(sum.chargeState === "CHARGING" || sum.chargeState === "Charging");
+          }
+        }
+
+        // Cell Voltages array
+        if (Array.isArray(t.cellVoltages) && t.cellVoltages.length > 0) {
+          setCellVoltages(t.cellVoltages.map((v: any) => Number(v)));
+        }
+
+        // Cell Resistances array
+        if (Array.isArray(t.cellResistances) && t.cellResistances.length > 0) {
+          setWireResistances(t.cellResistances.map((r: any) => Number(r)));
+        }
+
+        // Temperatures
+        if (t.temperatures) {
+          setTemperatures([
+            { id: "temp1", name: "Battery temperature 1", value: Number(t.temperatures.temp1 ?? 25.7) },
+            { id: "temp2", name: "Battery temperature 2", value: Number(t.temperatures.temp2 ?? 25.7) },
+            { id: "mosfet", name: "MOSFET", value: Number(t.temperatures.mosfet ?? 26.9) },
+          ]);
+        }
+
+        // Diagnostics & Connectivity
+        if (t.diagnostics) {
+          const diag = t.diagnostics;
+          if (diag.cycleCount !== undefined) setCycleCount(Number(diag.cycleCount));
+          if (diag.bleRssi !== undefined) setBleRssi(Number(diag.bleRssi));
+          if (diag.errorBits !== undefined) {
+            const errVal = Number(diag.errorBits);
+            setHasBmsError(errVal > 0);
+            setBmsErrorsBitmask(errVal);
+          }
+        }
+
+        // MOSFET Switches
+        if (t.mosfets) {
+          if (t.mosfets.discharging !== undefined) {
+            setIsBmsDischarging(!!t.mosfets.discharging);
+          }
+        }
+      } 
+      // ========================================================
+      // 2. LEGACY / FALLBACK PIPELINE (if /battery schema is present)
+      // ========================================================
+      else if (data.battery) {
         const { live, cellVoltages: cv, connectivity, statistics, temperatures: temps, errors, status } = data.battery;
 
         if (live) {
           if (live.soc !== undefined) setSoc(live.soc);
           if (live.chargeState !== undefined) {
-            setIsCharging(live.chargeState === "Charging");
+            setIsCharging(live.chargeState === "Charging" || live.chargeState === "CHARGING");
           }
           if (live.dischargingPower !== undefined) {
-            // Prefer dischargingPower, fall back to absolute net power
             setCurrentLoad(live.dischargingPower > 0 ? live.dischargingPower : Math.abs(live.power ?? 0));
           } else if (live.power !== undefined) {
             setCurrentLoad(Math.abs(live.power));
@@ -715,7 +774,6 @@ function HomeInner() {
           ]);
         }
 
-        // Parse accurate wire resistances from Firebase RTDB if available
         if (data.battery.wireResistances) {
           const wr = data.battery.wireResistances;
           setWireResistances([
@@ -732,18 +790,10 @@ function HomeInner() {
             cr.cell3 ?? cr.res3 ?? 1.1,
             cr.cell4 ?? cr.res4 ?? 1.4,
           ]);
-        } else if (cv) {
-          const r1 = cv.cell1Res ?? cv.res1 ?? cv.cell1_res ?? 1.2;
-          const r2 = cv.cell2Res ?? cv.res2 ?? cv.cell2_res ?? 1.5;
-          const r3 = cv.cell3Res ?? cv.res3 ?? cv.cell3_res ?? 1.1;
-          const r4 = cv.cell4Res ?? cv.res4 ?? cv.cell4_res ?? 1.4;
-          setWireResistances([r1, r2, r3, r4]);
         }
 
-        if (statistics) {
-          if (statistics.cycleCount !== undefined) {
-            setCycleCount(statistics.cycleCount);
-          }
+        if (statistics && statistics.cycleCount !== undefined) {
+          setCycleCount(statistics.cycleCount);
         }
 
         if (temps) {
@@ -766,33 +816,46 @@ function HomeInner() {
           setBmsErrorsBitmask(errors.raw ?? 0);
         }
 
-        if (status) {
-          if (status.dischargingMosfet !== undefined) {
-            setIsBmsDischarging(!!status.dischargingMosfet);
+        if (status && status.dischargingMosfet !== undefined) {
+          setIsBmsDischarging(!!status.dischargingMosfet);
+        }
+      }
+
+      // ========================================================
+      // 3. LOAD MANAGER PIPELINE (/loadManager or /battery.loadStatus)
+      // ========================================================
+      if (data.commands && data.commands.discharge !== undefined) {
+        setIsDischargeCommandedOn(!!data.commands.discharge);
+      }
+
+      // Sync load states if outside user manual click debounce window
+      if (Date.now() - lastManualToggleTimeRef.current > 12000) {
+        if (data.loadManager) {
+          const lm = data.loadManager;
+          const isL1 = lm.channel1 !== undefined ? !!lm.channel1 : (data.telemetry?.relays?.ch1 ?? true);
+          const isL2 = lm.channel2 !== undefined ? !!lm.channel2 : (data.telemetry?.relays?.ch2 ?? true);
+          const isL3 = lm.channel3 !== undefined ? !!lm.channel3 : (data.telemetry?.relays?.ch3 ?? false);
+
+          const fetchedLoads: ManagedLoad[] = [
+            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: isL1 ? "active" : "shed", isOn: isL1, icons: ["router", "wifi", "laptop"] },
+            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: isL2 ? "active" : "shed", isOn: isL2, icons: ["fan", "fridge"] },
+            { id: "3", name: "TV/Lights", level: "non-essential", status: isL3 ? "active" : "shed", isOn: isL3, icons: ["tv", "bulb"] },
+          ];
+          setManagerLoads(fetchedLoads);
+
+          if (lm.mode) {
+            const m = lm.mode.toLowerCase();
+            setManagerMode(m === "manual" ? "manual" : "auto");
           }
-        }
-      }
-
-      // 2. Load Manager State parsing from Hardware Status
-      if (data.commands) {
-        if (data.commands.discharge !== undefined) {
-          setIsDischargeCommandedOn(!!data.commands.discharge);
-        }
-      }
-
-      if (data.battery && data.battery.loadStatus) {
-        const ls = data.battery.loadStatus;
-        
-        // Continuously sync UI with true hardware state, unless the user 
-        // just clicked a manual toggle (debounce for 12 seconds to wait for roundtrip)
-        if (Date.now() - lastManualToggleTimeRef.current > 12000) {
+        } else if (data.battery && data.battery.loadStatus) {
+          const ls = data.battery.loadStatus;
           const fetchedLoads: ManagedLoad[] = [
             { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: ls.load1 ? "active" : "shed", isOn: !!ls.load1, icons: ["router", "wifi", "laptop"] },
             { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: ls.load2 ? "active" : "shed", isOn: !!ls.load2, icons: ["fan", "fridge"] },
             { id: "3", name: "TV/Lights", level: "non-essential", status: ls.load3 ? "active" : "shed", isOn: !!ls.load3, icons: ["tv", "bulb"] },
           ];
           setManagerLoads(fetchedLoads);
-          
+
           if (ls.mode === "MANUAL") {
             setManagerMode("manual");
           } else if (ls.mode === "AUTO") {
