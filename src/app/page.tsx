@@ -822,19 +822,36 @@ function HomeInner() {
       }
 
       // ========================================================
-      // 3. LOAD MANAGER PIPELINE (/loadManager or /battery.loadStatus)
+      // 3. LOAD MANAGER PIPELINE (Synchronized from ESP32 telemetry or /loadManager)
       // ========================================================
       if (data.commands && data.commands.discharge !== undefined) {
         setIsDischargeCommandedOn(!!data.commands.discharge);
       }
 
-      // Sync load states if outside user manual click debounce window
-      if (Date.now() - lastManualToggleTimeRef.current > 12000) {
-        if (data.loadManager) {
+      // Sync load states if outside user manual click debounce window (5 seconds)
+      if (Date.now() - lastManualToggleTimeRef.current > 5000) {
+        if (data.telemetry && data.telemetry.relays) {
+          const r = data.telemetry.relays;
+          const isL1 = r.ch1 !== undefined ? (typeof r.ch1 === "string" ? r.ch1 === "true" : !!r.ch1) : true;
+          const isL2 = r.ch2 !== undefined ? (typeof r.ch2 === "string" ? r.ch2 === "true" : !!r.ch2) : true;
+          const isL3 = r.ch3 !== undefined ? (typeof r.ch3 === "string" ? r.ch3 === "true" : !!r.ch3) : false;
+
+          const fetchedLoads: ManagedLoad[] = [
+            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: isL1 ? "active" : "shed", isOn: isL1, icons: ["router", "wifi", "laptop"] },
+            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: isL2 ? "active" : "shed", isOn: isL2, icons: ["fan", "fridge"] },
+            { id: "3", name: "TV/Lights", level: "non-essential", status: isL3 ? "active" : "shed", isOn: isL3, icons: ["tv", "bulb"] },
+          ];
+          setManagerLoads(fetchedLoads);
+
+          if (r.mode) {
+            const m = r.mode.toString().toLowerCase();
+            setManagerMode(m === "manual" ? "manual" : "auto");
+          }
+        } else if (data.loadManager) {
           const lm = data.loadManager;
-          const isL1 = lm.channel1 !== undefined ? !!lm.channel1 : (data.telemetry?.relays?.ch1 ?? true);
-          const isL2 = lm.channel2 !== undefined ? !!lm.channel2 : (data.telemetry?.relays?.ch2 ?? true);
-          const isL3 = lm.channel3 !== undefined ? !!lm.channel3 : (data.telemetry?.relays?.ch3 ?? false);
+          const isL1 = lm.channel1 !== undefined ? !!lm.channel1 : true;
+          const isL2 = lm.channel2 !== undefined ? !!lm.channel2 : true;
+          const isL3 = lm.channel3 !== undefined ? !!lm.channel3 : false;
 
           const fetchedLoads: ManagedLoad[] = [
             { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: isL1 ? "active" : "shed", isOn: isL1, icons: ["router", "wifi", "laptop"] },
@@ -844,7 +861,7 @@ function HomeInner() {
           setManagerLoads(fetchedLoads);
 
           if (lm.mode) {
-            const m = lm.mode.toLowerCase();
+            const m = lm.mode.toString().toLowerCase();
             setManagerMode(m === "manual" ? "manual" : "auto");
           }
         } else if (data.battery && data.battery.loadStatus) {

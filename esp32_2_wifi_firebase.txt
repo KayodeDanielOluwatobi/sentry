@@ -34,7 +34,7 @@ unsigned long lastSupabaseUpload   = 0;
 unsigned long lastStatusSent       = 0;
 unsigned long lastCommandPoll      = 0;
 const unsigned long SUPABASE_INTERVAL_MS     = 5000;
-const unsigned long COMMAND_POLL_INTERVAL_MS = 3000;
+const unsigned long COMMAND_POLL_INTERVAL_MS = 1500;
 const unsigned long STATUS_INTERVAL_MS       = 3000;
 
 // NTP Configuration
@@ -225,9 +225,10 @@ void sendToFirebase() {
     payload += "},";
 
     payload += "\"relays\":{";
-    payload += "\"ch1\":" + String(channels[0].isOn ? "true" : "false") + ",";
-    payload += "\"ch2\":" + String(channels[1].isOn ? "true" : "false") + ",";
-    payload += "\"ch3\":" + String(channels[2].isOn ? "true" : "false");
+    payload += "\"ch1\":"  + String(channels[0].isOn ? "true" : "false") + ",";
+    payload += "\"ch2\":"  + String(channels[1].isOn ? "true" : "false") + ",";
+    payload += "\"ch3\":"  + String(channels[2].isOn ? "true" : "false") + ",";
+    payload += "\"mode\":\"" + String(isAutoMode ? "AUTO" : "MANUAL") + "\"";
     payload += "},";
 
     payload += "\"mosfets\":{";
@@ -270,23 +271,6 @@ void sendToFirebase() {
         Serial.printf("[Firebase] /telemetry PUT failed: %d\n", code);
     }
     http.end();
-
-    // Also update /loadManager with authoritative state from Board 1
-    HTTPClient httpLM;
-    String urlLM = String(FIREBASE_HOST) + "/loadManager.json";
-    httpLM.begin(urlLM);
-    httpLM.addHeader("Content-Type", "application/json");
-
-    String lmPayload = "{";
-    lmPayload += "\"mode\":\""     + String(isAutoMode ? "AUTO" : "MANUAL") + "\",";
-    lmPayload += "\"channel1\":"   + String(channels[0].isOn ? "true" : "false") + ",";
-    lmPayload += "\"channel2\":"   + String(channels[1].isOn ? "true" : "false") + ",";
-    lmPayload += "\"channel3\":"   + String(channels[2].isOn ? "true" : "false") + ",";
-    lmPayload += "\"updatedAt\":{\".sv\":\"timestamp\"}";
-    lmPayload += "}";
-
-    httpLM.PUT(lmPayload);
-    httpLM.end();
 }
 
 // ============================================================
