@@ -38,6 +38,8 @@ export interface SmartEnergyManagerProps extends React.HTMLAttributes<HTMLDivEle
   subtitle?: string;
   loads?: ManagedLoad[];
   mode?: "auto" | "manual";
+  syncStatus?: "idle" | "pending" | "error";
+  syncMessage?: string;
   onLoadsChange?: (loads: ManagedLoad[]) => void;
   onModeChange?: (mode: "auto" | "manual") => void;
   onViewDetails?: () => void;
@@ -302,6 +304,8 @@ export default function SmartEnergyManager({
   subtitle = "Load Prioritization",
   loads: externalLoads,
   mode: externalMode,
+  syncStatus = "idle",
+  syncMessage,
   onLoadsChange,
   onModeChange,
   onViewDetails,
@@ -559,6 +563,23 @@ export default function SmartEnergyManager({
             </div>
           </div>
         </div>
+
+        {syncStatus !== "idle" && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              margin: "0.5rem 0",
+              color: syncStatus === "error" ? "#dc2626" : grayText,
+              fontSize: "0.72rem",
+              lineHeight: 1.4,
+            }}
+          >
+            {syncMessage ?? (syncStatus === "pending"
+              ? "Waiting for controller confirmation…"
+              : "Controller did not confirm the requested state.")}
+          </div>
+        )}
 
         {/* ── Wrapper to prevent parent flex gap snapping during unmount retract ── */}
         <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>

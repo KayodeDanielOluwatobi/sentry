@@ -41,6 +41,7 @@ export const SENTRY_BLE_CTRL_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
 export interface BleStatePacket {
   mode?: "AUTO" | "MANUAL";
+  commandId?: string;
   ch1?: boolean;
   ch2?: boolean;
   ch3?: boolean;
@@ -211,7 +212,7 @@ class SentryWebBluetooth {
       this.updateState({
         isConnected: true,
         isConnecting: false,
-        deviceName: this.device.name || "Sentry Controller",
+        deviceName: this.device.name || "Sentry",
         error: null,
       });
 
