@@ -9,9 +9,18 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    supabase
+      ? null
+      : "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the app."
+  );
 
   const handleGoogleSignIn = async () => {
+    if (!supabase) {
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the app.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -203,7 +212,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
             id="google-signin-btn"
             className="primary-dark-btn"
             onClick={handleGoogleSignIn}
-            disabled={loading}
+            disabled={loading || !supabase}
             style={{
               width: "100%",
               background: "#111111",
@@ -217,7 +226,7 @@ export default function LoginScreen({ theme = "light" }: LoginScreenProps) {
               alignItems: "center",
               justifyContent: "center",
               gap: "0.75rem",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || !supabase ? "not-allowed" : "pointer",
               outline: "none",
               boxShadow: "0 6px 18px rgba(0, 0, 0, 0.15)",
               fontFamily: "var(--font-inter), sans-serif",

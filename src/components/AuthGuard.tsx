@@ -49,6 +49,11 @@ export default function AuthGuard({ children, theme = "light" }: AuthGuardProps)
       return;
     }
 
+    if (!supabase) {
+      setUser(null);
+      return;
+    }
+
     // Immediately restore any existing session (handles page refresh & redirect return)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);

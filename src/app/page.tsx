@@ -1031,6 +1031,11 @@ function HomeInner() {
   // Fetch telemetry history from Supabase on mount
   useEffect(() => {
     async function fetchTelemetryHistory() {
+      if (!supabase) {
+        console.error("[Sentry] Cannot load telemetry history: Supabase is not configured.");
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from("telemetry_history")

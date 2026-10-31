@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { 
   DatabaseIcon, 
   BluetoothIcon, 
@@ -35,7 +36,7 @@ function DotGrid({ isDark }: { isDark: boolean }) {
 interface ProfileTabProps {
   theme: "light" | "dark";
   authUser: any;
-  supabase: any;
+  supabase: SupabaseClient | null;
   bleConnected?: boolean;
   wifiConnected?: boolean;
   lastFirebaseUpdate?: number;
@@ -124,6 +125,10 @@ export default function ProfileTab({
   const toggleShadow = isDark ? "0 0 8px rgba(74, 222, 128, 0.25)" : "0 0 8px rgba(13, 155, 13, 0.2)";
 
   const handleSignOut = async () => {
+    if (!supabase) {
+      console.error("[Sentry] Cannot sign out because Supabase is not configured.");
+      return;
+    }
     await supabase.auth.signOut();
   };
 
