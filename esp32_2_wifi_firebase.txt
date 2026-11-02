@@ -73,6 +73,8 @@ String lastKnownMode = "AUTO";
 bool lastKnownLoad1 = true;
 bool lastKnownLoad2 = true;
 bool lastKnownLoad3 = true;
+String lastKnownLoadManagerCommandId = "";
+String lastControllerCommandId = "";
 bool loadManagerInitialized = false;
 
 // ============================================================
@@ -228,7 +230,8 @@ void sendToFirebase() {
     payload += "\"ch1\":"  + String(channels[0].isOn ? "true" : "false") + ",";
     payload += "\"ch2\":"  + String(channels[1].isOn ? "true" : "false") + ",";
     payload += "\"ch3\":"  + String(channels[2].isOn ? "true" : "false") + ",";
-    payload += "\"mode\":\"" + String(isAutoMode ? "AUTO" : "MANUAL") + "\"";
+    payload += "\"mode\":\"" + String(isAutoMode ? "AUTO" : "MANUAL") + "\",";
+    payload += "\"commandId\":\"" + lastControllerCommandId + "\"";
     payload += "},";
 
     payload += "\"mosfets\":{";
@@ -385,12 +388,19 @@ void pollCommands() {
 
     if (lmCode == 200) {
         String body = httpLM.getString();
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<512> doc;
         if (!deserializeJson(doc, body)) {
             String mode = doc["mode"] | "AUTO";
+            mode.toUpperCase();
             bool l1     = doc["channel1"] | true;
             bool l2     = doc["channel2"] | true;
             bool l3     = doc["channel3"] | true;
+            String commandId = doc["commandId"] | "";
+            bool hasLoadCommand = doc.containsKey("mode") ||
+                                  doc.containsKey("channel1") ||
+                                  doc.containsKey("channel2") ||
+                                  doc.containsKey("channel3");
+            bool shouldForward = false;
 
             if (!loadManagerInitialized) {
                 lastKnownMode = mode;
@@ -398,27 +408,36 @@ void pollCommands() {
                 lastKnownLoad2 = l2;
                 lastKnownLoad3 = l3;
                 loadManagerInitialized = true;
+                shouldForward = hasLoadCommand;
             } else {
-                // If the remote user clicked anything on the Web Dashboard:
-                if (mode != lastKnownMode || l1 != lastKnownLoad1 || l2 != lastKnownLoad2 || l3 != lastKnownLoad3) {
-                    lastKnownMode = mode;
-                    lastKnownLoad1 = l1;
-                    lastKnownLoad2 = l2;
-                    lastKnownLoad3 = l3;
+                shouldForward = hasLoadCommand &&
+                    (commandId != lastKnownLoadManagerCommandId ||
+                     mode != lastKnownMode ||
+                     l1 != lastKnownLoad1 ||
+                     l2 != lastKnownLoad2 ||
+                     l3 != lastKnownLoad3);
+            }
 
-                    Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
-                                  mode.c_str(), l1, l2, l3);
+            lastKnownMode = mode;
+            lastKnownLoad1 = l1;
+            lastKnownLoad2 = l2;
+            lastKnownLoad3 = l3;
+            lastKnownLoadManagerCommandId = commandId;
 
-                    StaticJsonDocument<256> fwd;
-                    fwd["cmd"] = "loadManager";
-                    fwd["mode"] = mode;
-                    fwd["ch1"] = l1;
-                    fwd["ch2"] = l2;
-                    fwd["ch3"] = l3;
+            if (shouldForward) {
+                Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
+                              mode.c_str(), l1, l2, l3);
 
-                    serializeJson(fwd, Serial2);
-                    Serial2.println();
-                }
+                StaticJsonDocument<256> fwd;
+                fwd["cmd"] = "loadManager";
+                fwd["mode"] = mode;
+                fwd["ch1"] = l1;
+                fwd["ch2"] = l2;
+                fwd["ch3"] = l3;
+                fwd["commandId"] = commandId;
+
+                serializeJson(fwd, Serial2);
+                Serial2.println();
             }
         }
     }
@@ -461,6 +480,7 @@ void processIncomingTelemetry() {
         bms.activeCells  = doc["cells"]| 0;
         bms.deltaVoltage = doc["dv"]   | 0.0f;
         bms.avgVoltage   = doc["avg"]  | 0.0f;
+        lastControllerCommandId = doc["commandId"] | "";
 
         // Authoritative Relay states from Board 1
         String m = doc["mode"] | "AUTO";

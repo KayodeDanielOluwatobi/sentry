@@ -14,7 +14,7 @@
 // Architecture:
 // - ESP32 #2 acts as the central Wireless Hub:
 //     1. Wi-Fi Station (Cloud): Publishes live telemetry to Firebase RTDB & Supabase history via HTTPS.
-//     2. BLE Server (Phone App): Advertises as "Sentry_Controller" for direct Web Bluetooth PWA control.
+//     2. BLE Server (Phone App): Advertises as "Sentry" for direct Web Bluetooth PWA control.
 //     3. ACS758 Current Sensors: Measures individual load branch currents on ADC1 (GPIO 32, 33, 34).
 //     4. UART Bridge (Serial2): Bidirectionally links with ESP32 #1 (GPIO 16 RX, GPIO 17 TX).
 // - Commands from Phone Bluetooth OR Firebase are immediately forwarded to ESP32 #1 for physical relay switching.
@@ -105,6 +105,8 @@ String lastKnownMode = "AUTO";
 bool lastKnownLoad1 = true;
 bool lastKnownLoad2 = true;
 bool lastKnownLoad3 = true;
+String lastKnownLoadManagerCommandId = "";
+String lastControllerCommandId = "";
 bool loadManagerInitialized = false;
 
 // ============================================================
@@ -184,25 +186,14 @@ class SentryCharCallbacks: public BLECharacteristicCallbacks {
         }
 
         // Relay Load Manager or Mode override command from Phone App
-        if (doc.containsKey("mode") || doc.containsKey("ch1") || doc.containsKey("cmd")) {
+        if (doc.containsKey("mode") || doc.containsKey("ch1") ||
+            doc.containsKey("ch2") || doc.containsKey("ch3") || doc.containsKey("cmd")) {
             // Forward directly over Serial2 to ESP32 #1
             Serial.print("[Phone BLE -> Board 1 UART] Forwarding: ");
             Serial.println(rxValue);
 
             Serial2.println(rxValue);
             Serial2.flush();
-
-            // Optimistically update local tracking state for instantaneous phone UI feedback
-            if (doc.containsKey("mode")) {
-                const char* m = doc["mode"];
-                isAutoMode = (strcmp(m, "AUTO") == 0);
-            }
-            if (doc.containsKey("ch1")) channels[0].isOn = doc["ch1"];
-            if (doc.containsKey("ch2")) channels[1].isOn = doc["ch2"];
-            if (doc.containsKey("ch3")) channels[2].isOn = doc["ch3"];
-
-            // Immediate BLE state response back to phone
-            notifyPhoneBle();
         }
     }
 };
@@ -215,6 +206,7 @@ void notifyPhoneBle() {
 
     StaticJsonDocument<256> doc;
     doc["mode"] = isAutoMode ? "AUTO" : "MANUAL";
+    doc["commandId"] = lastControllerCommandId;
     doc["ch1"]  = channels[0].isOn;
     doc["ch2"]  = channels[1].isOn;
     doc["ch3"]  = channels[2].isOn;
@@ -356,7 +348,8 @@ void sendToFirebase() {
     payload += "\"ch1\":"  + String(channels[0].isOn ? "true" : "false") + ",";
     payload += "\"ch2\":"  + String(channels[1].isOn ? "true" : "false") + ",";
     payload += "\"ch3\":"  + String(channels[2].isOn ? "true" : "false") + ",";
-    payload += "\"mode\":\"" + String(isAutoMode ? "AUTO" : "MANUAL") + "\"";
+    payload += "\"mode\":\"" + String(isAutoMode ? "AUTO" : "MANUAL") + "\",";
+    payload += "\"commandId\":\"" + lastControllerCommandId + "\"";
     payload += "},";
 
     payload += "\"mosfets\":{";
@@ -528,12 +521,19 @@ void pollCommands() {
 
         if (lmCode == 200) {
             String body = httpLM.getString();
-            StaticJsonDocument<256> doc;
+            StaticJsonDocument<512> doc;
             if (!deserializeJson(doc, body)) {
                 String mode = doc["mode"] | "AUTO";
+                mode.toUpperCase();
                 bool l1     = doc["channel1"] | true;
                 bool l2     = doc["channel2"] | true;
                 bool l3     = doc["channel3"] | true;
+                String commandId = doc["commandId"] | "";
+                bool hasLoadCommand = doc.containsKey("mode") ||
+                                      doc.containsKey("channel1") ||
+                                      doc.containsKey("channel2") ||
+                                      doc.containsKey("channel3");
+                bool shouldForward = false;
 
                 if (!loadManagerInitialized) {
                     lastKnownMode = mode;
@@ -541,27 +541,36 @@ void pollCommands() {
                     lastKnownLoad2 = l2;
                     lastKnownLoad3 = l3;
                     loadManagerInitialized = true;
+                    shouldForward = hasLoadCommand;
                 } else {
-                    // If the remote user clicked anything on the Web Dashboard:
-                    if (mode != lastKnownMode || l1 != lastKnownLoad1 || l2 != lastKnownLoad2 || l3 != lastKnownLoad3) {
-                        lastKnownMode = mode;
-                        lastKnownLoad1 = l1;
-                        lastKnownLoad2 = l2;
-                        lastKnownLoad3 = l3;
+                    shouldForward = hasLoadCommand &&
+                        (commandId != lastKnownLoadManagerCommandId ||
+                         mode != lastKnownMode ||
+                         l1 != lastKnownLoad1 ||
+                         l2 != lastKnownLoad2 ||
+                         l3 != lastKnownLoad3);
+                }
 
-                        Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
-                                      mode.c_str(), l1, l2, l3);
+                lastKnownMode = mode;
+                lastKnownLoad1 = l1;
+                lastKnownLoad2 = l2;
+                lastKnownLoad3 = l3;
+                lastKnownLoadManagerCommandId = commandId;
 
-                        StaticJsonDocument<256> fwd;
-                        fwd["cmd"] = "loadManager";
-                        fwd["mode"] = mode;
-                        fwd["ch1"] = l1;
-                        fwd["ch2"] = l2;
-                        fwd["ch3"] = l3;
+                if (shouldForward) {
+                    Serial.printf("[Cloud Web Command] Mode: %s, CH1: %d, CH2: %d, CH3: %d -> Forwarding to Board 1\n",
+                                  mode.c_str(), l1, l2, l3);
 
-                        serializeJson(fwd, Serial2);
-                        Serial2.println();
-                    }
+                    StaticJsonDocument<256> fwd;
+                    fwd["cmd"] = "loadManager";
+                    fwd["mode"] = mode;
+                    fwd["ch1"] = l1;
+                    fwd["ch2"] = l2;
+                    fwd["ch3"] = l3;
+                    fwd["commandId"] = commandId;
+
+                    serializeJson(fwd, Serial2);
+                    Serial2.println();
                 }
             }
         }
@@ -605,6 +614,7 @@ void processIncomingTelemetry() {
         bms.activeCells  = doc["cells"]| 0;
         bms.deltaVoltage = doc["dv"]   | 0.0f;
         bms.avgVoltage   = doc["avg"]  | 0.0f;
+        lastControllerCommandId = doc["commandId"] | "";
 
         // Authoritative Relay states from Board 1
         String m = doc["mode"] | "AUTO";
@@ -639,8 +649,8 @@ void processIncomingTelemetry() {
 // BLE SERVER INITIALIZATION
 // ============================================================
 void initBLEServer() {
-    Serial.println("[Phone BLE] Initializing BLE Server (Sentry_Controller)...");
-    BLEDevice::init("Sentry_Controller");
+    Serial.println("[Phone BLE] Initializing BLE Server (Sentry)...");
+    BLEDevice::init("Sentry");
 
     pBleServer = BLEDevice::createServer();
     pBleServer->setCallbacks(new SentryServerCallbacks());
@@ -660,13 +670,16 @@ void initBLEServer() {
     pService->start();
 
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+    BLEAdvertisementData scanResponseData;
+    scanResponseData.setName("Sentry");
+    pAdvertising->setScanResponseData(scanResponseData);
     pAdvertising->addServiceUUID(SENTRY_BLE_SERVICE_UUID);
     pAdvertising->setScanResponse(true);
     pAdvertising->setMinPreferred(0x06);
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
 
-    Serial.println("[Phone BLE] Sentry_Controller advertising started!");
+    Serial.println("[Phone BLE] Sentry advertising started!");
 }
 
 // ============================================================
@@ -684,7 +697,7 @@ void setup() {
     Serial.println("UART RX  : GPIO16 <- ESP32 #1 TX (GPIO 17)");
     Serial.println("UART TX  : GPIO17 -> ESP32 #1 RX (GPIO 16)");
     Serial.println("Sensors  : CH1:GPIO32 | CH2:GPIO33 | CH3:GPIO34");
-    Serial.println("Phone BLE: Server (Sentry_Controller)");
+    Serial.println("Phone BLE: Server (Sentry)");
     Serial.println("=================================================");
 
     calibrateSensors();

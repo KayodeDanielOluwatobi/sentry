@@ -155,6 +155,8 @@ npm run dev
 ```
 Open `http://localhost:3000` inside your browser to view the active Sentry interface.
 
+The app can build without Supabase credentials, but Google authentication and telemetry history require valid `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` values in `.env.local`. Restart the dev server or rerun the production build after changing these values.
+
 ---
 
 ## 🔌 Firmware Compilation & Hardware Hookup

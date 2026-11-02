@@ -166,6 +166,7 @@ LoadChannel channels[3] = {
 
 const int NUM_CHANNELS = 3;
 String currentMode = "AUTO"; // "AUTO" or "MANUAL"
+String lastLoadManagerCommandId = "";
 
 // ============================================================
 // JK-BMS BLE CLIENT CONFIGURATION
@@ -295,6 +296,10 @@ void handleControlCommand(const String& jsonStr) {
     if (err) {
         Serial.print("[CMD] JSON parse failed: "); Serial.println(err.c_str());
         return;
+    }
+
+    if (doc.containsKey("commandId")) {
+        lastLoadManagerCommandId = doc["commandId"].as<String>();
     }
 
     // 1. Mode Change
@@ -520,6 +525,9 @@ void sendOverUART() {
 
     // Master Relay States & Mode
     doc["mode"]  = currentMode;
+    if (lastLoadManagerCommandId.length() > 0) {
+        doc["commandId"] = lastLoadManagerCommandId;
+    }
     doc["l1"]    = channels[0].isOn ? 1 : 0;
     doc["l2"]    = channels[1].isOn ? 1 : 0;
     doc["l3"]    = channels[2].isOn ? 1 : 0;

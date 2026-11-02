@@ -25,7 +25,7 @@ import SentryLineChart from "@/components/SentryLineChart";
 import { ThirdBracketSquareIcon, Csv01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { sentryBle, BleConnectionState, BleStatePacket } from "@/lib/web-bluetooth";
+import { sentryBle, BleConnectionState } from "@/lib/web-bluetooth";
 
 function HomeInner() {
   const authUser = useAuthUser();
@@ -119,7 +119,6 @@ function HomeInner() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [notifications, setNotifications] = useState<ActivityEvent[]>([]);
   const hasInitializedEventsRef = useRef(false);
-  const lastManualToggleTimeRef = useRef(0);
   const [tempUnit, setTempUnit] = useState<"C" | "F">("C");
   const [activeHistoryModal, setActiveHistoryModal] = useState<"voltage" | "current" | "power" | "temperature" | "cell-voltages" | null>(null);
   const [tempChartMode, setTempChartMode] = useState<"avg" | "all">("avg");
@@ -361,7 +360,7 @@ function HomeInner() {
           type: "cell_imbalance",
           severity: "success",
           title: "Direct Bluetooth Connected",
-          message: `Direct offline control link active with ${state.deviceName || "Sentry Controller"}.`,
+          message: `Direct offline control link active with ${state.deviceName || "Sentry"}.`,
           timestamp: new Date(),
           badge: "Direct BLE",
         };
@@ -395,28 +394,11 @@ function HomeInner() {
         setPower(packet.p);
         setCurrentLoad(Math.abs(packet.p));
       }
-      if (packet.mode) {
-        const parsedMode = packet.mode.toLowerCase() === "manual" ? "manual" : "auto";
-        setManagerMode(parsedMode);
-      }
-      if (packet.ch1 !== undefined || packet.ch2 !== undefined || packet.ch3 !== undefined) {
-        setManagerLoads((prev) => {
-          const next = [...prev];
-          if (next[0] && packet.ch1 !== undefined) {
-            next[0].isOn = packet.ch1;
-            next[0].status = packet.ch1 ? "active" : "shed";
-          }
-          if (next[1] && packet.ch2 !== undefined) {
-            next[1].isOn = packet.ch2;
-            next[1].status = packet.ch2 ? "active" : "shed";
-          }
-          if (next[2] && packet.ch3 !== undefined) {
-            next[2].isOn = packet.ch3;
-            next[2].status = packet.ch3 ? "active" : "shed";
-          }
-          return next;
-        });
-      }
+      applyManagerTelemetry(packet.mode, {
+        ch1: packet.ch1,
+        ch2: packet.ch2,
+        ch3: packet.ch3,
+      }, packet.commandId);
       setLastFirebaseUpdate(Date.now());
       setIsSystemOnline(true);
     });
@@ -594,6 +576,198 @@ function HomeInner() {
       { id: "3", name: "TV/Lights", level: "non-essential", status: "shed", isOn: false, icons: ["tv", "bulb"] },
     ];
   });
+  const [managerSyncStatus, setManagerSyncStatus] = useState<"idle" | "pending" | "error">("idle");
+  const [managerSyncMessage, setManagerSyncMessage] = useState("");
+  const managerStateRef = useRef({ mode: managerMode, loads: managerLoads });
+  const confirmedManagerStateRef = useRef<typeof managerStateRef.current>({
+    mode: managerMode,
+    loads: managerLoads,
+  });
+  const pendingManagerCommandRef = useRef<{
+    id: string;
+    mode: "auto" | "manual";
+    channels?: [boolean, boolean, boolean];
+  } | null>(null);
+  const managerCommandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyManagerTelemetry = (
+    modeValue?: unknown,
+    channelValues: { ch1?: unknown; ch2?: unknown; ch3?: unknown } = {},
+    commandId?: unknown
+  ) => {
+    const parseBoolean = (value: unknown): boolean | undefined => {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (typeof value === "string") {
+        const normalized = value.toLowerCase();
+        if (normalized === "true" || normalized === "1") return true;
+        if (normalized === "false" || normalized === "0") return false;
+      }
+      return undefined;
+    };
+
+    const normalizedMode = typeof modeValue === "string"
+      ? modeValue.toLowerCase()
+      : undefined;
+    const reportedMode = normalizedMode === "manual"
+      ? "manual"
+      : normalizedMode === "auto"
+        ? "auto"
+        : undefined;
+    const reportedChannels = [
+      parseBoolean(channelValues.ch1),
+      parseBoolean(channelValues.ch2),
+      parseBoolean(channelValues.ch3),
+    ];
+    const current = managerStateRef.current;
+    const reportedState = {
+      mode: reportedMode ?? current.mode,
+      loads: current.loads.map((load, index) => {
+        const isOn = reportedChannels[index];
+        return isOn === undefined
+          ? load
+          : { ...load, isOn, status: isOn ? "active" as const : "shed" as const };
+      }),
+    };
+
+    if (reportedMode !== undefined || reportedChannels.some(value => value !== undefined)) {
+      confirmedManagerStateRef.current = reportedState;
+    }
+
+    const pending = pendingManagerCommandRef.current;
+    if (pending) {
+      const channelsMatch = !pending.channels || pending.channels.every(
+        (expected, index) => reportedChannels[index] === expected
+      );
+      if (commandId !== pending.id || reportedMode !== pending.mode || !channelsMatch) return;
+
+      pendingManagerCommandRef.current = null;
+      if (managerCommandTimeoutRef.current) {
+        clearTimeout(managerCommandTimeoutRef.current);
+        managerCommandTimeoutRef.current = null;
+      }
+      setManagerSyncStatus("idle");
+      setManagerSyncMessage("");
+    } else {
+      setManagerSyncStatus("idle");
+      setManagerSyncMessage("");
+    }
+
+    managerStateRef.current = reportedState;
+    setManagerMode(reportedState.mode);
+    setManagerLoads(reportedState.loads);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sentry_manual_mode", reportedState.mode);
+      localStorage.setItem("sentry_manual_loads", JSON.stringify(reportedState.loads));
+    }
+  };
+
+  const startManagerCommand = (
+    id: string,
+    mode: "auto" | "manual",
+    channels?: [boolean, boolean, boolean]
+  ) => {
+    if (managerCommandTimeoutRef.current) clearTimeout(managerCommandTimeoutRef.current);
+    pendingManagerCommandRef.current = { id, mode, channels };
+    setManagerSyncStatus("pending");
+    setManagerSyncMessage("Waiting for the controller to confirm this change…");
+    managerCommandTimeoutRef.current = setTimeout(() => {
+      if (pendingManagerCommandRef.current?.id !== id) return;
+      pendingManagerCommandRef.current = null;
+      managerCommandTimeoutRef.current = null;
+      setManagerSyncStatus("error");
+      setManagerSyncMessage("The controller did not confirm the requested state. Showing its last reported state.");
+      const reportedState = confirmedManagerStateRef.current;
+      if (reportedState) {
+        managerStateRef.current = reportedState;
+        setManagerMode(reportedState.mode);
+        setManagerLoads(reportedState.loads);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sentry_manual_mode", reportedState.mode);
+          localStorage.setItem("sentry_manual_loads", JSON.stringify(reportedState.loads));
+        }
+      }
+    }, 15000);
+  };
+
+  const failManagerCommand = (id: string, message: string) => {
+    if (pendingManagerCommandRef.current?.id !== id) return;
+    pendingManagerCommandRef.current = null;
+    if (managerCommandTimeoutRef.current) {
+      clearTimeout(managerCommandTimeoutRef.current);
+      managerCommandTimeoutRef.current = null;
+    }
+    setManagerSyncStatus("error");
+    setManagerSyncMessage(message);
+    const reportedState = confirmedManagerStateRef.current;
+    if (reportedState) {
+      managerStateRef.current = reportedState;
+      setManagerMode(reportedState.mode);
+      setManagerLoads(reportedState.loads);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sentry_manual_mode", reportedState.mode);
+        localStorage.setItem("sentry_manual_loads", JSON.stringify(reportedState.loads));
+      }
+    }
+  };
+
+  const sendManagerCommand = async (
+    mode: "auto" | "manual",
+    channels: [boolean, boolean, boolean]
+  ) => {
+    const commandId = crypto.randomUUID();
+    const command = {
+      mode: mode.toUpperCase(),
+      ch1: channels[0],
+      ch2: channels[1],
+      ch3: channels[2],
+    };
+    const cloudCommand = {
+      ...command,
+      commandId,
+      channel1: channels[0],
+      channel2: channels[1],
+      channel3: channels[2],
+    };
+    const hasBle = sentryBle.getState().isConnected;
+    const hasFirebase = db !== null;
+
+    startManagerCommand(
+      commandId,
+      mode,
+      mode === "manual" ? channels : undefined
+    );
+
+    if (!hasBle && !hasFirebase) {
+      failManagerCommand(commandId, "No Bluetooth or Firebase connection is available to send this command.");
+      return;
+    }
+
+    const deliveries: Promise<boolean>[] = [];
+    if (hasBle) {
+      deliveries.push(
+        sentryBle.sendCommand(command).catch(error => {
+          console.error("Error sending load-manager command over Bluetooth:", error);
+          return false;
+        })
+      );
+    }
+    if (db) {
+      deliveries.push(
+        update(ref(db, "/loadManager"), cloudCommand)
+          .then(() => true)
+          .catch(error => {
+            console.error("Error writing load-manager command to Firebase:", error);
+            return false;
+          })
+      );
+    }
+
+    const results = await Promise.all(deliveries);
+    if (!results.some(Boolean)) {
+      failManagerCommand(commandId, "The command could not be sent over Bluetooth or Firebase.");
+    }
+  };
 
   // Firebase Realtime Database Real-Time Telemetry Subscription
   useEffect(() => {
@@ -828,62 +1002,28 @@ function HomeInner() {
         setIsDischargeCommandedOn(!!data.commands.discharge);
       }
 
-      // Sync load states if outside user manual click debounce window (5 seconds)
-      if (Date.now() - lastManualToggleTimeRef.current > 5000) {
-        if (data.telemetry && data.telemetry.relays) {
-          const r = data.telemetry.relays;
-          const isL1 = r.ch1 !== undefined ? (typeof r.ch1 === "string" ? r.ch1 === "true" : !!r.ch1) : true;
-          const isL2 = r.ch2 !== undefined ? (typeof r.ch2 === "string" ? r.ch2 === "true" : !!r.ch2) : true;
-          const isL3 = r.ch3 !== undefined ? (typeof r.ch3 === "string" ? r.ch3 === "true" : !!r.ch3) : false;
-
-          const fetchedLoads: ManagedLoad[] = [
-            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: isL1 ? "active" : "shed", isOn: isL1, icons: ["router", "wifi", "laptop"] },
-            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: isL2 ? "active" : "shed", isOn: isL2, icons: ["fan", "fridge"] },
-            { id: "3", name: "TV/Lights", level: "non-essential", status: isL3 ? "active" : "shed", isOn: isL3, icons: ["tv", "bulb"] },
-          ];
-          setManagerLoads(fetchedLoads);
-
-          if (r.mode) {
-            const m = r.mode.toString().toLowerCase();
-            setManagerMode(m === "manual" ? "manual" : "auto");
-          }
-        } else if (data.loadManager) {
-          const lm = data.loadManager;
-          const isL1 = lm.channel1 !== undefined ? !!lm.channel1 : true;
-          const isL2 = lm.channel2 !== undefined ? !!lm.channel2 : true;
-          const isL3 = lm.channel3 !== undefined ? !!lm.channel3 : false;
-
-          const fetchedLoads: ManagedLoad[] = [
-            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: isL1 ? "active" : "shed", isOn: isL1, icons: ["router", "wifi", "laptop"] },
-            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: isL2 ? "active" : "shed", isOn: isL2, icons: ["fan", "fridge"] },
-            { id: "3", name: "TV/Lights", level: "non-essential", status: isL3 ? "active" : "shed", isOn: isL3, icons: ["tv", "bulb"] },
-          ];
-          setManagerLoads(fetchedLoads);
-
-          if (lm.mode) {
-            const m = lm.mode.toString().toLowerCase();
-            setManagerMode(m === "manual" ? "manual" : "auto");
-          }
-        } else if (data.battery && data.battery.loadStatus) {
-          const ls = data.battery.loadStatus;
-          const fetchedLoads: ManagedLoad[] = [
-            { id: "1", name: "Router/WiFi/Laptops", level: "critical", status: ls.load1 ? "active" : "shed", isOn: !!ls.load1, icons: ["router", "wifi", "laptop"] },
-            { id: "2", name: "Fans/AC/Refrigerator", level: "major", status: ls.load2 ? "active" : "shed", isOn: !!ls.load2, icons: ["fan", "fridge"] },
-            { id: "3", name: "TV/Lights", level: "non-essential", status: ls.load3 ? "active" : "shed", isOn: !!ls.load3, icons: ["tv", "bulb"] },
-          ];
-          setManagerLoads(fetchedLoads);
-
-          if (ls.mode === "MANUAL") {
-            setManagerMode("manual");
-          } else if (ls.mode === "AUTO") {
-            setManagerMode("auto");
-          }
-        }
+      if (data.telemetry?.relays) {
+        const relays = data.telemetry.relays;
+        applyManagerTelemetry(relays.mode, {
+          ch1: relays.ch1,
+          ch2: relays.ch2,
+          ch3: relays.ch3,
+        }, relays.commandId);
+      } else if (data.battery?.loadStatus) {
+        const ls = data.battery.loadStatus;
+        applyManagerTelemetry(ls.mode, {
+          ch1: ls.load1,
+          ch2: ls.load2,
+          ch3: ls.load3,
+        }, ls.commandId);
       }
     });
 
     return () => {
       clearTimeout(fallbackTimeout);
+      if (managerCommandTimeoutRef.current) {
+        clearTimeout(managerCommandTimeoutRef.current);
+      }
       unsubscribe();
     };
   }, []);
@@ -891,6 +1031,11 @@ function HomeInner() {
   // Fetch telemetry history from Supabase on mount
   useEffect(() => {
     async function fetchTelemetryHistory() {
+      if (!supabase) {
+        console.error("[Sentry] Cannot load telemetry history: Supabase is not configured.");
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from("telemetry_history")
@@ -949,11 +1094,16 @@ function HomeInner() {
   }, [voltage, current, power, temperatures, cellVoltages, lastFirebaseUpdate]);
 
 
-  // Write handlers - structured and commented out per user request for future implementation
   const handleLoadsChange = (updatedLoads: ManagedLoad[]) => {
-    // Find what changed to append to Activity Feed
+    const previousLoads = managerStateRef.current.loads;
+    const channels: [boolean, boolean, boolean] = [
+      updatedLoads.find(load => load.id === "1")?.isOn ?? true,
+      updatedLoads.find(load => load.id === "2")?.isOn ?? true,
+      updatedLoads.find(load => load.id === "3")?.isOn ?? true,
+    ];
+
     updatedLoads.forEach(load => {
-      const prev = managerLoads.find(l => l.id === load.id);
+      const prev = previousLoads.find(l => l.id === load.id);
       if (prev && prev.isOn !== load.isOn) {
         const categoryName = load.level === "critical" ? "Critical" : load.level === "major" ? "Major" : "Non-essential";
         const newEvent: ActivityEvent = {
@@ -971,39 +1121,25 @@ function HomeInner() {
       }
     });
 
+    managerStateRef.current = { mode: "manual", loads: updatedLoads };
+    setManagerMode("manual");
     setManagerLoads(updatedLoads);
-    lastManualToggleTimeRef.current = Date.now(); // Pause telemetry sync to avoid jitter
 
     if (typeof window !== "undefined") {
+      localStorage.setItem("sentry_manual_mode", "manual");
       localStorage.setItem("sentry_manual_loads", JSON.stringify(updatedLoads));
-    }    // 1. Direct Offline Web Bluetooth Command (0ms local latency)
-    if (sentryBle.getState().isConnected) {
-      sentryBle.sendCommand({
-        mode: "MANUAL",
-        ch1: updatedLoads.find(l => l.id === "1")?.isOn ?? true,
-        ch2: updatedLoads.find(l => l.id === "2")?.isOn ?? true,
-        ch3: updatedLoads.find(l => l.id === "3")?.isOn ?? true,
-      });
     }
-
-    // 2. Cloud Firebase Command (Remote sync)
-    if (db) {
-      const loadUpdates = {
-        "mode": "MANUAL",
-        "load1": updatedLoads.find(l => l.id === "1")?.isOn ? 1 : 0,
-        "load2": updatedLoads.find(l => l.id === "2")?.isOn ? 1 : 0,
-        "load3": updatedLoads.find(l => l.id === "3")?.isOn ? 1 : 0,
-        "channel1": updatedLoads.find(l => l.id === "1")?.isOn ?? true,
-        "channel2": updatedLoads.find(l => l.id === "2")?.isOn ?? true,
-        "channel3": updatedLoads.find(l => l.id === "3")?.isOn ?? true,
-      };
-      update(ref(db, "/loadManager"), loadUpdates)
-        .catch(err => console.error("Error writing load state to Firebase:", err));
-    }
+    void sendManagerCommand("manual", channels);
   };
 
   const handleModeChange = (newMode: "auto" | "manual") => {
-    if (newMode !== managerMode) {
+    const channels: [boolean, boolean, boolean] = [
+      managerStateRef.current.loads.find(load => load.id === "1")?.isOn ?? true,
+      managerStateRef.current.loads.find(load => load.id === "2")?.isOn ?? true,
+      managerStateRef.current.loads.find(load => load.id === "3")?.isOn ?? true,
+    ];
+
+    if (newMode !== managerStateRef.current.mode) {
       const newEvent: ActivityEvent = {
         id: `evt_mode_${Date.now()}`,
         type: "load_shed",
@@ -1017,28 +1153,12 @@ function HomeInner() {
       setNotifications(prevNotifs => [newEvent, ...prevNotifs]);
     }
 
+    managerStateRef.current = { ...managerStateRef.current, mode: newMode };
     setManagerMode(newMode);
-    lastManualToggleTimeRef.current = Date.now(); // Pause telemetry sync to avoid jitter
     if (typeof window !== "undefined") {
       localStorage.setItem("sentry_manual_mode", newMode);
     }
-
-    // 1. Direct Offline Web Bluetooth Command
-    if (sentryBle.getState().isConnected) {
-      sentryBle.sendCommand({
-        mode: newMode === "auto" ? "AUTO" : "MANUAL",
-        ch1: managerLoads.find(l => l.id === "1")?.isOn ?? true,
-        ch2: managerLoads.find(l => l.id === "2")?.isOn ?? true,
-        ch3: managerLoads.find(l => l.id === "3")?.isOn ?? true,
-      });
-    }
-
-    // 2. Cloud Firebase Command
-    if (db) {
-      const firebaseMode = newMode === "auto" ? "AUTO" : "MANUAL";
-      update(ref(db, "/loadManager"), { mode: firebaseMode })
-        .catch(err => console.error("Error writing mode state to Firebase:", err));
-    }
+    void sendManagerCommand(newMode, channels);
   };
 
   const handleDischargeToggle = (enable: boolean) => {
@@ -1276,6 +1396,8 @@ function HomeInner() {
                   theme={theme}
                   loads={managerLoads}
                   mode={managerMode}
+                  syncStatus={managerSyncStatus}
+                  syncMessage={managerSyncMessage}
                   onLoadsChange={handleLoadsChange}
                   onModeChange={handleModeChange}
                 />
